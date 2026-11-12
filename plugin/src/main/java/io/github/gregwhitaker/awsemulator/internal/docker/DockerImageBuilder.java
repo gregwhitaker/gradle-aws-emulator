@@ -31,7 +31,7 @@ public final class DockerImageBuilder {
             }
             String dockerfile = dockerfile(settings.version(), platform);
             String hash = EmulatorSettings.hash(dockerfile);
-            String tag = "gradle-aws-emulator:" + settings.version() + "-" + platform.substring(6) + "-" + hash;
+            String tag = reference(platform);
             if (!docker.imageExists(tag)) {
                 Path context = workspace.imageDirectory(hash);
                 try {
@@ -46,6 +46,12 @@ public final class DockerImageBuilder {
             return new Image(tag, platform);
         });
         return prepared;
+    }
+
+    /** Computes the image reference without pulling or building it. */
+    public String reference(String platform) {
+        return settings.image().isBlank() ? "gradle-aws-emulator:" + settings.version() + "-" + platform.substring(6)
+            + "-" + EmulatorSettings.hash(dockerfile(settings.version(), platform)) : settings.image();
     }
 
     public static String dockerfile(String version, String platform) {

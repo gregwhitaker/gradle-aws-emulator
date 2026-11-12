@@ -31,6 +31,9 @@ public final class EmulatorModule {
         register(project, RESTART_TASK_NAME, RestartAwsEmulatorTask.class, "Restarts the development emulator with empty state.");
         register(project, STATUS_TASK_NAME, StatusAwsEmulatorTask.class, "Reports the development emulator's status and endpoint.");
         register(project, LOGS_TASK_NAME, LogsAwsEmulatorTask.class, "Displays recent development emulator logs.");
+        register(project, "doctorAwsEmulator", DoctorAwsEmulatorTask.class, "Diagnoses Docker, images, ports, and project-owned emulator connections.");
+        register(project, "cleanupAwsEmulator", CleanupAwsEmulatorTask.class, "Archives logs and removes stale project-owned managed containers.");
+        register(project, "exportAwsEmulatorConnection", ExportAwsEmulatorConnectionTask.class, "Exports development connection settings for POSIX shells and PowerShell.");
         ScenarioModule.load(project, extension);
     }
 

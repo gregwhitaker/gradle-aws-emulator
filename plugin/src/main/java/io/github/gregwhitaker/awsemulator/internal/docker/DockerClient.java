@@ -7,6 +7,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.io.IOException;
 
 /** Docker CLI adapter. All commands use argument lists and bounded execution. */
 public final class DockerClient {
@@ -14,6 +15,7 @@ public final class DockerClient {
     public static final String CONFIG_LABEL = "io.github.gregwhitaker.aws-emulator.config";
     public static final String PORT_LABEL = "io.github.gregwhitaker.aws-emulator.port";
     public static final String HOME_LABEL = "io.github.gregwhitaker.aws-emulator.home";
+    public static final String MODE_LABEL = "io.github.gregwhitaker.aws-emulator.mode";
     private final EmulatorSettings settings;
     private final CommandRunner commands;
 
@@ -30,6 +32,11 @@ public final class DockerClient {
             case "x86_64", "amd64" -> "linux/amd64";
             default -> throw new GradleException("Unsupported Docker architecture: " + architecture);
         };
+    }
+
+    public String daemonInfo() {
+        return run("info", "--format", "{{.ServerVersion}} {{.OSType}} {{.Architecture}}")
+            .requireSuccess("Checking Docker daemon (start Docker and use Linux containers)");
     }
 
     public boolean imageExists(String image) {
@@ -50,10 +57,12 @@ public final class DockerClient {
     }
 
     public Container create(String name, int port, Path home, DockerImageBuilder.Image image) {
+        String mode = name.equals(settings.developmentName()) ? "development" : "managed";
         List<String> args = new ArrayList<>(List.of("container", "create", "--name", name,
             "--platform", image.platform(), "--label", OWNER_LABEL + "=" + settings.owner(),
             "--label", CONFIG_LABEL + "=" + settings.fingerprint(), "--label", PORT_LABEL + "=" + port,
-            "--label", HOME_LABEL + "=" + home, "--publish", "127.0.0.1:" + port + ":" + port,
+            "--label", HOME_LABEL + "=" + home, "--label", MODE_LABEL + "=" + mode,
+            "--publish", "127.0.0.1:" + port + ":" + port,
             "--memory", settings.memoryLimit(), "--memory-swap", settings.memoryLimit(),
             "--mount", "type=bind,source=" + home + ",target=/home/emulator", "--env", "HOME=/home/emulator"));
         if (System.getProperty("os.name").equalsIgnoreCase("Linux")) {
@@ -64,7 +73,7 @@ public final class DockerClient {
         args.addAll(List.of(image.reference(), "--port", Integer.toString(port), "--auth", "on",
             "--telemetry", settings.telemetry() ? "on" : "off"));
         String id = run(args, settings.commandTimeout()).requireSuccess("Creating AWS Emulator container");
-        return new Container(id, settings.owner(), settings.fingerprint(), port, home, "created");
+        return new Container(id, settings.owner(), settings.fingerprint(), port, home, "created", mode);
     }
 
     public void start(Container container) {
@@ -81,15 +90,30 @@ public final class DockerClient {
         String format = "{{.Id}}\n{{index .Config.Labels \"" + OWNER_LABEL + "\"}}\n"
             + "{{index .Config.Labels \"" + CONFIG_LABEL + "\"}}\n"
             + "{{index .Config.Labels \"" + PORT_LABEL + "\"}}\n"
-            + "{{index .Config.Labels \"" + HOME_LABEL + "\"}}\n{{.State.Status}}";
+            + "{{index .Config.Labels \"" + HOME_LABEL + "\"}}\n{{.State.Status}}\n"
+            + "{{index .Config.Labels \"" + MODE_LABEL + "\"}}";
         String[] values = run("container", "inspect", "--format", format, id)
             .requireSuccess("Inspecting AWS Emulator container").split("\n", -1);
-        if (values.length != 6) throw new GradleException("Unexpected Docker inspection response for " + nameOrId);
+        if (values.length != 7) throw new GradleException("Unexpected Docker inspection response for " + nameOrId);
         int port;
         try { port = Integer.parseInt(values[3].trim()); }
         catch (NumberFormatException e) { port = -1; }
         Path home = values[4].isBlank() || values[4].equals("<no value>") ? null : Path.of(values[4]);
-        return new Container(values[0].trim(), values[1].trim(), values[2].trim(), port, home, values[5].trim());
+        return new Container(values[0].trim(), values[1].trim(), values[2].trim(), port, home, values[5].trim(), values[6].trim());
+    }
+
+    public List<Container> ownedContainers() {
+        String ids = run("container", "ls", "--all", "--filter", "label=" + OWNER_LABEL + "=" + settings.owner(),
+            "--format", "{{.ID}}").requireSuccess("Listing project-owned AWS Emulator containers");
+        List<Container> containers = new ArrayList<>();
+        for (String id : ids.lines().filter(line -> !line.isBlank()).toList()) {
+            Container container = find(id);
+            if (container != null) {
+                requireOwner(container);
+                containers.add(container);
+            }
+        }
+        return containers;
     }
 
     public void requireOwner(Container container) {
@@ -109,6 +133,12 @@ public final class DockerClient {
         return run("container", "logs", "--tail", "100", id).requireSuccess("Reading AWS Emulator logs");
     }
 
+    public void archiveLogs(Container container, Path file) throws IOException {
+        requireOwner(container);
+        commands.runToFile(List.of(settings.dockerExecutable(), "container", "logs", "--timestamps", container.id()),
+            Duration.ofSeconds(settings.commandTimeout()), file).requireSuccess("Archiving AWS Emulator logs");
+    }
+
     private CommandRunner.Result run(String... args) { return run(Arrays.asList(args), settings.commandTimeout()); }
 
     private CommandRunner.Result run(List<String> args, int timeout) {
@@ -118,7 +148,11 @@ public final class DockerClient {
         return commands.run(command, Duration.ofSeconds(timeout));
     }
 
-    public record Container(String id, String owner, String config, int port, Path home, String state) {
+    public record Container(String id, String owner, String config, int port, Path home, String state, String mode) {
         public boolean running() { return state.equals("running"); }
+        public boolean managed() {
+            return mode.equals("managed") || ((mode.isBlank() || mode.equals("<no value>"))
+                && home != null && home.getFileName().toString().startsWith("managed-"));
+        }
     }
 }

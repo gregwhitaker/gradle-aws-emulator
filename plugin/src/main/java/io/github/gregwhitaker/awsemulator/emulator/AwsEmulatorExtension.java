@@ -12,6 +12,7 @@ import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.provider.Property;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.JavaExec;
+import org.gradle.api.tasks.Exec;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.api.tasks.testing.Test;
 import javax.inject.Inject;
@@ -82,7 +83,7 @@ public abstract class AwsEmulatorExtension {
      * Uses an explicitly selected project's runtime and optional named resource sets in this build.
      * The owner must apply the core plugin and own its runtime directly. Its runtime settings,
      * working directory, and lifecycle are authoritative for this project's emulator tasks and
-     * opted-in JVM consumers. This method does not opt ordinary tasks into the emulator.
+     * opted-in consumers. This method does not opt ordinary tasks into the emulator.
      *
      * <p>Selected resource sets are resolved in the owner's project and attached automatically to
      * every {@code useWith} consumer, including the Spring Boot companion's local run tasks.
@@ -92,6 +93,8 @@ public abstract class AwsEmulatorExtension {
      * <p>The owner is evaluated when selected. Configure its plugin and resources in its own build
      * script. Repeated calls may add resource sets for the same owner; changing owners, selecting
      * oneself, and chaining shared owners are rejected. Consumer runtime settings are ignored.
+     * Declare the core plugin with {@code apply false} in the root plugins block when participating
+     * projects have different plugin classpaths, for example when mixing core and Spring Boot plugins.
      *
      * @param ownerProject absolute Gradle project path, for example {@code :local-aws}
      * @param resourceSets names of resource sets declared in the owner; omit to share only the runtime
@@ -116,6 +119,11 @@ public abstract class AwsEmulatorExtension {
         requireDirectOwner(owner.getExtensions().findByType(AwsEmulatorExtension.class), ownerProject);
         project.evaluationDependsOn(ownerProject);
         AwsEmulatorExtension selected = owner.getExtensions().findByType(AwsEmulatorExtension.class);
+        if (selected == null && owner.getPluginManager().hasPlugin("io.github.gregwhitaker.aws-emulator")) {
+            throw new GradleException("AWS Emulator runtime owner " + ownerProject + " loads a different copy of the core plugin. "
+                + "Declare id(\"io.github.gregwhitaker.aws-emulator\") apply false in the root project's plugins block "
+                + "so all sharing projects use the same core plugin version and classpath.");
+        }
         if (selected == null) throw new GradleException("AWS Emulator runtime owner " + ownerProject
             + " must apply 'io.github.gregwhitaker.aws-emulator'.");
         requireDirectOwner(selected, ownerProject);
@@ -150,7 +158,7 @@ public abstract class AwsEmulatorExtension {
         return dependencies;
     }
 
-    /** Starts a build-owned emulator for this Test or JavaExec task, and configures its forked JVM. */
+    /** Starts a build-owned emulator for a Test, JavaExec, or Exec task and configures its child process. */
     public void useWith(TaskProvider<? extends Task> taskProvider) {
         useWith(taskProvider, EmulatorMode.MANAGED);
     }
@@ -173,8 +181,8 @@ public abstract class AwsEmulatorExtension {
         Provider<AwsEmulatorService> runtime = service;
         ObjectFactory objects = getObjects();
         taskProvider.configure(task -> {
-            if (!(task instanceof Test) && !(task instanceof JavaExec)) {
-                throw new GradleException("awsEmulator.useWith requires a Test or JavaExec task: " + task.getPath());
+            if (!(task instanceof Test) && !(task instanceof JavaExec) && !(task instanceof Exec)) {
+                throw new GradleException("awsEmulator.useWith requires a Test, JavaExec, or Exec task: " + task.getPath());
             }
             if (task.getExtensions().getExtraProperties().has(MODE_EXTENSION)) {
                 @SuppressWarnings("unchecked")

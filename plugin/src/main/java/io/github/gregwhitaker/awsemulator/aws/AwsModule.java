@@ -10,6 +10,7 @@ import io.github.gregwhitaker.awsemulator.aws.eventbridge.EventBridgeModule;
 import io.github.gregwhitaker.awsemulator.aws.kinesis.KinesisModule;
 import io.github.gregwhitaker.awsemulator.aws.kms.KmsModule;
 import io.github.gregwhitaker.awsemulator.aws.cloudwatchlogs.CloudWatchLogsModule;
+import io.github.gregwhitaker.awsemulator.aws.cognito.CognitoModule;
 import org.gradle.api.Project;
 
 /** Loads the AWS service modules and their task configuration. */
@@ -17,6 +18,7 @@ public final class AwsModule {
     private AwsModule() {}
 
     public static void load(Project project) {
+        CognitoModule.load(project);
         SsmModule.load(project);
         SecretsManagerModule.load(project);
         EventBridgeModule.load(project);

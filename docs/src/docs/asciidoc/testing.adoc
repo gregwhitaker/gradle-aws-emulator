@@ -1,14 +1,14 @@
-= Tests & Java execution
+= Tests & process execution
 include::_partials/attributes.adoc[]
-:description: Connect Gradle Test and JavaExec tasks to a managed AWS Emulator instance.
+:description: Connect Gradle Test, JavaExec, and Exec tasks to a managed or development AWS Emulator instance.
 
-Opt existing JVM tasks into the emulator with `awsEmulator.useWith(taskProvider)`. One fresh managed instance is shared by the participating tasks in each project.
+Opt existing JVM tasks into the emulator with `awsEmulator.useWith(taskProvider)`. One fresh managed instance is shared by the participating tasks in each project by default. Use xref:shared-runtimes.adoc[`useSharedRuntime`] to explicitly share an owner and resource setup across projects.
 
 toc::[]
 
 == Opt in tests
 
-The method supports Gradle `Test` and `JavaExec` tasks, including subclasses. Applying the plugin alone does not modify your tests.
+The method supports Gradle `Test`, `JavaExec`, and `Exec` tasks, including subclasses. Applying the plugin alone does not modify your tests.
 
 .Use the existing test task
 [source,kotlin]
@@ -55,6 +55,29 @@ awsEmulator.useWith(tasks.named<JavaExec>("run"), EmulatorMode.DEVELOPMENT, crea
 
 Import `io.github.gregwhitaker.awsemulator.model.EmulatorMode`. Setup arguments accept Gradle dependency notation, including task providers and names. The mode may also be a `Provider<EmulatorMode>`. Configure resource tasks with the same mode as their consumer. Development instances require explicit `stopAwsEmulator`; one-argument `useWith` calls retain their managed behavior.
 
+== Run Python, Node, or AWS CLI commands
+
+[source,kotlin]
+----
+val pythonTests = tasks.register<Exec>("pythonTests") {
+    commandLine("python3", "-m", "pytest")
+}
+val cliIdentity = tasks.register<Exec>("cliIdentity") {
+    commandLine("aws", "sts", "get-caller-identity", "--no-cli-pager")
+}
+awsEmulator {
+    port.set(0)
+    useWith(pythonTests)
+    useWith(cliIdentity, EmulatorMode.DEVELOPMENT)
+}
+----
+
+In Groovy, register with `tasks.register('pythonTests', Exec) { commandLine 'python3', '-m', 'pytest' }` and pass the provider to `awsEmulator.useWith(pythonTests)`.
+
+`Exec` receives the current connection environment immediately before launching: local endpoint, region, generated credential/config files, `AWS_CA_BUNDLE`, and `NODE_EXTRA_CA_CERTS`. Inherited AWS credentials, profiles, container-credential providers, and per-service endpoint overrides are removed. Setup tasks, resource sets, provider-selected modes, and shared runtime owners work as for JVM consumers. Nonzero process exits trigger ordinary managed cleanup unless the task explicitly ignores its exit value. Skipped tasks do not start an emulator themselves.
+
+The plugin does not install external commands or SDKs. Use compatible SDKs with their normal environment providers; explicit client configuration can override the supplied values. `Exec` supplies environment values only; JVM system properties and combined JVM trust stores require `Test` or `JavaExec`. See xref:connections.adoc#shell-exports[connection exports] for commands and IDE applications outside Gradle. The repository's `examples/processes` build includes runnable Python/Node HTTPS probes and a signed AWS CLI STS call.
+
 == Provision before consumers run
 
 Make the consumer depend on the required resource tasks. Their default `MANAGED` mode uses the same instance as `useWith` in that project.
@@ -80,9 +103,9 @@ See xref:resources.adoc[S3 and SQS resources] for queue attributes, FIFO queues,
 == Execution and cleanup
 
 * The service starts the managed emulator on demand and waits for HTTPS readiness.
-* The plugin supplies the forked JVM's endpoint, region, credential paths, and TLS trust at execution time.
-* Participating tasks in one project share an instance. Different projects receive separate instances.
-* The service removes its managed container and files after consumers finish, including ordinary task or test failures.
+* The plugin supplies the child process's endpoint, region, credential paths, and TLS trust at execution time.
+* Participating tasks in one project share an instance. Different projects receive separate instances unless they explicitly select the same runtime owner.
+* The service archives container logs under `.aws-emulator/logs/`, then removes its managed container and connection files after consumers finish, including ordinary task or test failures.
 * A skipped or `NO-SOURCE` consumer does not start an emulator itself. Its explicit provisioning dependencies can still execute.
 
 Opted-in tasks with work always execute. Up-to-date skipping and build-cache reuse are disabled because each managed run starts with fresh external state. Configuration-cache reuse is supported: connection files are generated for the current execution instead of being stored in the configuration cache.

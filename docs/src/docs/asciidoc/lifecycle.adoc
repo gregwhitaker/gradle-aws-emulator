@@ -2,7 +2,7 @@
 include::_partials/attributes.adoc[]
 :description: Prepare, start, stop, restart, inspect, and read logs from a persistent AWS Emulator instance.
 
-Lifecycle tasks operate on a persistent development instance owned by the current project. It stays running after Gradle exits, ready for interactive development.
+Lifecycle tasks operate on a persistent development instance owned by the current project, or the owner selected with xref:shared-runtimes.adoc[`useSharedRuntime`]. It stays running after Gradle exits, ready for interactive development. When sharing, stop and restart affect every application using that development instance; prefer fully qualified commands on the owner.
 
 toc::[]
 
@@ -17,6 +17,9 @@ toc::[]
 |`restartAwsEmulator` |Stop and start the development instance with the current settings and empty resource state.
 |`statusAwsEmulator` |Report the development container's state, health, and endpoint.
 |`logsAwsEmulator` |Print the last 100 lines of development-container logs.
+|`doctorAwsEmulator` |Inspect Docker, image availability, ports, all project-owned containers, connection files, and HTTPS health. Does not build, pull, or start an instance. Reports failures with corrective hints.
+|`cleanupAwsEmulator` |Archive logs and remove stale managed containers for the runtime owner. `--report-only` previews eligibility; active managed builds and development instances are skipped.
+|`exportAwsEmulatorConnection` |Start or reuse development and write sourceable `connection.sh` and `connection.ps1` in its home. See xref:connections.adoc#shell-exports[shell and IDE exports].
 |===
 
 == Start a development session
@@ -71,11 +74,17 @@ Use `MANAGED` resource tasks for xref:testing.adoc[tests opted in with `useWith`
 
 == Recover from an interrupted build
 
-Graceful cleanup needs the Gradle process and Docker daemon to remain available. A hard kill or daemon failure can leave a container behind. Find plugin-owned containers with:
+Managed teardown saves complete available timestamped container logs in the runtime owner's `workingDirectory/logs/` (by default `.aws-emulator/logs/`) before removing the container and connection files. Each archive has a unique name containing the container ID; the build prints its path. Startup failures also save logs if a container was created. Archives are streamed to disk without the normal command-output buffer limit. Log retrieval or disk errors produce a warning and cleanup continues. Logs remain until explicitly deleted and may contain application output; credential files are never copied into the archive.
+
+Graceful cleanup needs the Gradle process and Docker daemon to remain available. A hard kill or daemon failure can leave a container behind. Inspect and clean up this runtime owner's stale managed containers with:
 
 [source,shell]
 ----
-docker ps -a --filter label=io.github.gregwhitaker.aws-emulator.owner
+./gradlew doctorAwsEmulator
+./gradlew cleanupAwsEmulator --report-only
+./gradlew cleanupAwsEmulator
 ----
 
-Identify the specific stale container before removing it. The plugin does not prune other containers, images, or AWS configuration. See xref:troubleshooting.adoc[troubleshooting] for startup and connection failures.
+Cleanup checks project ownership labels and the runtime-home owner marker, then acquires the managed instance's lifetime lock. A lock held by another build prevents removal, even if its container has exited. Released locks allow cleanup of abandoned running containers after a hard kill. Development instances are always skipped; stop them with `stopAwsEmulator`. A legacy running container without a lifetime lock is skipped because its activity is unknown; identify and stop it individually before retrying. Stopped legacy managed containers with valid ownership can be removed. Lock files under `workingDirectory/locks/` are bookkeeping and remain after cleanup.
+
+The plugin does not prune other projects' containers, images, or AWS configuration. When sharing a runtime, invoke the owner's qualified task (for example `:local-aws:cleanupAwsEmulator`). See xref:troubleshooting.adoc[troubleshooting] for startup and connection failures.

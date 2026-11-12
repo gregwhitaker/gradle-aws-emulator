@@ -13,6 +13,8 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.nio.file.Path;
+import java.nio.file.Files;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Duration;
 import java.util.UUID;
 
@@ -25,6 +27,7 @@ public final class EmulatorRuntime implements AutoCloseable {
     private final EmulatorWorkspace workspace;
     private final HealthProbe health;
     private Instance managed;
+    private EmulatorWorkspace.Lease managedLease;
 
     public EmulatorRuntime(EmulatorSettings settings) {
         this(settings, new ProcessCommandRunner(), new HttpsHealthProbe());
@@ -83,10 +86,116 @@ public final class EmulatorRuntime implements AutoCloseable {
         });
     }
 
+    public synchronized String exportDevelopmentConnection() {
+        return workspace.withLock("development.lock", () -> {
+            Instance instance = startDevelopment();
+            Path home = instance.container().home();
+            try { ConnectionExports.write(instance.connection(), home); }
+            catch (IOException e) { throw new GradleException("Cannot export AWS Emulator connection at " + home, e); }
+            return "AWS Emulator development connection: " + instance.connection().endpoint()
+                + "\nPOSIX shell: " + home.resolve("connection.sh")
+                + "\nPowerShell: " + home.resolve("connection.ps1");
+        });
+    }
+
+    /** Read-only diagnostics: never prepare an image or start a container. */
+    public synchronized String doctor() {
+        StringBuilder report = new StringBuilder("AWS Emulator doctor\nProject owner: ").append(settings.owner())
+            .append("\nWorking directory: ").append(settings.workingDirectory())
+            .append("\nArchived logs: ").append(workspace.logsDirectory())
+            .append("\nDocker executable: ").append(settings.dockerExecutable());
+        try {
+            String info = docker.daemonInfo();
+            report.append("\nDocker daemon: ").append(info);
+            if (!info.contains("linux")) report.append("\nACTION: Select a Docker engine running Linux containers.");
+            String platform = docker.platform();
+            String image = images.reference(platform);
+            report.append("\nPlatform: ").append(platform).append("\nImage: ").append(image)
+                .append(docker.imageExists(image) ? " (available)" : " (missing; run prepareAwsEmulator)");
+            var containers = docker.ownedContainers();
+            report.append("\nProject-owned containers: ").append(containers.size());
+            for (Container container : containers) {
+                report.append("\n  ").append(container.id()).append(container.managed() ? " managed" : " development")
+                    .append(" ").append(container.state()).append(" ").append(instance(container).connection().endpoint());
+                if (!settings.fingerprint().equals(container.config())) {
+                    report.append(" (settings differ; development instances require restartAwsEmulator)");
+                }
+                EmulatorConnection connection = instance(container).connection();
+                report.append("\n    Connection files: ").append(container.home())
+                    .append(connection.filesExist() ? " (present)" : " (missing credentials or TLS files)");
+                if (container.running() && connection.filesExist()) {
+                    try { report.append("\n    HTTPS health: ").append(health.ready(container.port(), connection.trustStore()) ? "healthy" : "not ready"); }
+                    catch (Exception e) { report.append("\n    HTTPS health: ").append(e.getMessage()); }
+                }
+            }
+            if (settings.port() == 0) report.append("\nPort: automatic selection at startup");
+            else {
+                try (ServerSocket socket = new ServerSocket(settings.port(), 0, InetAddress.getByName("127.0.0.1"))) {
+                    report.append("\nConfigured port: ").append(settings.port()).append(" (available)");
+                } catch (IOException e) {
+                    report.append("\nConfigured port: ").append(settings.port()).append(" (in use; stop the development instance or select port 0)");
+                }
+            }
+        } catch (Exception e) {
+            report.append("\nERROR: ").append(e.getMessage());
+        }
+        return report.append("\nUse cleanupAwsEmulator --report-only to inspect stale managed containers; stopAwsEmulator ends development sessions.").toString();
+    }
+
+    /** Removes only stale, project-owned managed instances, protecting active builds with their leases. */
+    public synchronized String cleanupStale(boolean reportOnly) {
+        StringBuilder report = new StringBuilder(reportOnly ? "Stale AWS Emulator containers (report only):" : "AWS Emulator cleanup:");
+        for (Container container : docker.ownedContainers()) {
+            if (!container.managed()) {
+                report.append("\nSkipped development instance ").append(container.id()).append("; use stopAwsEmulator.");
+                continue;
+            }
+            try {
+                // A legacy running container has no lifetime lease: its active/stale status is unknown.
+                boolean hasLease = Files.exists(workspace.managedLock(container.home()));
+                if (!hasLease && !container.state().equals("exited") && !container.state().equals("dead")) {
+                    report.append("\nSkipped ").append(container.id()).append("; no managed lease, activity cannot be established.");
+                    continue;
+                }
+                try (var lease = workspace.tryManagedLease(container.home(), !hasLease)) {
+                    if (lease == null) {
+                        report.append("\nSkipped active managed instance ").append(container.id());
+                        continue;
+                    }
+                    Container current = docker.find(container.id());
+                    if (current == null) continue;
+                    docker.requireOwner(current);
+                    if (!current.home().equals(container.home()) || !current.managed()) {
+                        throw new GradleException("Container ownership changed during cleanup: " + container.id());
+                    }
+                    workspace.requireOwner(current.home());
+                    if (reportOnly) report.append("\nWould remove stale managed instance ").append(current.id());
+                    else {
+                        archiveLogs(current);
+                        docker.remove(current);
+                        workspace.deleteHome(current.home());
+                        report.append("\nRemoved stale managed instance ").append(current.id());
+                    }
+                }
+            } catch (Exception e) {
+                throw new GradleException(report + "\nCould not clean up " + container.id() + ": " + e.getMessage(), e);
+            }
+        }
+        return report.append("\nCleanup scan complete.").toString();
+    }
+
     public synchronized EmulatorConnection managedConnection() {
         if (managed == null) {
             String suffix = UUID.randomUUID().toString();
-            managed = start(settings.developmentName() + "-" + suffix, workspace.managedHome(suffix));
+            Path home = workspace.managedHome(suffix);
+            managedLease = workspace.tryManagedLease(home, true);
+            if (managedLease == null) throw new GradleException("Cannot acquire a new AWS Emulator managed lease.");
+            try { managed = start(settings.developmentName() + "-" + suffix, home); }
+            catch (RuntimeException e) {
+                managedLease.close();
+                managedLease = null;
+                throw e;
+            }
         } else {
             Container current = docker.find(managed.container().id());
             if (current == null || !current.running()) {
@@ -142,6 +251,9 @@ public final class EmulatorRuntime implements AutoCloseable {
                         && settings.fingerprint().equals(created.config())) {
                     try { diagnostics = docker.logs(created.id()); }
                     catch (Exception logFailure) { failure.addSuppressed(logFailure); }
+                    interrupted |= Thread.interrupted();
+                    archiveLogs(created);
+                    interrupted |= Thread.interrupted();
                     docker.remove(created);
                 }
                 workspace.deleteHome(home);
@@ -195,16 +307,39 @@ public final class EmulatorRuntime implements AutoCloseable {
         }
     }
 
+    private void archiveLogs(Container container) {
+        try {
+            Files.createDirectories(workspace.logsDirectory());
+            Path file = Files.createTempFile(workspace.logsDirectory(),
+                (container.managed() ? "managed-" : "development-") + container.id().replaceAll("[^a-zA-Z0-9-]", "_") + "-", ".log");
+            if (Files.getFileStore(file).supportsFileAttributeView("posix")) {
+                Files.setPosixFilePermissions(file, PosixFilePermissions.fromString("rw-------"));
+            }
+            docker.archiveLogs(container, file);
+            LOGGER.lifecycle("AWS Emulator container logs saved to {}", file);
+        } catch (Exception e) {
+            LOGGER.warn("Could not archive AWS Emulator logs for {}: {}. Continuing cleanup.", container.id(), e.getMessage());
+        }
+    }
+
     @Override
     public synchronized void close() {
         if (managed == null) return;
         boolean interrupted = Thread.interrupted();
         try {
             Container current = docker.find(managed.container().id());
-            if (current != null) docker.remove(current);
+            if (current != null) {
+                archiveLogs(current);
+                interrupted |= Thread.interrupted();
+                docker.remove(current);
+            }
             workspace.deleteHome(managed.container().home());
             managed = null;
         } finally {
+            if (managedLease != null) {
+                managedLease.close();
+                managedLease = null;
+            }
             if (interrupted) Thread.currentThread().interrupt();
         }
     }

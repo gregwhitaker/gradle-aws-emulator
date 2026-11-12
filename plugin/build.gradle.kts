@@ -79,7 +79,7 @@ dependencies {
         exclude(group = "software.amazon.awssdk", module = "netty-nio-client")
     }
     implementation("software.amazon.awssdk:url-connection-client")
-    for (service in listOf("ssm", "secretsmanager", "eventbridge", "kinesis", "kms", "cloudwatchlogs")) {
+    for (service in listOf("ssm", "secretsmanager", "eventbridge", "kinesis", "kms", "cloudwatchlogs", "cognitoidentityprovider")) {
         implementation("software.amazon.awssdk:$service") {
             exclude(group = "software.amazon.awssdk", module = "apache-client")
             exclude(group = "software.amazon.awssdk", module = "netty-nio-client")
@@ -135,6 +135,11 @@ val functionalTest = tasks.register<Test>("functionalTest") {
 }
 
 tasks.register<Test>("integrationTest") {
+    systemProperty("multiProject.example", rootProject.layout.projectDirectory.dir("examples/multi-project").asFile.absolutePath)
+    inputs.files(rootProject.fileTree("examples/multi-project") {
+        include("**/build.gradle.kts", "settings.gradle.kts", "**/src/**")
+        exclude("**/build/**", "**/.gradle/**")
+    }).withPropertyName("multiProjectExample").withPathSensitivity(PathSensitivity.RELATIVE)
     systemProperty("scenarios.example", rootProject.layout.projectDirectory.dir("examples/scenarios").asFile.absolutePath)
     inputs.files(rootProject.fileTree("examples/scenarios") {
         include("build.gradle.kts", "src/**", "fixtures/**")

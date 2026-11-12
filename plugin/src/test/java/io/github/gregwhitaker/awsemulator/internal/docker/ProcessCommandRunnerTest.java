@@ -2,12 +2,25 @@ package io.github.gregwhitaker.awsemulator.internal.docker;
 
 import org.gradle.api.GradleException;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ProcessCommandRunnerTest {
+    @TempDir Path directory;
+
+    @Test
+    void archivesCompleteOutputWithoutTheDiagnosticBufferLimit() throws Exception {
+        Path output = directory.resolve("container.log");
+        var result = new ProcessCommandRunner().runToFile(command("flood"), Duration.ofSeconds(10), output);
+        assertEquals(7, result.exitCode());
+        assertEquals("A".repeat(131072) + "complete", Files.readString(output));
+        assertThrows(GradleException.class, () -> new ProcessCommandRunner().runToFile(command("pause"), Duration.ofMillis(300), output));
+    }
+
     @Test
     void drainsLargeOutputsWithoutDeadlockingAndKeepsExitStatus() throws Exception {
         var result = new ProcessCommandRunner().run(command("flood"), Duration.ofSeconds(10));

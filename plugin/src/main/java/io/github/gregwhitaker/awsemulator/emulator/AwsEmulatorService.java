@@ -59,6 +59,9 @@ public abstract class AwsEmulatorService implements BuildService<AwsEmulatorServ
     }
     public String status() { return runtime().developmentStatus(); }
     public String logs() { return runtime().developmentLogs(); }
+    public String doctor() { return runtime().doctor(); }
+    public String cleanup(boolean reportOnly) { return runtime().cleanupStale(reportOnly); }
+    public String exportConnection() { return runtime().exportDevelopmentConnection(); }
 
     private String describe(EmulatorConnection connection) {
         return "AWS Emulator development instance ready at " + connection.endpoint()

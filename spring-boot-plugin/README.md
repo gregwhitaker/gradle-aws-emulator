@@ -166,7 +166,7 @@ tasks.named<CreateSqsQueueTask>("createApplicationQueue") {
 }
 ```
 
-Use reusable resource sets for consumers that need different modes in the same build, or register separate ordinary setup tasks. See the [Spring Boot guide](../docs/src/docs/asciidoc/spring-boot.adoc) for more setup details.
+Use reusable resource sets for consumers that need different modes in the same build, or register separate ordinary setup tasks. To share an infrastructure project's runtime and resources across applications, call `awsEmulator.useSharedRuntime(":local-aws", "application")`. Both local Boot tasks automatically depend on the owner's selected resource sets in their configured mode, including when automatic local discovery is disabled. See the [shared runtime guide](../docs/src/docs/asciidoc/shared-runtimes.adoc) and [Spring Boot guide](../docs/src/docs/asciidoc/spring-boot.adoc) for more setup details.
 
 ## Configuration
 

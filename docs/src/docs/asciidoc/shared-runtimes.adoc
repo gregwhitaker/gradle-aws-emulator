@@ -1,0 +1,114 @@
+= Share a runtime across projects
+include::_partials/attributes.adoc[]
+:description: Explicitly share one AWS Emulator runtime and resource setup between Gradle application modules.
+
+Projects get isolated runtimes by default. Call `awsEmulator.useSharedRuntime(":local-aws", "application")` to select another project in the same build as the runtime owner and use its named resource set. This lets an API and a worker communicate through the same queues or tables.
+
+toc::[]
+
+== Define the owner
+
+Include `local-aws` and the application projects in your settings file. Make the core plugin available in the root build so sharing projects use the same plugin classes, including when some apply the Spring Boot companion:
+
+.Root build.gradle.kts
+[source,kotlin]
+----
+plugins {
+    id("io.github.gregwhitaker.aws-emulator") apply false
+}
+----
+
+Use the xref:getting-started.adoc#apply-from-a-checkout[composite-build plugin management] from the checkout, or supply the same plugin version for all projects when using published artifacts. In Groovy, the root declaration is `id 'io.github.gregwhitaker.aws-emulator' apply false`. The owner then applies the core plugin and declares its runtime settings and reusable resource sets in its own build script:
+
+.local-aws/build.gradle.kts
+[source,kotlin]
+----
+import io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueueTask
+
+plugins { id("io.github.gregwhitaker.aws-emulator") }
+
+awsEmulator {
+    port.set(0)
+    val application = resourceSets.register("application") {
+        provision("ordersQueue", CreateSqsQueueTask::class.java) {
+            queueName.set("orders")
+        }
+    }
+    scenarios { register("default") { resources(application) } }
+}
+----
+
+The owner can be a dedicated infrastructure project or an existing application or root project. It need not apply Java or have consumers of its own.
+
+== Select it in each application
+
+Apply the core plugin or Spring Boot companion in each participating application, then select the owner:
+
+.Kotlin DSL
+[source,kotlin]
+----
+awsEmulator {
+    useSharedRuntime(":local-aws", "application")
+    useWith(tasks.named<Test>("test"))
+    useWith(tasks.named<JavaExec>("run"))
+}
+----
+
+.Groovy DSL
+[source,groovy]
+----
+awsEmulator {
+    useSharedRuntime(':local-aws', 'application')
+    useWith(tasks.named('test'))
+    useWith(tasks.named('run'))
+}
+----
+
+These snippets assume existing `test` and `run` tasks. `useSharedRuntime` selects the runtime but does not opt ordinary tasks into it. Use `useWith` for `Test` and `JavaExec`; the xref:spring-boot.adoc[Spring Boot companion] already attaches its `bootRunLocal` and `bootRunLocalDebug` tasks.
+
+Owner selection also applies to resource and lifecycle tasks in the consumer project. It works before or after `useWith`, including consumers already realized during configuration. Local resource sets and explicit setup dependencies can still be attached through `useWith`.
+
+== Resource setup and modes
+
+The optional names select resource sets declared in the owner. For example, `useSharedRuntime(":local-aws", "application", "fixtures")` selects two sets; `useSharedRuntime(":local-aws")` shares just the runtime. Repeated calls for the same owner add names without duplicating setup.
+
+Each selected set's provisioning and fixtures run in the owner's project, once per mode per Gradle invocation, before all attached JVM consumers. Their usual xref:scenarios.adoc#resource-sets[ordering and includes] apply. Unselected sets are not realized. Subsequent invocations rerun resource operations, including with configuration-cache reuse; fixture steps can therefore add data to a persistent instance again.
+
+* Managed consumers across the participating projects share one fresh managed instance per invocation. Cleanup waits for all participating tasks, including failure handling.
+* Development consumers share the owner's persistent instance across invocations. It stays running until explicitly stopped.
+* Managed and development modes remain separate, even when selected together. Put `port.set(0)` in the owner to let both run simultaneously.
+* Spring Boot local tasks automatically receive the shared sets in `awsEmulator.springBoot.mode`. This explicit selection is independent of `autoCreateResources`; automatic discovery still considers only local resource tasks.
+
+Sharing does not order application consumers or isolate their data. Declare task dependencies for a finite publisher/consumer workflow, or coordinate long-running applications yourself. Concurrent tests that require independent data should use distinct resource names or keep separate runtime owners.
+
+== Configuration and lifecycle ownership
+
+The selected owner's emulator version, Docker image, platform, port, region, telemetry, memory, timeouts, and working directory are authoritative. These runtime settings in consumers are ignored. Connection settings and TLS files are still resolved during execution for each consumer; the Gradle daemon's credentials and global TLS configuration are unchanged.
+
+Prefer fully qualified lifecycle commands on the owner:
+
+[source,shell]
+----
+./gradlew :local-aws:statusAwsEmulator
+./gradlew :local-aws:seedAwsEmulator
+./gradlew :local-aws:resetAwsEmulator
+./gradlew :local-aws:stopAwsEmulator
+----
+
+Lifecycle tasks in a sharing consumer also target the shared runtime. Stopping, restarting, or resetting it affects every application using that development instance. Scenario definitions remain project-local: define shared development scenarios in the owner and invoke its scenario commands.
+
+The owner path must be absolute, such as `:local-aws` or `:` for the root, and identify a project in the same build with the core plugin applied. Selecting an owner evaluates its project. Owner chains, cycles, selecting oneself, and switching to a different owner are rejected. Unknown resource names fail while resolving consumer dependencies, before Docker starts. Sharing across included builds is not supported; Gradle Isolated Projects is not supported by this cross-project configuration API.
+
+== Run the multi-project example
+
+The link:{repo-url}/tree/main/examples/multi-project[multi-project example] contains `local-aws`, `orders-api`, and `orders-worker`. Both modules have tests; separate finite application processes publish and consume an order through the shared queue.
+
+[source,shell]
+----
+./gradlew -p examples/multi-project verifySharedRuntime --parallel --configuration-cache
+./gradlew -p examples/multi-project verifySharedRuntime --parallel --configuration-cache
+./gradlew -p examples/multi-project :orders-worker:run -Pdevelopment=true
+./gradlew -p examples/multi-project :local-aws:stopAwsEmulator
+----
+
+The first two commands verify managed sharing and configuration-cache reuse. The development command leaves the shared instance running. See the example README for failure-cleanup commands.

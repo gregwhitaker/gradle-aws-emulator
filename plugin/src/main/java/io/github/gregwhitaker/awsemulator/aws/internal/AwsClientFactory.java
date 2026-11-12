@@ -26,6 +26,7 @@ import software.amazon.awssdk.services.kinesis.KinesisClient;
 import software.amazon.awssdk.services.kms.KmsClient;
 
 import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient;
+import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
 
 import java.net.URI;
 import java.time.Duration;
@@ -115,6 +116,14 @@ public final class AwsClientFactory {
 
     public CloudWatchLogsClient cloudWatchLogs() {
         return CloudWatchLogsClient.builder()
+            .endpointOverride(URI.create(connection.endpoint())).region(Region.of(connection.region()))
+            .credentialsProvider(credentials()).httpClientBuilder(http())
+            .fipsEnabled(false).dualstackEnabled(false)
+            .overrideConfiguration(overrides()).build();
+    }
+
+    public CognitoIdentityProviderClient cognitoIdentityProvider() {
+        return CognitoIdentityProviderClient.builder()
             .endpointOverride(URI.create(connection.endpoint())).region(Region.of(connection.region()))
             .credentialsProvider(credentials()).httpClientBuilder(http())
             .fipsEnabled(false).dualstackEnabled(false)

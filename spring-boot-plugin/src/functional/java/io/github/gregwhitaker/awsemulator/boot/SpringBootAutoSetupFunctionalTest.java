@@ -167,6 +167,57 @@ class SpringBootAutoSetupFunctionalTest {
         assertFalse(Files.exists(project.resolve(".aws-emulator")));
     }
 
+    @Test
+    void sharedRuntimeAutomaticallyAddsOwnerResourcesToBootAndTestConsumers() throws Exception {
+        Files.writeString(project.resolve("settings.gradle"), "include 'api', 'worker', 'localAws'\n");
+        Files.writeString(project.resolve("build.gradle"), """
+            plugins {
+                id 'org.springframework.boot' version '4.1.2' apply false
+                id 'io.github.gregwhitaker.aws-emulator.spring-boot' apply false
+            }
+            """);
+        Files.createDirectories(project.resolve("localAws"));
+        Files.writeString(project.resolve("localAws/build.gradle"), """
+            import io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueueTask
+            plugins { id 'io.github.gregwhitaker.aws-emulator' }
+            awsEmulator {
+                dockerExecutable.set('no-docker-during-configuration')
+                resourceSets.register('application') {
+                    provision('queue', CreateSqsQueueTask) { queueName.set('shared-orders') }
+                }
+            }
+            """);
+        for (String child : List.of("api", "worker")) {
+            Files.createDirectories(project.resolve(child));
+            Files.writeString(project.resolve(child + "/build.gradle"), """
+                plugins {
+                    id 'java'
+                    id 'org.springframework.boot'
+                    id 'io.github.gregwhitaker.aws-emulator.spring-boot'
+                }
+                tasks.named('bootRun') { mainClass.set('example.Application') }
+                tasks.named('bootRunLocal').get()
+                awsEmulator.useWith(tasks.named('test'))
+                tasks.named('test').get()
+                awsEmulator.useSharedRuntime(':localAws', 'application')
+                """);
+        }
+        for (int run = 0; run < 2; run++) {
+            String output = runner(project, ":api:bootRunLocal", ":worker:bootRunLocalDebug", ":api:test", ":worker:test",
+                "--parallel", "--dry-run").build().getOutput();
+            for (String mode : List.of("MANAGED", "DEVELOPMENT")) {
+                String setup = ":localAws:awsEmulatorResources_application_" + mode + "_queue SKIPPED";
+                assertEquals(1, output.split(setup, -1).length - 1, output);
+                for (String consumer : mode.equals("MANAGED") ? List.of(":api:test", ":worker:test")
+                        : List.of(":api:bootRunLocal", ":worker:bootRunLocalDebug")) {
+                    assertTrue(output.indexOf(setup) < output.indexOf(consumer + " SKIPPED"), output);
+                }
+            }
+            if (run > 0) assertTrue(output.contains("Reusing configuration cache"), output);
+        }
+        assertFalse(Files.exists(project.resolve("localAws/.aws-emulator")));
+    }
+
     private void fixture(String version, String body) throws Exception {
         Files.writeString(project.resolve("settings.gradle"), "rootProject.name = 'boot-setup-fixture'\n");
         Files.writeString(project.resolve("build.gradle"), """

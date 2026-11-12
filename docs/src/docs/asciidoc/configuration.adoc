@@ -29,6 +29,8 @@ toc::[]
 
 The `useWith(taskProvider)` method accepts an existing `Test` or `JavaExec` task provider. See xref:testing.adoc[tests and Java execution] for lifecycle and caching behavior.
 
+The `useSharedRuntime(ownerProject, resourceSets...)` method selects an absolute project path in this build and optional resource-set names from that owner. Its runtime settings and working directory replace the consumer's runtime settings. See xref:shared-runtimes.adoc[sharing across projects] for ownership rules and examples.
+
 API: link:api/io/github/gregwhitaker/awsemulator/emulator/AwsEmulatorExtension.html[AwsEmulatorExtension].
 
 == Configure a project

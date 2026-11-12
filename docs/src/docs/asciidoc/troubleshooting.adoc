@@ -16,6 +16,8 @@ Check that Java is at least 17 and Gradle is at least 8.14. See xref:getting-sta
 
 Confirm the local Docker engine is running Linux containers and that the configured `dockerExecutable` is available. The first run needs network access to build or pull the image.
 
+Run `./gradlew doctorAwsEmulator` for a read-only report of the configured Docker executable, daemon, platform, image availability, port, project-owned containers, generated connection files, and HTTPS health. It reports diagnostic errors without starting an emulator or building/pulling an image. Missing connection files and changed settings are identified in the report.
+
 For a development instance:
 
 [source,shell]
@@ -26,7 +28,7 @@ For a development instance:
 
 Use `buildTimeoutSeconds` for slow image builds or pulls, `commandTimeoutSeconds` for normal Docker commands, and `startupTimeoutSeconds` for HTTPS readiness after startup. Increasing one does not change the others.
 
-These status/log tasks inspect the development instance. For managed failures, inspect the failed Gradle task's output; they do not target the managed container.
+These status/log tasks inspect the development instance. For managed failures, inspect the failed task's output and the printed archive path under `.aws-emulator/logs/` (or the owner's custom `workingDirectory/logs/`). Complete available timestamped logs are saved before managed teardown, including ordinary task failures and failed startups that created a container. Archive failure prints a warning and does not prevent cleanup. Logs survive cleanup until explicitly deleted.
 
 == A port is already in use
 
@@ -65,11 +67,16 @@ The plugin merges the selected JVM's default roots, any configured custom trust 
 
 == A container remains after interruption
 
-Ordinary task failures trigger managed cleanup. A hard kill or unavailable Docker daemon can prevent it. List plugin-owned containers:
+Ordinary task failures trigger managed cleanup. A hard kill or unavailable Docker daemon can prevent it. Preview and remove stale managed containers owned by the selected runtime project:
 
 [source,shell]
 ----
-docker ps -a --filter label=io.github.gregwhitaker.aws-emulator.owner
+./gradlew cleanupAwsEmulator --report-only
+./gradlew cleanupAwsEmulator
 ----
 
-Identify and remove only the stale container. A running development instance intentionally survives Gradle; use `stopAwsEmulator` when that session is finished.
+Cleanup archives logs before removal and verifies ownership labels, the runtime-home marker, and the managed lifetime lock. It skips instances still leased by an active build and all development instances. Legacy running containers without a lifetime lock are skipped because activity cannot be established; identify and stop those individually before retrying. A running development instance intentionally survives Gradle; use `stopAwsEmulator` when that session is finished.
+
+== A shell or IDE uses an old connection
+
+Run `exportAwsEmulatorConnection` again, source the printed POSIX or PowerShell script, and launch a fresh application/IDE process. Restart changes generated credentials and may change the port. An existing IDE process does not automatically inherit later shell changes. Remove explicit SDK endpoints, credential settings, and per-service environment overrides from its run configuration. See xref:connections.adoc#shell-exports[shell and IDE exports].

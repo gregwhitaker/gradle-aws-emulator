@@ -81,6 +81,8 @@ Exclusions affect automatic discovery; explicit dependencies still run. To selec
 
 == Run and debug
 
+For applications in different Gradle projects, `awsEmulator.useSharedRuntime(":local-aws", "application")` selects one owner and automatically attaches its named resources to both local Boot tasks. No additional `springBoot.resourceSets` attachment is needed for those sets. The owner's settings govern the shared runtime; the application's `springBoot.mode` still selects managed or development. See xref:shared-runtimes.adoc[sharing across projects].
+
 For resources shared with managed tests and scenarios, declare xref:scenarios.adoc#resource-sets[reusable resource sets] and attach them using `awsEmulator.springBoot.resourceSets.add(setProvider)`. The plugin creates separate tasks for each mode and runs provisioning and fixtures before either local Boot task. Generated resource-set tasks are excluded from automatic discovery, so test attachments do not leak into Boot setup. Explicit resource sets run even when `autoCreateResources` is false.
 
 [source,shell]

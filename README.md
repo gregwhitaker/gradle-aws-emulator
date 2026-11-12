@@ -2,9 +2,8 @@
 
 [![Build](https://github.com/gregwhitaker/gradle-aws-emulator/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/gregwhitaker/gradle-aws-emulator/actions/workflows/ci.yml)
 [![Gradle Plugin Portal](https://img.shields.io/gradle-plugin-portal/v/io.github.gregwhitaker.aws-emulator?label=Gradle%20Plugin%20Portal)](https://plugins.gradle.org/plugin/io.github.gregwhitaker.aws-emulator)
-[![Docs](https://github.com/gregwhitaker/gradle-aws-emulator/actions/workflows/pages.yml/badge.svg?branch=main)](https://gregwhitaker.github.io/gradle-aws-emulator/)
 
-Gradle lifecycle tasks, AWS resource management, and opt-in JVM test integration for [AWS Emulator](https://github.com/aws/aws-emulator).
+Gradle lifecycle tasks, AWS resource management, and opt-in JVM and external-process integration for [AWS Emulator](https://github.com/aws/aws-emulator).
 
 Plugin ID: **`io.github.gregwhitaker.aws-emulator`**. Version **0.2.0** is implemented in this repository; it has not been published to the Gradle Plugin Portal.
 
@@ -150,6 +149,9 @@ To opt in only integration tests, pass the provider for your existing `integrati
 | `restartAwsEmulator` | Stop and start the development instance with the current configuration and empty state. |
 | `statusAwsEmulator` | Report the development container's state, health, and endpoint. |
 | `logsAwsEmulator` | Print the last 100 lines from the development container. |
+| `doctorAwsEmulator` | Diagnose Docker, images, ports, owned containers, connection files, and HTTPS health without starting an instance. |
+| `cleanupAwsEmulator` | Archive logs and remove stale project-owned managed containers. Use `--report-only` to preview; active builds and development instances are skipped. |
+| `exportAwsEmulatorConnection` | Start/reuse development and write `connection.sh` and `connection.ps1` in its runtime home. |
 
 For example:
 
@@ -160,15 +162,15 @@ For example:
 ./gradlew -p examples/basic stopAwsEmulator
 ```
 
-These tasks operate on a persistent **development** instance. It survives the end of a Gradle invocation. Changed settings require `restartAwsEmulator`; an unrelated container with the same name is never adopted or stopped.
+Start, stop, restart, status, logs, and connection exports operate on a persistent **development** instance. It survives the end of a Gradle invocation. Doctor inspects all project-owned instances; cleanup targets stale managed instances. Changed settings require `restartAwsEmulator`; an unrelated container with the same name is never adopted or stopped.
 
 AWS Emulator keeps resources in memory. Stop and restart discard those resources. There is no state-persistence or reset API in this release of the emulator.
 
-## Managed tests and Java execution
+## Managed tests and process execution
 
-`awsEmulator.useWith(taskProvider)` supports Gradle `Test` and `JavaExec` tasks, including subclasses. A build service starts one fresh **managed** instance per participating project and shares it among that project's opted-in tasks. Managed instances have separate container names and directories from development instances.
+`awsEmulator.useWith(taskProvider)` supports Gradle `Test`, `JavaExec`, and `Exec` tasks, including subclasses. By default, a build service starts one fresh **managed** instance per participating project and shares it among that project's opted-in tasks. Projects can explicitly share a runtime owner as described below. Managed instances have separate container names and directories from development instances.
 
-The service removes its managed container and files after its consumers finish, including ordinary task/test failures. Skipped and `NO-SOURCE` consumers do not start an emulator themselves. Explicit provisioning dependencies still execute when those consumers are skipped or have no sources. Opted-in tasks always execute when they have work: up-to-date checks and build-cache reuse are disabled because the emulator starts with fresh external state.
+The service archives the container's complete available timestamped logs under `.aws-emulator/logs/` before removing its managed container and connection files, including after ordinary task/test failures. Startup failures also archive logs when a container was created. Archive failures warn and cleanup continues. The log path is printed; logs remain until explicitly deleted. Skipped and `NO-SOURCE` consumers do not start an emulator themselves. Explicit provisioning dependencies still execute when those consumers are skipped or have no sources. Opted-in tasks always execute when they have work: up-to-date checks and build-cache reuse are disabled because the emulator starts with fresh external state.
 
 For Java application execution:
 
@@ -180,15 +182,68 @@ awsEmulator {
 
 This configures an existing task. For Spring Boot run/debug tasks, apply the optional companion plugin described below.
 
-Tasks sharing an instance also share emulated resources; use distinct resource names when tests run concurrently. Each project gets its own instance. Set `port` to `0` for parallel projects, concurrent builds, or simultaneous managed and development instances. The plugin selects an available host port and passes that same nonzero port to both Docker and the emulator. A competing process can still claim a selected port before Docker binds it; the plugin reports the failure and cleans up rather than attaching to that process.
+Tasks sharing an instance also share emulated resources; use distinct resource names when tests run concurrently. Each project gets its own instance unless it selects a shared runtime owner. Set the owner's `port` to `0` for parallel projects, concurrent builds, or simultaneous managed and development instances. The plugin selects an available host port and passes that same nonzero port to both Docker and the emulator. A competing process can still claim a selected port before Docker binds it; the plugin reports the failure and cleans up rather than attaching to that process.
 
-Graceful cleanup requires the Gradle process and Docker daemon to remain available. A hard kill or daemon failure can leave a container behind. Locate plugin-owned containers with:
+Graceful cleanup requires the Gradle process and Docker daemon to remain available. A hard kill or daemon failure can leave a container behind. Inspect and remove stale containers owned by this project's runtime with:
 
 ```sh
-docker ps -a --filter label=io.github.gregwhitaker.aws-emulator.owner
+./gradlew doctorAwsEmulator
+./gradlew cleanupAwsEmulator --report-only
+./gradlew cleanupAwsEmulator
 ```
 
-Remove only the specific stale container you identify. The plugin does not prune other containers, images, or AWS configuration.
+Cleanup checks ownership labels, the runtime-home owner marker, and the lifetime lock before removing managed containers. Active builds and development instances are preserved. Running containers from older plugin versions without a lifetime lock are skipped because their activity cannot be established; identify and stop those individually before retrying cleanup. The plugin does not prune other containers, images, or AWS configuration.
+
+## Python, Node, AWS CLI, and IDE launches
+
+Attach an existing `Exec` task just like a JVM consumer:
+
+```kotlin
+val pythonTest = tasks.register<Exec>("pythonTest") {
+    commandLine("python3", "-m", "pytest")
+}
+awsEmulator.useWith(pythonTest)
+// Use EmulatorMode.DEVELOPMENT as the second argument for a persistent instance.
+```
+
+The child receives the current endpoint, region, generated credential/config paths, `AWS_CA_BUNDLE`, and `NODE_EXTRA_CA_CERTS`. Conflicting inherited AWS credentials, profiles, and service endpoints are removed. `Exec` supports the same setup/resource sets and shared runtime owners as JVM consumers; JVM trust-store merging remains specific to `Test` and `JavaExec`.
+
+For a shell or an IDE-launched application, export the persistent development connection:
+
+```sh
+./gradlew exportAwsEmulatorConnection
+. .aws-emulator/development/connection.sh
+aws sts get-caller-identity --no-cli-pager
+```
+
+PowerShell uses `. ./.aws-emulator/development/connection.ps1`. The task prints the actual paths, including with a custom working directory or shared runtime owner. Source the script in a dedicated development shell, then launch the application or a fresh IDE process from it. You can also copy the exported values into an IDE run configuration and remove conflicting AWS overrides there. Scripts contain paths, never credential values, and clear overrides when sourced. Regenerate and source them after restarting the emulator. Close the development shell to discard its environment; `stopAwsEmulator` removes the connection scripts and generated credentials.
+
+Run the dependency-free Python and Node HTTPS probes with `./gradlew -p examples/processes pythonProbe nodeProbe --configuration-cache`. The [external-process example](examples/processes/README.md) also includes a signed AWS CLI request, development mode, connection exports, and failure cleanup.
+
+## Share a runtime across projects
+
+Applications in the same Gradle build can explicitly use an infrastructure project's runtime and named resource sets. Declare `id("io.github.gregwhitaker.aws-emulator") apply false` in the root build's `plugins` block so sharing projects use the same plugin classes, then configure each consumer:
+
+```kotlin
+awsEmulator {
+    useSharedRuntime(":local-aws", "application")
+    useWith(tasks.named<Test>("test"))
+    useWith(tasks.named<JavaExec>("run"))
+}
+```
+
+The `:local-aws` project applies the core plugin and declares `awsEmulator.resourceSets.register("application")`. Its runtime settings and working directory are authoritative; consumer runtime settings are ignored. Selected resources run once per owner and mode per invocation before all attached consumers, including the Spring Boot companion's local run tasks. Omit the resource-set names to share only the runtime. Ordinary tasks still require `useWith`.
+
+Managed consumers share one instance for the invocation, cleaned up after all participating tasks finish. Development consumers share the owner's persistent instance; use `:local-aws:stopAwsEmulator` to stop it. Managed and development instances remain separate. Owner chains and cross-build sharing are not supported.
+
+Run the complete publisher/worker example twice to verify sharing and configuration-cache reuse:
+
+```sh
+./gradlew -p examples/multi-project verifySharedRuntime --parallel --configuration-cache
+./gradlew -p examples/multi-project verifySharedRuntime --parallel --configuration-cache
+```
+
+See the [multi-project example](examples/multi-project/README.md) and [shared runtime guide](docs/src/docs/asciidoc/shared-runtimes.adoc) for owner setup, Groovy DSL, development runs, and failure cleanup.
 
 ## Spring Boot companion plugin
 
@@ -218,7 +273,7 @@ Run `./gradlew -p examples/spring-boot bootRunLocal --configuration-cache` for a
 
 The [Spring Cloud AWS example](examples/spring-cloud-aws/README.md) uses Spring Cloud AWS 3.4.0 with Boot 3.5.16. It verifies `@SqsListener` acknowledgements, auto-configured async clients, `SqsTemplate`, and required SSM/Secrets Manager configuration imports over HTTPS. Run `./gradlew -p examples/spring-cloud-aws test bootRunLocal --configuration-cache` to exercise the same definitions in managed tests and a persistent Boot run. Its Docker integration tests also check configuration-cache reuse and cleanup after test, application, and configuration-import failures.
 
-The core API also supports explicit runtime selection and setup dependencies for any `Test` or `JavaExec` consumer: `awsEmulator.useWith(taskProvider, EmulatorMode.DEVELOPMENT, setupTaskProvider)`. Setup accepts reusable resource sets as well as ordinary tasks. The mode may be a `Provider<EmulatorMode>`. Existing one-argument calls continue to use managed instances.
+The core API also supports explicit runtime selection and setup dependencies for any `Test`, `JavaExec`, or `Exec` consumer: `awsEmulator.useWith(taskProvider, EmulatorMode.DEVELOPMENT, setupTaskProvider)`. Setup accepts reusable resource sets as well as ordinary tasks. The mode may be a `Provider<EmulatorMode>`. Existing one-argument calls continue to use managed instances.
 
 ## Micronaut and Ktor
 
@@ -589,7 +644,7 @@ Tasks are organized by feature, following the module pattern in `gradle-localsta
 
 | Module | Gradle task group | Responsibilities |
 | --- | --- | --- |
-| `EmulatorModule` | `AWS Emulator` | Runtime configuration and the six lifecycle tasks. |
+| `EmulatorModule` | `AWS Emulator` | Runtime configuration, lifecycle, diagnostics, cleanup, and connection exports. |
 | `ScenarioModule` | `AWS Emulator - Scenarios` | Named development datasets, seeding, and reset/reseed. |
 | `S3Module` | `AWS Emulator - S3` | Bucket lifecycle, object uploads, listing, and downloads. |
 | `SqsModule` | `AWS Emulator - SQS` | Queue and DLQ creation, listing, purging, and message publishing. |

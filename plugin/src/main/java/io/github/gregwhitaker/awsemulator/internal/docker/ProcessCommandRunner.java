@@ -7,9 +7,29 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.nio.file.Path;
 
 /** Executes argument lists directly; drains output while waiting and bounds retained diagnostics. */
 public final class ProcessCommandRunner implements CommandRunner {
+    @Override
+    public Result runToFile(List<String> command, Duration timeout, Path output) throws IOException {
+        Process process = new ProcessBuilder(command).redirectErrorStream(true).redirectOutput(output.toFile()).start();
+        try {
+            process.getOutputStream().close();
+            if (!process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS)) {
+                terminate(process);
+                throw new GradleException(command.get(0) + " timed out after " + timeout.toSeconds() + " seconds.");
+            }
+            return new Result(process.exitValue(), "See output at " + output);
+        } catch (InterruptedException e) {
+            terminate(process);
+            Thread.currentThread().interrupt();
+            throw new GradleException("Interrupted while executing " + command.get(0), e);
+        } finally {
+            if (process.isAlive()) terminate(process);
+        }
+    }
+
     @Override
     public Result run(List<String> command, Duration timeout) {
         Process process = null;

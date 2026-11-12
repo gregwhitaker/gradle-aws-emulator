@@ -27,10 +27,25 @@ class EmulatorConnectionTest {
         assertEquals("https://127.0.0.1:9297", env.get("AWS_ENDPOINT_URL"));
         assertEquals("eu-west-1", env.get("AWS_REGION"));
         assertEquals("false", env.get("CBOR_ENABLED"));
+        assertEquals(directory.resolve("ca.pem").toString(), env.get("NODE_EXTRA_CA_CERTS"));
+        assertEquals("1", env.get("AWS_SDK_LOAD_CONFIG"));
         connection.writeHostConfig();
         String config = Files.readString(directory.resolve("host-config"));
         assertTrue(config.contains("region = eu-west-1"));
         assertTrue(config.contains(directory.resolve("ca.pem").toString()));
+    }
+
+    @Test
+    void removesWindowsCaseAliasesAndReplacesConnectionValues() {
+        var connection = new EmulatorConnection(9297, "us-east-1", directory);
+        var environment = connection.environment(Map.of("Aws_Profile", "production", "aws_endpoint_url_s3", "remote",
+            "aws_region", "old", "node_extra_ca_certs", "old.pem", "Path", "unchanged"));
+        assertFalse(environment.containsKey("Aws_Profile"));
+        assertFalse(environment.containsKey("aws_endpoint_url_s3"));
+        assertFalse(environment.containsKey("aws_region"));
+        assertFalse(environment.containsKey("node_extra_ca_certs"));
+        assertEquals("unchanged", environment.get("Path"));
+        assertEquals("us-east-1", environment.get("AWS_REGION"));
     }
 
     @Test

@@ -225,7 +225,7 @@ Choose one scenario per project per Gradle invocation. Names start with a lowerc
 
 `-PawsEmulator.scenario=<name>` selects a scenario for the generic commands and takes precedence over `awsEmulator.defaultScenario`. The default name is `default`; it must be registered, or set `defaultScenario` to a registered name. Unknown names fail before lifecycle tasks execute. Listing tasks and requesting help do not start Docker.
 
-IMPORTANT: Reset removes *all resources* in this project's development emulator, including resources outside the selected scenario and in other services. It then reloads only the chosen scenario. It does not affect the separate managed instance or another project's emulator. Use reset when switching from a populated scenario to `empty`; seed alone does not remove old data.
+IMPORTANT: Reset removes *all resources* in the selected development emulator, including resources outside the selected scenario and in other services. It then reloads only the chosen scenario. With xref:shared-runtimes.adoc[shared ownership], this affects every application using that owner; define and run shared scenarios in the owner project. Reset does not affect the separate managed instance or a different owner's emulator. Use reset when switching from a populated scenario to `empty`; seed alone does not remove old data.
 
 `restartAwsEmulator` retains its existing behavior: restart with empty state, without provisioning or fixtures. Reset builds on that lifecycle operation; it is not a persisted snapshot.
 

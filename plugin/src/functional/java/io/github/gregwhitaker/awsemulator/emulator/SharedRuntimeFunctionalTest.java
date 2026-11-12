@@ -138,8 +138,10 @@ class SharedRuntimeFunctionalTest {
                     actions.clear()
                     doLast {
                         val runtime = javaClass.getMethod("getRuntime").invoke(this) as Provider<*>
-                        val service = runtime.get() as io.github.gregwhitaker.awsemulator.emulator.AwsEmulatorService
-                        logger.lifecycle("PROBE:$path:${service.parameters.port.get()}")
+                        val service = runtime.get()!!
+                        val parameters = service.javaClass.getMethod("getParameters").invoke(service)
+                        val port = parameters.javaClass.getMethod("getPort").invoke(parameters) as Provider<*>
+                        logger.lifecycle("PROBE:$path:${port.get()}")
                     }
                 }
                 status.get()

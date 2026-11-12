@@ -7,10 +7,11 @@ import java.nio.file.attribute.PosixFilePermissions;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.Locale;
 
 /** Runtime connection paths, never the generated credential values. */
 public record EmulatorConnection(int port, String region, Path directory) {
-    private static final Set<String> CREDENTIAL_ENVIRONMENT = Set.of(
+    static final Set<String> CREDENTIAL_ENVIRONMENT = Set.of(
         "AWS_ACCESS_KEY_ID", "AWS_ACCESS_KEY", "AWS_SECRET_ACCESS_KEY", "AWS_SECRET_KEY",
         "AWS_SESSION_TOKEN", "AWS_SECURITY_TOKEN", "AWS_PROFILE", "AWS_DEFAULT_PROFILE", "AWS_ROLE_ARN",
         "AWS_ROLE_SESSION_NAME", "AWS_WEB_IDENTITY_TOKEN_FILE", "AWS_CREDENTIAL_FILE",
@@ -19,6 +20,7 @@ public record EmulatorConnection(int port, String region, Path directory) {
     public String endpoint() { return "https://127.0.0.1:" + port; }
     public Path trustStore() { return directory.resolve("truststore.p12"); }
     public Path credentials() { return directory.resolve("emulator_credentials"); }
+    public Path certificate() { return directory.resolve("ca.pem"); }
 
     public boolean filesExist() {
         return Files.isRegularFile(credentials()) && Files.isRegularFile(trustStore())
@@ -37,13 +39,28 @@ public record EmulatorConnection(int port, String region, Path directory) {
 
     public Map<String, Object> environment(Map<String, ?> inherited) {
         Map<String, Object> env = new LinkedHashMap<>(inherited);
-        env.keySet().removeIf(key -> CREDENTIAL_ENVIRONMENT.contains(key)
-            || key.startsWith("AWS_CONTAINER_CREDENTIALS_") || key.startsWith("AWS_CONTAINER_AUTHORIZATION_")
-            || key.startsWith("AWS_ENDPOINT_URL"));
+        Map<String, Object> values = connectionEnvironment();
+        // Windows environment names are case-insensitive. Replace aliases as well as canonical names.
+        env.keySet().removeIf(key -> removesEnvironment(key) || values.containsKey(key.toUpperCase(Locale.ROOT)));
+        env.putAll(values);
+        return env;
+    }
+
+    static boolean removesEnvironment(String key) {
+        String name = key.toUpperCase(Locale.ROOT);
+        return CREDENTIAL_ENVIRONMENT.contains(name) || name.startsWith("AWS_CONTAINER_CREDENTIALS_")
+            || name.startsWith("AWS_CONTAINER_AUTHORIZATION_") || name.startsWith("AWS_ENDPOINT_URL");
+    }
+
+    /** Values suitable for SDKs, the AWS CLI, and child Node.js processes; credentials stay in their file. */
+    public Map<String, Object> connectionEnvironment() {
+        Map<String, Object> env = new LinkedHashMap<>();
         env.put("AWS_ENDPOINT_URL", endpoint());
         env.put("AWS_SHARED_CREDENTIALS_FILE", credentials().toString());
         env.put("AWS_CONFIG_FILE", directory.resolve("host-config").toString());
         env.put("AWS_CA_BUNDLE", directory.resolve("ca.pem").toString());
+        env.put("NODE_EXTRA_CA_CERTS", certificate().toString());
+        env.put("AWS_SDK_LOAD_CONFIG", "1");
         env.put("AWS_EC2_METADATA_DISABLED", "true");
         env.put("AWS_DISABLE_HOST_PREFIX_INJECTION", "true");
         env.put("AWS_ENDPOINT_DISCOVERY_ENABLED", "false");

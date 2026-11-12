@@ -11,6 +11,7 @@ import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.JavaExec;
 import org.gradle.api.tasks.testing.Test;
 import org.gradle.process.JavaForkOptions;
+import org.gradle.process.ProcessForkOptions;
 import java.io.Serializable;
 
 /** Holds service and mode providers so connection settings are resolved again on configuration-cache reuse. */
@@ -27,11 +28,13 @@ public final class ConfigureEmulatorAction implements Action<Task>, Serializable
     public void execute(Task task) {
         EmulatorConnection connection = mode.get() == EmulatorMode.MANAGED
             ? runtime.get().managedConnection() : runtime.get().developmentConnection();
-        JavaForkOptions fork = (JavaForkOptions) task;
-        var launcher = task instanceof Test test ? test.getJavaLauncher().get() : ((JavaExec) task).getJavaLauncher().get();
-        var trustStore = ConsumerJvmTrust.prepare(fork, launcher.getMetadata().getInstallationPath().getAsFile().toPath(), connection);
+        ProcessForkOptions fork = (ProcessForkOptions) task;
+        if (task instanceof JavaForkOptions jvm) {
+            var launcher = task instanceof Test test ? test.getJavaLauncher().get() : ((JavaExec) task).getJavaLauncher().get();
+            var trustStore = ConsumerJvmTrust.prepare(jvm, launcher.getMetadata().getInstallationPath().getAsFile().toPath(), connection);
+            jvm.setSystemProperties(connection.systemProperties(jvm.getSystemProperties(), trustStore));
+        }
         fork.setEnvironment(connection.environment(fork.getEnvironment()));
-        fork.setSystemProperties(connection.systemProperties(fork.getSystemProperties(), trustStore));
         task.getLogger().lifecycle("AWS Emulator for {}: {}", task.getPath(), connection.endpoint());
     }
 }

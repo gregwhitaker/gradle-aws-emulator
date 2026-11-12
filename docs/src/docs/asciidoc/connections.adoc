@@ -1,8 +1,8 @@
 = Credentials & TLS
 include::_partials/attributes.adoc[]
-:description: How the plugin supplies isolated emulator endpoints, credentials, and HTTPS trust to JVM tasks.
+:description: Isolated emulator endpoints, credentials, and HTTPS trust for JVMs, external processes, shells, and IDEs.
 
-The emulator uses signed requests over HTTPS. After readiness succeeds, the plugin configures each opted-in JVM with the current endpoint, region, credential paths, and TLS trust store.
+The emulator uses signed requests over HTTPS. After readiness succeeds, the plugin configures each opted-in process with the current endpoint, region, credential paths, and TLS trust settings. JVM consumers additionally receive a combined trust store.
 
 toc::[]
 
@@ -91,9 +91,40 @@ For a development instance on port `9297`, host-side files live under:
 
 Lifecycle tasks report the actual directory and endpoint. The emulator's own `config` contains container paths, so host consumers should use the generated `host-config` instead. Starting a development instance alone does not configure JVM tasks; `useWith` selects the separate managed runtime.
 
+[[shell-exports]]
+== Shell, PowerShell, and IDE exports
+
+Run `exportAwsEmulatorConnection` to start or reuse the persistent development instance and write two connection scripts. Default POSIX-shell usage:
+
+[source,shell]
+----
+./gradlew exportAwsEmulatorConnection
+. .aws-emulator/development/connection.sh
+aws sts get-caller-identity --no-cli-pager
+----
+
+PowerShell:
+
+[source,powershell]
+----
+./gradlew exportAwsEmulatorConnection
+. ./.aws-emulator/development/connection.ps1
+aws sts get-caller-identity --no-cli-pager
+----
+
+The task prints the actual paths for custom working directories and shared runtime owners. Script paths and values are quoted for spaces, apostrophes, dollar signs, and other shell metacharacters. They contain connection settings and file paths, never credential values. Source them in a dedicated development shell: conflicting AWS credentials, profiles, web-identity/container-credential settings, and service endpoints are cleared from the shell at source time. They do not modify your AWS config files. Close the shell to discard its environment.
+
+Exports and `Exec` consumers set `AWS_ENDPOINT_URL`, `AWS_REGION`, `AWS_DEFAULT_REGION`, `AWS_SHARED_CREDENTIALS_FILE`, `AWS_CONFIG_FILE`, `AWS_CA_BUNDLE`, and `AWS_SDK_LOAD_CONFIG`, together with the metadata/discovery controls above. Boto3 and AWS CLI use the AWS CA bundle; Node receives the emulator PEM through `NODE_EXTRA_CA_CERTS`, which adds it to Node's default roots at process startup. This replaces any inherited `NODE_EXTRA_CA_CERTS` path. The plugin does not disable certificate or hostname validation. Libraries that ignore these settings need explicit per-client configuration; for example Python's standard `urllib` accepts an SSL context created with `cafile=os.environ["AWS_CA_BUNDLE"]`.
+
+Launch the application or a fresh IDE process from the configured shell to inherit these values. Alternatively, copy the exported values into the IDE's run environment and remove the same conflicting AWS overrides. Already-running IDE processes may retain their original environment. Java applications launched outside Gradle still need appropriate JVM trust-store configuration; `Test` and `JavaExec` automate the combined trust store described above.
+
+Exports always select development because managed connection files are removed at the end of their Gradle consumers. Stop removes the development scripts and connection files; restart changes the credentials and may select another port. Regenerate and source exports after restart, then relaunch consumers. With `useSharedRuntime`, export and stop refer to the selected owner's development instance. The repository's `examples/processes` build demonstrates this workflow with Python, Node, and AWS CLI.
+
 == Upstream references
 
 * https://docs.aws.amazon.com/emulator/latest/userguide/getting-started-docker.html[AWS Emulator Docker installation]
 * https://docs.aws.amazon.com/emulator/latest/userguide/point-sdk-to-emulator.html[Point an SDK at AWS Emulator]
 * https://docs.aws.amazon.com/emulator/latest/userguide/cli-reference.html[CLI and runtime files]
 * https://docs.aws.amazon.com/emulator/latest/userguide/versioning.html[Versioned emulator packages]
+* https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html[AWS CLI environment variables]
+* https://nodejs.org/api/cli.html#node_extra_ca_certsfile[Node.js extra CA certificates]

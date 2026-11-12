@@ -8,6 +8,7 @@ import java.nio.channels.OverlappingFileLockException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.LinkOption;
 import java.util.Comparator;
 import java.util.function.Supplier;
 
@@ -21,6 +22,45 @@ public final class EmulatorWorkspace {
     public Path developmentHome() { return settings.workingDirectory().resolve("development"); }
     public Path managedHome(String suffix) { return settings.workingDirectory().resolve("managed-" + suffix); }
     public Path imageDirectory(String hash) { return settings.workingDirectory().resolve("images/" + hash); }
+    public Path logsDirectory() { return settings.workingDirectory().resolve("logs"); }
+
+    public Path managedLock(Path home) {
+        return home.getParent().resolve("locks").resolve(home.getFileName() + ".lock");
+    }
+
+    /** Acquired before creating a managed container and held until cleanup, including startup failure. */
+    public Lease tryManagedLease(Path home, boolean create) {
+        Path path = managedLock(home);
+        try {
+            if (create) Files.createDirectories(path.getParent());
+            if (Files.isSymbolicLink(path.getParent()) || Files.isSymbolicLink(path)) {
+                throw new GradleException("Refusing to use a symlink for an emulator lease: " + path);
+            }
+            FileChannel channel = create
+                ? FileChannel.open(path, StandardOpenOption.CREATE, StandardOpenOption.WRITE, LinkOption.NOFOLLOW_LINKS)
+                : FileChannel.open(path, StandardOpenOption.WRITE, LinkOption.NOFOLLOW_LINKS);
+            try {
+                FileLock lock;
+                try { lock = channel.tryLock(); }
+                catch (OverlappingFileLockException e) { lock = null; }
+                if (lock != null) return new Lease(channel, lock);
+                channel.close();
+                return null;
+            } catch (Exception e) {
+                channel.close();
+                throw e;
+            }
+        } catch (IOException e) {
+            throw new GradleException("Cannot lock AWS Emulator managed instance at " + home, e);
+        }
+    }
+
+    public record Lease(FileChannel channel, FileLock lock) implements AutoCloseable {
+        @Override public void close() {
+            try { channel.close(); }
+            catch (IOException e) { throw new GradleException("Cannot release AWS Emulator lease.", e); }
+        }
+    }
 
     public <T> T withLock(String name, Supplier<T> operation) {
         try {
@@ -60,7 +100,7 @@ public final class EmulatorWorkspace {
         }
     }
 
-    private void requireOwner(Path home) throws IOException {
+    public void requireOwner(Path home) throws IOException {
         Path marker = home.resolve(OWNER_FILE);
         if (Files.isSymbolicLink(home) || Files.isSymbolicLink(marker) || !Files.isRegularFile(marker)
                 || !Files.readString(marker).equals(settings.owner())) {

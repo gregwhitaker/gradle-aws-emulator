@@ -26,7 +26,7 @@ class EmulatorRuntimeTest {
     }
 
     @Test
-    void developmentInstanceSurvivesBuildAndManagedInstanceIsRemoved() {
+    void developmentInstanceSurvivesBuildAndManagedInstanceIsRemoved() throws Exception {
         FakeDocker docker = new FakeDocker();
         EmulatorRuntime runtime = new EmulatorRuntime(settings(), docker, (port, store) -> true);
         assertTrue(runtime.developmentConnection().endpoint().startsWith("https://127.0.0.1:"));
@@ -40,10 +40,15 @@ class EmulatorRuntimeTest {
         runtime.close();
         assertEquals(1, docker.containers.size());
         assertFalse(Files.exists(first.directory()));
+        assertEquals("fake emulator log", archivedLogs());
+        int logs = docker.calls.indexOf(docker.calls.stream().filter(c -> c.contains("--timestamps")).findFirst().orElseThrow());
+        int remove = docker.calls.indexOf(docker.calls.stream().filter(c -> c.contains("rm")).findFirst().orElseThrow());
+        assertTrue(logs < remove, "Logs must be archived before removing the container");
         assertTrue(docker.containers.containsKey(settings().developmentName()));
         runtime.stopDevelopment();
         runtime.stopDevelopment();
         assertTrue(docker.containers.isEmpty());
+        assertEquals("fake emulator log", archivedLogs());
     }
 
     @Test
@@ -54,6 +59,7 @@ class EmulatorRuntimeTest {
         assertTrue(failure.getMessage().contains("did not become ready"));
         assertTrue(failure.getMessage().contains("fake emulator log"));
         assertTrue(docker.containers.isEmpty());
+        assertEquals("fake emulator log", archivedLogs());
         try (var files = Files.list(directory)) {
             assertFalse(files.anyMatch(file -> file.getFileName().toString().startsWith("managed-")));
         }
@@ -130,14 +136,112 @@ class EmulatorRuntimeTest {
         assertTrue(docker.containers.isEmpty());
     }
 
+    @Test
+    void logArchiveFailuresDoNotPreventManagedCleanup() throws Exception {
+        FakeDocker docker = new FakeDocker();
+        EmulatorRuntime runtime = new EmulatorRuntime(settings(), docker, (port, store) -> true);
+        var connection = runtime.managedConnection();
+        docker.failLogs = true;
+        runtime.close();
+        assertTrue(docker.containers.isEmpty());
+        assertFalse(Files.exists(connection.directory()));
+
+        var second = runtime.managedConnection();
+        docker.failLogs = false;
+        try (var files = Files.list(directory.resolve("logs"))) {
+            for (Path file : files.toList()) Files.delete(file);
+        }
+        Files.delete(directory.resolve("logs"));
+        Files.writeString(directory.resolve("logs"), "unwritable archive directory");
+        runtime.close();
+        assertTrue(docker.containers.isEmpty());
+        assertFalse(Files.exists(second.directory()));
+    }
+
+    @Test
+    void cleanupSkipsActiveAndDevelopmentAndRemovesOnlyStaleOwnedManagedContainers() throws Exception {
+        FakeDocker docker = new FakeDocker();
+        EmulatorRuntime active = new EmulatorRuntime(settings(), docker, (port, store) -> true);
+        active.developmentConnection();
+        active.managedConnection();
+        Path staleHome = directory.resolve("managed-stale");
+        EmulatorWorkspace workspace = new EmulatorWorkspace(settings());
+        workspace.prepareHome(staleHome);
+        try (var lease = workspace.tryManagedLease(staleHome, true)) { assertNotNull(lease); }
+        docker.containers.put("stale", new FakeContainer("stale", "test-owner", "old-config", "9211", staleHome, "managed"));
+        docker.containers.put("foreign", new FakeContainer("foreign", "another-project", "config", "9212", directory.resolve("foreign"), "managed"));
+        EmulatorRuntime cleanup = new EmulatorRuntime(settings(), docker, (port, store) -> true);
+        assertTrue(cleanup.cleanupStale(true).contains("Would remove stale managed instance stale"));
+        assertTrue(Files.exists(staleHome));
+        assertEquals(4, docker.containers.size());
+        String report = cleanup.cleanupStale(false);
+        assertTrue(report.contains("Skipped active managed instance"), report);
+        assertTrue(report.contains("Skipped development instance"), report);
+        assertTrue(report.contains("Removed stale managed instance stale"), report);
+        assertEquals(3, docker.containers.size());
+        assertFalse(Files.exists(staleHome));
+        assertEquals("fake emulator log", archivedLogs());
+        assertFalse(cleanup.cleanupStale(false).contains("Removed"));
+        active.close();
+        active.stopDevelopment();
+        assertTrue(docker.containers.containsKey("foreign"));
+    }
+
+    @Test
+    void cleanupLeavesRunningLegacyContainersAndUnownedDirectoriesAlone() throws Exception {
+        FakeDocker docker = new FakeDocker();
+        Path home = directory.resolve("managed-legacy");
+        new EmulatorWorkspace(settings()).prepareHome(home);
+        FakeContainer legacy = new FakeContainer("legacy", "test-owner", "old", "9297", home, "<no value>");
+        docker.containers.put("legacy", legacy);
+        EmulatorRuntime runtime = new EmulatorRuntime(settings(), docker, (port, store) -> true);
+        assertTrue(runtime.cleanupStale(false).contains("no managed lease"));
+        assertTrue(docker.containers.containsKey("legacy"));
+        legacy.state = "exited";
+        assertTrue(runtime.cleanupStale(false).contains("Removed stale"));
+
+        Path unowned = directory.resolve("managed-unowned");
+        Files.createDirectories(unowned);
+        Files.writeString(unowned.resolve("keep.txt"), "user data");
+        FakeContainer other = new FakeContainer("unowned", "test-owner", "old", "9298", unowned, "managed");
+        other.state = "exited";
+        docker.containers.put("unowned", other);
+        assertThrows(GradleException.class, () -> runtime.cleanupStale(false));
+        assertEquals("user data", Files.readString(unowned.resolve("keep.txt")));
+        assertTrue(docker.containers.containsKey("unowned"));
+    }
+
+    @Test
+    void doctorInspectsWithoutStartingOrWritingAndExplainsDockerFailures() {
+        FakeDocker docker = new FakeDocker();
+        EmulatorRuntime runtime = new EmulatorRuntime(settings(), docker, (port, store) -> true);
+        String report = runtime.doctor();
+        assertTrue(report.contains("Docker daemon:"), report);
+        assertTrue(report.contains("Image:"), report);
+        assertTrue(report.contains("Project-owned containers: 0"), report);
+        assertFalse(docker.calls.stream().anyMatch(c -> c.contains("create") || c.contains("build") || c.contains("pull")));
+        assertFalse(Files.exists(directory.resolve("images")));
+        var unavailable = new EmulatorRuntime(settings(), (command, timeout) -> new CommandRunner.Result(1, "daemon unavailable"), (port, store) -> true);
+        assertTrue(unavailable.doctor().contains("daemon unavailable"));
+    }
+
+    private String archivedLogs() throws Exception {
+        try (var files = Files.list(directory.resolve("logs"))) {
+            return Files.readString(files.findFirst().orElseThrow());
+        }
+    }
+
     private static String after(List<String> list, String option) { return list.get(list.indexOf(option) + 1); }
 
     private static class FakeContainer {
-        final String id, owner, config, port;
+        final String id, owner, config, port, mode;
         final Path home;
         String state = "running";
         FakeContainer(String id, String owner, String config, String port, Path home) {
-            this.id = id; this.owner = owner; this.config = config; this.port = port; this.home = home;
+            this(id, owner, config, port, home, "development");
+        }
+        FakeContainer(String id, String owner, String config, String port, Path home, String mode) {
+            this.id = id; this.owner = owner; this.config = config; this.port = port; this.home = home; this.mode = mode;
         }
     }
 
@@ -146,6 +250,7 @@ class EmulatorRuntimeTest {
         final List<List<String>> calls = new ArrayList<>();
         int sequence;
         boolean failStart;
+        boolean failLogs;
 
         @Override
         public Result run(List<String> command, Duration timeout) {
@@ -163,7 +268,7 @@ class EmulatorRuntimeTest {
                 String mount = after(args, "--mount");
                 Path home = Path.of(mount.substring("type=bind,source=".length(), mount.indexOf(",target=")));
                 FakeContainer container = new FakeContainer("id" + (++sequence), labels.get(DockerClient.OWNER_LABEL),
-                    labels.get(DockerClient.CONFIG_LABEL), labels.get(DockerClient.PORT_LABEL), home);
+                    labels.get(DockerClient.CONFIG_LABEL), labels.get(DockerClient.PORT_LABEL), home, labels.get(DockerClient.MODE_LABEL));
                 containers.put(after(args, "--name"), container);
                 try {
                     Path files = home.resolve(".aws/emulator/" + container.port);
@@ -174,6 +279,10 @@ class EmulatorRuntimeTest {
             }
             if (operation.equals("ls")) {
                 String filter = after(args, "--filter");
+                if (filter.startsWith("label=")) {
+                    return new Result(0, containers.values().stream().filter(c -> filter.equals("label=" + DockerClient.OWNER_LABEL + "=" + c.owner))
+                        .map(c -> c.id).collect(java.util.stream.Collectors.joining("\n")));
+                }
                 FakeContainer found = filter.startsWith("name=")
                     ? containers.get(filter.substring("name=^/".length(), filter.length() - 1))
                     : containers.values().stream().filter(c -> c.id.equals(filter.substring(3))).findFirst().orElse(null);
@@ -182,9 +291,9 @@ class EmulatorRuntimeTest {
             String id = args.get(args.size() - 1);
             FakeContainer container = containers.values().stream().filter(c -> c.id.equals(id)).findFirst().orElseThrow();
             return switch (operation) {
-                case "inspect" -> new Result(0, String.join("\n", container.id, container.owner, container.config, container.port, container.home.toString(), container.state));
+                case "inspect" -> new Result(0, String.join("\n", container.id, container.owner, container.config, container.port, container.home.toString(), container.state, container.mode));
                 case "start" -> new Result(failStart ? 1 : 0, failStart ? "port is already allocated" : id);
-                case "logs" -> new Result(0, "fake emulator log");
+                case "logs" -> new Result(failLogs ? 1 : 0, failLogs ? "log driver unavailable" : "fake emulator log");
                 case "stop" -> { container.state = "exited"; yield new Result(0, id); }
                 case "rm" -> { containers.values().remove(container); yield new Result(0, id); }
                 default -> throw new AssertionError("Unexpected command " + command);

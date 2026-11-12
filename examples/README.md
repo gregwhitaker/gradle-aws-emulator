@@ -5,6 +5,8 @@ Standalone Kotlin DSL builds demonstrating the AWS Emulator Gradle plugin with A
 | Example | Demonstrates |
 | --- | --- |
 | [Basic](basic/README.md) | S3 buckets, standard and FIFO SQS queues, a dead-letter queue, message fixtures, and signed STS requests. |
+| [External processes](processes/README.md) | Python/Node `Exec` consumers, AWS CLI, shell/PowerShell connection exports, and IDE launch environments. |
+| [Multi-project](multi-project/README.md) | Explicit runtime ownership, shared SQS provisioning, and an order exchange between two modules with managed tests or persistent development runs. |
 | [DynamoDB](dynamodb/README.md) | Table creation, a global secondary index, stream settings, and a Java initializer supplied by `buildSrc`. |
 | [Additional services](services/README.md) | SSM Parameter Store, Secrets Manager, EventBridge delivery to SQS, Kinesis, KMS, and CloudWatch Logs. |
 | [Data fixtures and scenarios](scenarios/README.md) | S3 file uploads and downloads, DynamoDB JSON seeding and clearing, and named development scenarios with reset/reseed. |

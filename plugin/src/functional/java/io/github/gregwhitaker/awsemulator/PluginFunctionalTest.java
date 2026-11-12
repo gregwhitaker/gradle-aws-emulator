@@ -22,9 +22,10 @@ class PluginFunctionalTest {
             awsEmulator { dockerExecutable.set('this-command-does-not-exist') }
             """);
         String output = runner(project, "tasks", "--all").build().getOutput();
-        for (String task : new String[] {"prepare", "start", "stop", "restart", "status", "logs"}) {
+        for (String task : new String[] {"prepare", "start", "stop", "restart", "status", "logs", "doctor", "cleanup"}) {
             assertTrue(output.contains(task + "AwsEmulator"), output);
         }
+        assertTrue(output.contains("exportAwsEmulatorConnection"));
         assertTrue(runner(project, "tasks", "--all").build().getOutput().contains("Reusing configuration cache"));
         assertFalse(Files.exists(project.resolve(".aws-emulator")));
     }
@@ -57,7 +58,30 @@ class PluginFunctionalTest {
             def unsupported = tasks.register('unsupported')
             awsEmulator { useWith(unsupported) }
             """);
-        assertTrue(runner(temporary, "unsupported").buildAndFail().getOutput().contains("requires a Test or JavaExec task"));
+        assertTrue(runner(temporary, "unsupported").buildAndFail().getOutput().contains("requires a Test, JavaExec, or Exec task"));
+    }
+
+    @Test
+    void skippedExecConsumersAreLazyAndDoctorReportsMissingDockerWithConfigurationCache() throws Exception {
+        Files.writeString(temporary.resolve("settings.gradle.kts"), "rootProject.name = \"external-fixture\"\n");
+        Files.writeString(temporary.resolve("build.gradle.kts"), """
+            plugins { id("io.github.gregwhitaker.aws-emulator") }
+            val probe = tasks.register<Exec>("probe") {
+                commandLine("must-not-run")
+                onlyIf { false }
+            }
+            awsEmulator {
+                dockerExecutable.set("missing-docker-for-doctor")
+                useWith(probe)
+            }
+            """);
+        runner(temporary, "probe").build();
+        assertTrue(runner(temporary, "probe").build().getOutput().contains("Reusing configuration cache"));
+        assertFalse(Files.exists(temporary.resolve(".aws-emulator")));
+        String report = runner(temporary, "doctorAwsEmulator").build().getOutput();
+        assertTrue(report.contains("ERROR: Cannot execute 'missing-docker-for-doctor'"), report);
+        assertTrue(runner(temporary, "doctorAwsEmulator").build().getOutput().contains("Reusing configuration cache"));
+        assertFalse(Files.exists(temporary.resolve(".aws-emulator")));
     }
 
     @Test
