@@ -139,7 +139,7 @@ awsEmulator {
 }
 ```
 
-This only configures an existing task. Spring Boot-specific task creation is planned for a later release.
+This configures an existing task. For Spring Boot run/debug tasks, apply the optional companion plugin described below.
 
 Tasks sharing an instance also share emulated resources; use distinct resource names when tests run concurrently. Each project gets its own instance. Set `port` to `0` for parallel projects, concurrent builds, or simultaneous managed and development instances. The plugin selects an available host port and passes that same nonzero port to both Docker and the emulator. A competing process can still claim a selected port before Docker binds it; the plugin reports the failure and cleans up rather than attaching to that process.
 
@@ -150,6 +150,30 @@ docker ps -a --filter label=io.github.gregwhitaker.aws-emulator.owner
 ```
 
 Remove only the specific stale container you identify. The plugin does not prune other containers, images, or AWS configuration.
+
+## Spring Boot companion plugin
+
+Apply **`io.github.gregwhitaker.aws-emulator.spring-boot`** alongside your chosen `org.springframework.boot` version. The companion automatically applies the base emulator plugin and adds `bootRunLocal` and `bootRunLocalDebug`. It publishes as a separate artifact and does not bring a Spring Boot version into your build. Both plugins currently use version **0.2.0**, available from this checkout until publication.
+
+```kotlin
+plugins {
+    java
+    id("org.springframework.boot") version "4.1.2"
+    id("io.github.gregwhitaker.aws-emulator.spring-boot")
+}
+
+awsEmulator { port.set(0) }
+springBootEmulator {
+    profiles.set(listOf("local"))
+    debugPort.set(5005)
+}
+```
+
+The default development instance survives application exit. `bootRunLocalDebug` waits for a debugger on `localhost:5005`; `stopAwsEmulator` removes the development instance. Set `springBootEmulator.mode` to `EmulatorMode.MANAGED` for automatic cleanup. Register resource dependencies through `springBootEmulator.setupTasks` and configure those resources with the same mode. Ordinary `bootRun` remains independently configured.
+
+Run `./gradlew -p examples/spring-boot bootRunLocal --configuration-cache` for a working SQS round trip. See the [Spring Boot guide](docs/src/docs/asciidoc/spring-boot.adoc) for Kotlin/Groovy DSL, setup tasks, and all settings, or the [example README](examples/spring-boot/README.md). Compatibility is tested with Spring Boot 3.5.16 and 4.1.2.
+
+The core API also supports explicit runtime selection and setup dependencies for any `Test` or `JavaExec` consumer: `awsEmulator.useWith(taskProvider, EmulatorMode.DEVELOPMENT, setupTaskProvider)`. The mode may be a `Provider<EmulatorMode>`. Existing one-argument calls continue to use managed instances.
 
 ## Provision S3 buckets and SQS queues
 
@@ -456,7 +480,7 @@ The repository uses Kotlin DSL build scripts. The root build coordinates the plu
 
 ```text
 build.gradle.kts                     root verification and wrapper configuration
-settings.gradle.kts                  includes :plugin and :docs
+settings.gradle.kts                  includes :plugin, :spring-boot-plugin, and :docs
 gradle.properties                    shared plugin/documentation version
 docs/                               static user guide, site assets, and link verification
   build.gradle.kts                   site generation, Java API inclusion, and ZIP packaging
@@ -488,7 +512,12 @@ plugin/
   src/functional/                    Gradle TestKit DSL and configuration tests
   src/integration/                   real Docker and SDK integration tests
   src/testFixtures/                  shared TestKit runner setup
+spring-boot-plugin/                  optional Spring Boot companion and its publication
+  src/main/                          Boot run/debug integration and configuration
+  src/functional/                    Boot version, DSL, and configuration-cache tests
+  src/integration/                   real Boot applications and emulator cleanup tests
 examples/basic/                      runnable Kotlin DSL consumer
+examples/spring-boot/                runnable Spring Boot and SQS consumer
 ```
 
 Tasks are organized by feature, following the module pattern in `gradle-localstack`. `AwsEmulatorPlugin` loads `EmulatorModule` and `AwsModule`; `AwsModule` loads the AWS service modules. Each service package keeps its module, task types, and provisioning helpers together. Modules register or configure tasks lazily when the plugin is applied. The build service owns the runtime lifetime, and everything under `internal` is an implementation detail.
@@ -509,20 +538,20 @@ Separate test source sets follow [Gradle's plugin testing guidance](https://docs
 
 ```sh
 ./gradlew build
-./gradlew :plugin:integrationTest
+./gradlew dockerTest
 ```
 
-`build` runs unit tests, Gradle TestKit tests that require no Docker, plugin validation, and documentation generation/link checks/packaging. `:plugin:integrationTest` (also available as `dockerTest`) requires a running local Docker daemon and downloads/builds the emulator image if necessary. It verifies signed HTTPS SDK requests, sharing between tasks, configuration-cache reuse, failure cleanup, all lifecycle tasks, parallel projects, S3/SQS provisioning, repeated setup without data loss, queue attribute conflicts, versioned bucket cleanup, DLQ updates, and message publishing from files and archives. Docker tests deliberately fail a nested fixture build to check cleanup; the enclosing test must pass.
+`build` runs both plugins' tests that require no Docker, plugin validation, and documentation generation/link checks/packaging. `dockerTest` runs `:plugin:integrationTest` and `:spring-boot-plugin:integrationTest`; it requires a running local Docker daemon and downloads/builds the emulator image if necessary. The suites verify signed HTTPS SDK requests, sharing between tasks, configuration-cache reuse, failure cleanup, lifecycle tasks, parallel projects, resource provisioning, and Spring Boot run/debug behavior. Docker tests deliberately fail nested fixture builds to check cleanup; the enclosing tests must pass.
 
 To run TestKit consumers against another Gradle version:
 
 ```sh
-./gradlew :plugin:functionalTest :plugin:integrationTest -PtestGradleVersion=9.6.1
+./gradlew :plugin:functionalTest :spring-boot-plugin:functionalTest dockerTest -PtestGradleVersion=9.6.1
 ```
 
 `-PtestGradleInstallation=/path/to/gradle` can instead use an existing installation. The CI matrix is configured for Gradle 8.14.3 and 9.6.1, Java 17 and 21, and real Docker execution on Linux AMD64 and ARM64. Windows runs the Docker-free suite; Docker integration on Windows has not been verified.
 
-`java-gradle-plugin`, `maven-publish`, and `com.gradle.plugin-publish` generate the plugin artifact and marker publication. Build artifacts are in `plugin/build/libs/`; reports are in `plugin/build/reports/tests/`. The implementation coordinate remains `io.github.gregwhitaker:gradle-aws-emulator:0.2.0` and the plugin ID remains `io.github.gregwhitaker.aws-emulator`. Use the composite build above for local development. CI builds both publications in a temporary Maven repository; the release workflow publishes version tags.
+`java-gradle-plugin`, `maven-publish`, and `com.gradle.plugin-publish` generate an implementation artifact and marker publication for each plugin. Build artifacts are in each plugin subproject's `build/libs/`; reports are in `build/reports/tests/`. The core coordinate is `io.github.gregwhitaker:gradle-aws-emulator:0.2.0`; the companion is `io.github.gregwhitaker:gradle-aws-emulator-spring-boot:0.2.0` and depends on the core. Use the composite build above for local development. CI builds all publications in a temporary Maven repository; the release workflow publishes version tags.
 
 ## Publish to the Gradle Plugin Portal
 
@@ -531,8 +560,8 @@ The release version comes from `pluginVersion` in the root `gradle.properties`. 
 Build and verify the release locally without credentials or uploading artifacts:
 
 ```sh
-./gradlew build :plugin:publishToMavenLocal -Dmaven.repo.local="$PWD/build/publication-check"
-./gradlew :plugin:integrationTest
+./gradlew build :plugin:publishToMavenLocal :spring-boot-plugin:publishToMavenLocal -Dmaven.repo.local="$PWD/build/publication-check"
+./gradlew dockerTest
 ```
 
 The first command writes the implementation and marker publications to `build/publication-check/` without changing your usual Maven local repository. Portal validation with `--validate-only` also requires publishing credentials and contacts the Portal, but does not upload the release.
@@ -555,8 +584,8 @@ git push origin v0.2.0
 To publish locally, provide `GRADLE_PUBLISH_KEY` and `GRADLE_PUBLISH_SECRET` in your environment, or put `gradle.publish.key` and `gradle.publish.secret` in your user-level `~/.gradle/gradle.properties`. Keep credentials out of this repository. After running the validation commands above:
 
 ```sh
-./gradlew :plugin:publishPlugins --validate-only
-./gradlew :plugin:publishPlugins
+./gradlew :plugin:publishPlugins --validate-only :spring-boot-plugin:publishPlugins --validate-only
+./gradlew :plugin:publishPlugins :spring-boot-plugin:publishPlugins
 ```
 
 The first publication requires [Portal approval](https://plugins.gradle.org/docs/publish-plugin#approval). Published versions are immutable; use a new version for subsequent releases. After approval, update the publication-status text in this README and the user guide. Applications can then apply the released plugin without a composite build:

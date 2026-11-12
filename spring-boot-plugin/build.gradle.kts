@@ -35,8 +35,7 @@ for (testSourceSet in listOf(functionalSourceSet, integrationSourceSet)) {
 
 dependencies {
     implementation(project(":plugin"))
-    // The consuming application supplies its Boot plugin and version at runtime.
-    compileOnly("org.springframework.boot:spring-boot-gradle-plugin:3.5.16")
+    // The consuming application supplies Spring Boot. Its classes are resolved from that plugin's loader.
     testImplementation(platform("org.junit:junit-bom:5.11.4"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")

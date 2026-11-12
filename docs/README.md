@@ -10,7 +10,7 @@ Run these commands from the repository root:
 ./gradlew :docs:siteZip
 ```
 
-- `site` generates `docs/build/site/index.html`, local assets, and `api/` from `:plugin:javadoc`.
+- `site` generates `docs/build/site/index.html`, local assets, `api/` from `:plugin:javadoc`, and `spring-boot-api/` from `:spring-boot-plugin:javadoc`.
 - `check` verifies every generated HTML page's local links, fragment targets, assets, and shared theme controls. External URLs are not fetched.
 - `siteZip` validates and packages the site at `docs/build/distributions/aws-emulator-docs-<version>.zip`.
 - `build` generates, verifies, and packages the site. The root `build` includes this project, so the existing CI build checks documentation too.

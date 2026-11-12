@@ -42,7 +42,16 @@ awsEmulator {
 }
 ----
 
-The managed emulator stays available while that task consumes it. Spring Boot-specific task creation is not part of this release.
+The managed emulator stays available while that task consumes it. The optional xref:spring-boot.adoc[Spring Boot companion] adds local run and debug tasks.
+
+To select a persistent development instance and declare setup dependencies through the same core API:
+
+[source,kotlin]
+----
+awsEmulator.useWith(tasks.named<JavaExec>("run"), EmulatorMode.DEVELOPMENT, createResources)
+----
+
+Import `io.github.gregwhitaker.awsemulator.model.EmulatorMode`. Setup arguments accept Gradle dependency notation, including task providers and names. The mode may also be a `Provider<EmulatorMode>`. Configure resource tasks with the same mode as their consumer. Development instances require explicit `stopAwsEmulator`; one-argument `useWith` calls retain their managed behavior.
 
 == Provision before consumers run
 

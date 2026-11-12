@@ -2,6 +2,9 @@
 
 ## 0.2.0 — Unreleased
 
+- Add the separate `io.github.gregwhitaker.aws-emulator.spring-boot` companion plugin with local run/debug tasks, profile and JVM settings, explicit setup dependencies, and application-selected Spring Boot versions.
+- Extend `awsEmulator.useWith` with lazy runtime selection and setup dependencies while preserving managed defaults for existing consumers.
+- Include Spring Boot 3.5/4.1 compatibility tests, real-emulator lifecycle verification, a runnable example, and companion API documentation.
 - Configure Gradle Plugin Portal publishing, publication metadata, CI validation, and a version-tagged release workflow.
 - Add SNS topic creation, listing, deletion, publishing, and SQS subscription tasks for managed and development runtimes.
 - Support standard/FIFO SNS topics, preserve existing queue policies and messages during subscription setup, and verify SNS-to-SQS delivery and configuration-cache reuse.

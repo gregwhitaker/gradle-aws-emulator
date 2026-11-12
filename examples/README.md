@@ -7,6 +7,7 @@ Standalone Kotlin DSL builds demonstrating the AWS Emulator Gradle plugin with A
 | [Basic](basic/README.md) | S3 buckets, standard and FIFO SQS queues, a dead-letter queue, message fixtures, and signed STS requests. |
 | [DynamoDB](dynamodb/README.md) | Table creation, a global secondary index, stream settings, and a Java initializer supplied by `buildSrc`. |
 | [Additional services](services/README.md) | SSM Parameter Store, Secrets Manager, EventBridge delivery to SQS, Kinesis, KMS, and CloudWatch Logs. |
+| [Spring Boot](spring-boot/README.md) | Companion plugin, local run/debug tasks, Spring profiles, SQS provisioning, and managed or persistent emulator connections. |
 
 Each project README includes run commands, source links, and instructions for managed tests and persistent development instances. Start with the basic example to see the plugin's provisioning and test integration.
 

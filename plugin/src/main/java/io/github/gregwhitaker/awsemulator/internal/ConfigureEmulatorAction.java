@@ -10,7 +10,7 @@ import org.gradle.api.provider.Provider;
 import org.gradle.process.JavaForkOptions;
 import java.io.Serializable;
 
-/** Holds only a build-service provider, so configuration-cache reuse starts a fresh runtime. */
+/** Holds service and mode providers so connection settings are resolved again on configuration-cache reuse. */
 public final class ConfigureEmulatorAction implements Action<Task>, Serializable {
     private final Provider<AwsEmulatorService> runtime;
     private final Provider<EmulatorMode> mode;

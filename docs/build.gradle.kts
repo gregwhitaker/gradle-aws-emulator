@@ -61,7 +61,7 @@ val renderDocs = tasks.register<JavaExec>("renderDocs") {
 val site = tasks.register<Sync>("site") {
     description = "Generates the complete static site in docs/build/site."
     group = "documentation"
-    dependsOn(renderDocs, ":plugin:javadoc")
+    dependsOn(renderDocs, ":plugin:javadoc", ":spring-boot-plugin:javadoc")
     val apiHeadFile = layout.projectDirectory.file("src/templates/api-head.html")
     val apiHeaderFile = layout.projectDirectory.file("src/templates/api-header.html")
     val apiHead = providers.fileContents(apiHeadFile).asText.get()
@@ -72,25 +72,27 @@ val site = tasks.register<Sync>("site") {
         include(pageNames.map { it.removeSuffix(".adoc") + ".html" })
     }
     from("src/site")
-    from(project(":plugin").layout.buildDirectory.dir("docs/javadoc")) {
-        into("api")
-        filteringCharset = "UTF-8"
-        filesMatching("**/*.html") {
-            // The destination path includes api/, so nested package pages resolve
-            // shared assets and the guide correctly even when hosted under a prefix.
-            val siteRoot = "../".repeat(relativePath.segments.size - 1)
-            val head = apiHead.replace("@site-root@", siteRoot)
-            val header = apiHeader.replace("@site-root@", siteRoot)
-            filter { line: String ->
-                line.replace("</head>", "$head\n</head>")
-                    .replace("<header role=\"banner\" class=\"flex-header\">",
-                        "<header role=\"banner\" class=\"flex-header\">\n$header")
+    for ((module, destination) in listOf("plugin" to "api", "spring-boot-plugin" to "spring-boot-api")) {
+        from(project(":$module").layout.buildDirectory.dir("docs/javadoc")) {
+            into(destination)
+            filteringCharset = "UTF-8"
+            filesMatching("**/*.html") {
+                // The destination path includes the API directory, so nested package pages resolve
+                // shared assets and the guide correctly even when hosted under a prefix.
+                val siteRoot = "../".repeat(relativePath.segments.size - 1)
+                val head = apiHead.replace("@site-root@", siteRoot)
+                val header = apiHeader.replace("@site-root@", siteRoot)
+                filter { line: String ->
+                    line.replace("</head>", "$head\n</head>")
+                        .replace("<header role=\"banner\" class=\"flex-header\">",
+                            "<header role=\"banner\" class=\"flex-header\">\n$header")
+                }
             }
-        }
-        filesMatching("stylesheet.css") {
-            // The shared theme uses system fonts; skip the doclet's unused font import.
-            filter { line: String ->
-                if (line.trim() == "@import url('resources/fonts/dejavu.css');") "" else line
+            filesMatching("stylesheet.css") {
+                // The shared theme uses system fonts; skip the doclet's unused font import.
+                filter { line: String ->
+                    if (line.trim() == "@import url('resources/fonts/dejavu.css');") "" else line
+                }
             }
         }
     }

@@ -76,4 +76,31 @@ class PluginFunctionalTest {
         assertFalse(Files.exists(temporary.resolve("two/.aws-emulator")));
     }
 
+    @Test
+    void usageAcceptsLazyModesAndSetupProvidersWithoutDuplicateStartupActions() throws Exception {
+        Files.writeString(temporary.resolve("settings.gradle"), "rootProject.name = 'usage-fixture'\n");
+        Files.writeString(temporary.resolve("build.gradle"), """
+            import io.github.gregwhitaker.awsemulator.model.EmulatorMode
+            plugins { id 'java'; id 'io.github.gregwhitaker.aws-emulator' }
+            def first = tasks.register('firstSetup')
+            def second = tasks.register('secondSetup')
+            def selected = objects.property(EmulatorMode).convention(EmulatorMode.DEVELOPMENT)
+            def tests = tasks.named('test')
+            awsEmulator {
+                dockerExecutable.set('no-docker-for-no-source-tests')
+                useWith(tests, EmulatorMode.MANAGED, first)
+            }
+            def actionCount = tests.get().actions.size()
+            awsEmulator.useWith(tests, selected, second)
+            assert tests.get().awsEmulatorMode.get() == EmulatorMode.DEVELOPMENT
+            assert tests.get().actions.size() == actionCount
+            """);
+        String output = runner(temporary, "test").build().getOutput();
+        assertTrue(output.contains(":firstSetup"), output);
+        assertTrue(output.contains(":secondSetup"), output);
+        assertTrue(output.contains("NO-SOURCE"), output);
+        assertTrue(runner(temporary, "test").build().getOutput().contains("Reusing configuration cache"));
+        assertFalse(Files.exists(temporary.resolve(".aws-emulator")));
+    }
+
 }
