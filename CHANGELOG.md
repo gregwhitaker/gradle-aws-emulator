@@ -2,6 +2,7 @@
 
 ## 0.2.0 — Unreleased
 
+- Add SES API v2 identity, template, configuration-set, and SNS event-destination provisioning; simple/raw email sends and message insights; Spring Boot setup discovery; and a Docker-tested example. Document the pinned emulator's template limitations and lack of SMTP forwarding to MailHog/Mailpit.
 - Add Cognito User Pool and public app client tasks, confirmed user/group fixtures, runtime configuration exports, and a Spring Security example with signed JWT verification and lifecycle/configuration-cache tests. Document the pinned emulator's ES256 token compatibility requirement.
 - Add Micronaut and Ktor examples using the core plugin, with framework-managed/HTTP SQS consumers, version compatibility checks, and real-emulator lifecycle and configuration-cache tests.
 - Preserve selected-JDK and custom TLS trust roots alongside the emulator certificate in isolated consumer trust stores, including lazy JVM and environment options.

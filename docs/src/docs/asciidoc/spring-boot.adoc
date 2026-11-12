@@ -62,6 +62,8 @@ Register resource-creation tasks with their required properties, as above. `boot
 
 Automatic setup covers S3 buckets; SQS queues and DLQs; SNS topics and SQS subscriptions; DynamoDB tables and their initializers; SSM parameters; Secrets Manager secrets; EventBridge buses, rules, and targets; Kinesis streams; KMS keys and aliases; and CloudWatch log groups and streams.
 
+xref:ses.adoc[SES identity, template, configuration-set, and event-destination tasks] also participate. Sending email and reading message insights require explicit dependencies.
+
 Discovery uses the core `@AwsEmulatorSetupTask` annotation on resource task types. Subclasses inherit it. Annotate your own `AbstractAwsResourceTask` subclasses to opt them into discovery. Registration remains lazy, so tasks declared after the companion is applied are included.
 
 The companion selects its runtime as the default for discovered resource tasks and their resource prerequisites when a local Boot task is selected. Explicit task dependencies determine ordering between resources; for example, a log-stream task should depend on its log-group task. Use additional `setupTasks` or `dependsOn` dependencies for message publishing, data fixtures, and custom preparation.

@@ -43,8 +43,8 @@ class SesTasksIntegrationTest {
             try (var ses = new AwsClientFactory(connection(), 30).sesV2()) {
                 String reused = runner(project, "provisionSes", "-Pdevelopment=true").build().getOutput();
                 assertTrue(reused.contains("Reusing configuration cache"), reused);
-                assertEquals(1, ses.listEmailIdentities().emailIdentities().size());
-                assertEquals(1, ses.listConfigurationSets().configurationSets().size());
+                assertEquals(1, ses.listEmailIdentities(r -> r.pageSize(1000)).emailIdentities().size());
+                assertEquals(1, ses.listConfigurationSets(r -> r.pageSize(1000)).configurationSets().size());
                 assertEquals(1, ses.getConfigurationSetEventDestinations(r -> r.configurationSetName("example-mail")).eventDestinations().size());
                 Path template = project.resolve("fixtures/welcome.txt");
                 Files.writeString(template, "Changed private template body");
@@ -71,8 +71,8 @@ class SesTasksIntegrationTest {
                         "deleteSesEmailTemplate", "--templateName=example-welcome",
                         "deleteSesConfigurationSet", "--configurationSetName=example-mail").build();
                 }
-                assertTrue(ses.listEmailIdentities().emailIdentities().isEmpty());
-                assertTrue(ses.listConfigurationSets().configurationSets().isEmpty());
+                assertTrue(ses.listEmailIdentities(r -> r.pageSize(1000)).emailIdentities().isEmpty());
+                assertTrue(ses.listConfigurationSets(r -> r.pageSize(1000)).configurationSets().isEmpty());
                 assertThrows(NotFoundException.class, () -> ses.getEmailTemplate(r -> r.templateName("example-welcome")));
             }
         } finally { runner(project, "stopAwsEmulator").build(); }

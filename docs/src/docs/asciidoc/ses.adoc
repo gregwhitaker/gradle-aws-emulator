@@ -1,0 +1,142 @@
+= SES email
+include::_partials/attributes.adoc[]
+
+The SES module uses AWS SDK for Java v2's `sesv2` client. It provisions local resources, submits simple and raw messages, and reads message insights. These operations use the selected emulator's endpoint, credentials, and validated TLS connection.
+
+== Start with the runnable example
+
+[source,shell]
+----
+./gradlew -p examples/ses integrationTest --configuration-cache
+./gradlew -p examples/ses integrationTest --configuration-cache
+----
+
+The example provisions an email identity, a stored template, a configuration set, and an SNS event destination backed by SQS. It sends simple and raw messages, checks SDK acceptance and metadata, and receives simulated send/bounce notifications. Repeated runs reuse the configuration cache and recreate the managed resources. Containers are removed after success or ordinary task failure.
+
+== Provision and send
+
+[source,kotlin]
+----
+import io.github.gregwhitaker.awsemulator.aws.ses.*
+
+plugins {
+    java
+    id("io.github.gregwhitaker.aws-emulator")
+}
+
+val sender = tasks.register<CreateSesEmailIdentityTask>("createMailSender") {
+    emailIdentity.set("sender@example.test")
+}
+val send = tasks.register<SendSesEmailTask>("sendWelcome") {
+    dependsOn(sender)
+    fromAddress.set("sender@example.test")
+    toAddresses.add("success@simulator.amazonses.com")
+    subject.set("Welcome")
+    textBody.set("Thanks for signing up.")
+    htmlBody.set("<p>Thanks for signing up.</p>")
+}
+val inspect = tasks.register<GetSesMessageInsightsTask>("inspectWelcome") {
+    dependsOn(send)
+    messageId.set(providers.fileContents(send.flatMap { it.messageIdFile }).asText.map { it.trim() })
+    outputFile.set(layout.buildDirectory.file("email/insights.json"))
+}
+val tests = tasks.named<Test>("test") { dependsOn(inspect) }
+awsEmulator { port.set(0); useWith(tests) }
+----
+
+The sender, send, inspection, and tests share one managed runtime. `SendSesEmailTask` writes the accepted message ID, not the message body. `GetSesMessageInsightsTask` writes `messageId`, `fromEmailAddress`, `subject`, `emailTags`, and `insights` entries containing `destination`, `isp`, and event `type`/`timestamp`. Fields unavailable from SES can be null. It does not export event details or email bodies.
+
+Groovy DSL uses the same properties:
+
+[source,groovy]
+----
+import io.github.gregwhitaker.awsemulator.aws.ses.*
+
+def sender = tasks.register('createMailSender', CreateSesEmailIdentityTask) {
+    emailIdentity.set('sender@example.test')
+}
+tasks.register('sendWelcome', SendSesEmailTask) {
+    dependsOn(sender)
+    fromAddress.set('sender@example.test')
+    toAddresses.add('success@simulator.amazonses.com')
+    subject.set('Welcome')
+    textBody.set('Thanks for signing up.')
+}
+----
+
+== Tasks and properties
+
+All classes below are in `io.github.gregwhitaker.awsemulator.aws.ses`.
+
+[cols="2,3",options="header"]
+|===
+|Task type |Properties and behavior
+|`CreateSesEmailIdentityTask` |`emailIdentity`: bare ASCII email address or domain. `waitTimeoutSeconds`: 30 by default. Reuses an existing identity and waits for `VerifiedForSendingStatus=true`; fails if verification does not finish in time.
+|`ListSesEmailIdentitiesTask` |Lists names and verification status across all result pages.
+|`DeleteSesEmailIdentityTask` |`emailIdentity`. Deleting an absent identity succeeds.
+|`PutSesEmailTemplateTask` |`templateName`, `subject`, and at least one of `textBody`/`htmlBody`. Maximum combined content size: 500000 UTF-8 bytes. Matching content is reused; changing content requires `overwrite=true` (default false). This task stores content without rendering it.
+|`DeleteSesEmailTemplateTask` |`templateName`. Deleting an absent template succeeds.
+|`CreateSesConfigurationSetTask` |`configurationSetName`. Reuses existing sets without changing sending, tracking, or other options.
+|`ListSesConfigurationSetsTask` |Lists configuration-set names across all result pages.
+|`DeleteSesConfigurationSetTask` |`configurationSetName`. Removes the set and its event destinations; absence succeeds.
+|`PutSesSnsEventDestinationTask` |`configurationSetName`, `eventDestinationName`, and existing standard SNS `topicArn`. `matchingEventTypes` defaults to `SEND`, `DELIVERY`, `BOUNCE`, `COMPLAINT`. Creates an enabled destination; different settings require `overwrite=true` (default false).
+|`SendSesEmailTask` |`fromAddress`; a total of 1–50 recipients across `toAddresses`, `ccAddresses`, `bccAddresses`; optional `replyToAddresses` and `configurationSetName`. Supply `subject` and `textBody` and/or `htmlBody`, or a complete MIME file in `rawMessage` (up to 40 MiB). Simple and raw inputs cannot be combined. Sender and recipient properties are required for raw messages too. `messageIdFile` defaults to `build/aws-emulator/ses/TASK/message-id.txt`.
+|`GetSesMessageInsightsTask` |`messageId` from the selected runtime. `outputFile` defaults to `build/aws-emulator/ses/TASK/insights.json`. Exports metadata and events without printing them.
+|===
+
+Template, configuration-set, and destination names accept 1–64 letters, digits, underscores, or hyphens. Send properties accept bare ASCII addresses, without display names. Output files are replaced atomically where supported, use owner-only permissions on POSIX filesystems, and must differ from raw-message input files. Bodies and template values are omitted from task logs and SDK error summaries.
+
+Use lazy file providers for body/template fixtures:
+
+[source,kotlin]
+----
+tasks.register<PutSesEmailTemplateTask>("putWelcomeTemplate") {
+    templateName.set("welcome")
+    subject.set("Welcome {{name}}")
+    htmlBody.set(providers.fileContents(layout.projectDirectory.file("fixtures/welcome.html")).asText)
+}
+----
+
+== Lifetimes and Spring Boot
+
+Custom tasks default to `MANAGED`. All live SES tasks execute each time and are excluded from up-to-date skipping and the build cache; configuration-cache reuse is supported. Send tasks submit a new message on each invocation. Their message IDs are valid only within the runtime that accepted them.
+
+The module registers development convenience tasks `listSesEmailIdentities`, `deleteSesEmailIdentity`, `deleteSesEmailTemplate`, `listSesConfigurationSets`, `deleteSesConfigurationSet`, `sendSesEmail`, and `getSesMessageInsights`. Use `--mode=MANAGED` to override their mode. The delete tasks accept `--emailIdentity`, `--templateName`, or `--configurationSetName`, as appropriate. The send command accepts `--fromAddress`, comma-separated `--toAddresses`, `--subject`, `--textBody`, and `--configurationSetName`. Inspection accepts `--messageId`.
+
+[source,shell]
+----
+./gradlew -p examples/ses provisionSes -Pdevelopment=true
+./gradlew -p examples/ses listSesEmailIdentities listSesConfigurationSets
+./gradlew -p examples/ses sendSesEmail --fromAddress=sender@example.test --toAddresses=success@simulator.amazonses.com --subject=Hello --textBody=Welcome
+./gradlew -p examples/ses stopAwsEmulator
+----
+
+Identity, template, configuration-set, and event-destination provisioning tasks carry `@AwsEmulatorSetupTask`, so xref:spring-boot.adoc[Spring Boot local runs] discover them automatically. Sending and inspection require explicit dependencies. Declare dependencies between setup tasks, including the event destination's configuration set and SNS topic. You can also use these tasks in xref:scenarios.adoc[resource sets] shared by tests and development scenarios.
+
+== Observe sends through SNS and SQS
+
+Create a standard SNS topic and SQS subscription using xref:sns.adoc[`CreateSnsTopicWithSqsEndpointTask`], then register `PutSesSnsEventDestinationTask` with its topic ARN. The SNS topic must permit SES publication in workflows that enforce topic policies. Configure the application's SES `SendEmail` requests with the same `configurationSetName`; the send task has the same property.
+
+The runnable example verifies simulated `Send` and `Bounce` notifications for `bounce@simulator.amazonses.com` through SNS to SQS. These events include the message ID and common headers, and can exercise application bounce handling. A simulated `Delivery` event does not mean any external inbox received email. Message insights in the pinned emulator report acceptance (`SEND`); use the configured event destination to observe simulated bounce/delivery outcomes.
+
+== MailHog, Mailpit, and SMTP
+
+AWS Emulator `1.0.322` records SES messages internally and does not relay them to an SMTP server. There is no `SMTP_HOST` or MailHog/Mailpit relay setting in this plugin. This is based on the pinned release's https://github.com/aws/aws-emulator/blob/v1.0.322/services/service-com-amazonaws-sesv2-simpleemailservice-v2/src/ops/send_email.rs[SendEmail implementation] and https://github.com/aws/aws-emulator/blob/v1.0.322/services/service-com-amazonaws-sesv2-simpleemailservice-v2/src/state.rs[message state]. Stored message bodies are not available through `GetMessageInsights`.
+
+For a browser inbox showing HTML, MIME, and attachments, configure your application's local SMTP mail sender to use https://github.com/mailhog/MailHog[MailHog] or https://mailpit.axllent.org/docs/configuration/smtp/[Mailpit], usually at `localhost:1025`. For example, an application using Spring Boot's mail starter and `JavaMailSender` can select a local profile with:
+
+[source,properties]
+----
+spring.mail.host=localhost
+spring.mail.port=1025
+spring.mail.properties.mail.smtp.auth=false
+spring.mail.properties.mail.smtp.starttls.enable=false
+----
+
+This configures an SMTP client only. It does not redirect an SES SDK client: the SES client speaks HTTPS, whereas MailHog/Mailpit expects SMTP. An application using the SES API needs a local SMTP implementation of its mail-sending abstraction, or a separate SES-to-SMTP adapter, to use those inboxes. This plugin does not implement that adapter or manage SMTP containers.
+
+== Pinned emulator coverage
+
+The example and Docker tests verify AWS Emulator `1.0.322` with AWS SDK for Java v2 `2.39.6`. Supported workflows here include email-identity verification, template create/get/update/delete, configuration-set and SNS-destination setup, simple/raw sends, and message insights. Local email identities settle to verified without clicking an email verification link. Domain verification behavior depends on the emulator's domain handling; a domain that never becomes verified causes the identity task to time out.
+
+SES v2 `ListEmailTemplates`, `TestRenderEmailTemplate`, and `SendEmail` with template content return `501 NotImplemented` in this release. No template-listing, rendering, or templated-send task is registered. Provisioning a template does not imply it can be rendered or sent by this emulator. The plugin does not advertise SMTP forwarding, inbound email receipt, or full SES parity. Check https://docs.aws.amazon.com/emulator/latest/userguide/fidelity.html[AWS Emulator fidelity] when changing versions.

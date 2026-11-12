@@ -10,6 +10,7 @@ Standalone Kotlin DSL builds demonstrating the AWS Emulator Gradle plugin with A
 | [DynamoDB](dynamodb/README.md) | Table creation, a global secondary index, stream settings, and a Java initializer supplied by `buildSrc`. |
 | [Additional services](services/README.md) | SSM Parameter Store, Secrets Manager, EventBridge delivery to SQS, Kinesis, KMS, and CloudWatch Logs. |
 | [Cognito](cognito/README.md) | User Pools, public app clients, user/group fixtures, runtime ID exports, and signed JWT authorization with Spring Security. |
+| [SES](ses/README.md) | Email identities, stored templates, simple/raw sends, message insights, and simulated send/bounce events through SNS and SQS. |
 | [Data fixtures and scenarios](scenarios/README.md) | S3 file uploads and downloads, DynamoDB JSON seeding and clearing, and named development scenarios with reset/reseed. |
 | [Spring Boot](spring-boot/README.md) | Companion plugin, local run/debug tasks, Spring profiles, SQS provisioning, and managed or persistent emulator connections. |
 | [Micronaut](micronaut/README.md) | Micronaut-managed SQS client injection, `@MicronautTest`, and managed tests or persistent application runs through the core plugin. |

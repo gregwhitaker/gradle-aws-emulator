@@ -70,6 +70,7 @@ Both instances keep AWS resources in memory. Stop or restart discards those reso
 * xref:sns.adoc[Create SNS topics, subscribe SQS queues, and publish notifications] with standard or FIFO delivery.
 * xref:dynamodb.adoc[Create and initialize DynamoDB tables] with secondary indexes and SDK v2 initializers.
 * xref:cognito.adoc[Provision Cognito User Pools, app clients, users, and groups] and verify local JWT authentication with Spring Security.
+* xref:ses.adoc[Provision SES identities and templates, send local email, and inspect simulated notifications] with SES API v2.
 * xref:services.adoc[Provision configuration, secrets, events, streams, encryption keys, and application logs] with typed tasks and JSON fixtures.
 * xref:connections.adoc[Use signed HTTPS requests] with generated emulator credentials and per-JVM TLS trust.
 * link:api/index.html[Browse the Java API] for the extension, task types, and configuration model.

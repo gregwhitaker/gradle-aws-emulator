@@ -138,6 +138,8 @@ Both local tasks discover registered resource-creation tasks in the application'
 
 Discovery covers S3 buckets, SQS queues and DLQs, SNS topics and subscriptions, DynamoDB tables and initializers, SSM parameters, Secrets Manager secrets, EventBridge buses/rules/targets, Kinesis streams, KMS keys and aliases, and CloudWatch log groups and streams. It uses the core `@AwsEmulatorSetupTask` annotation, which is inherited by subclasses. Custom `AbstractAwsResourceTask` implementations can opt in with the same annotation.
 
+[SES identity, template, configuration-set, and event-destination tasks](../docs/src/docs/asciidoc/ses.adoc) are also discovered. Sending email and reading message insights require explicit dependencies and are not automatic startup actions.
+
 Declare ordering between resources with `dependsOn`, such as a log stream depending on its log group. Add message publishing, data fixtures, and custom preparation through `setupTasks` or explicit dependencies. Explicit resource modes must match the application's mode; a conflict fails before startup.
 
 Exclude test-only resources from automatic discovery by task name or path:
