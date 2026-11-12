@@ -2,6 +2,12 @@
 
 ## 0.2.0 — Unreleased
 
+- Configure Gradle Plugin Portal publishing, publication metadata, CI validation, and a version-tagged release workflow.
+- Add SNS topic creation, listing, deletion, publishing, and SQS subscription tasks for managed and development runtimes.
+- Support standard/FIFO SNS topics, preserve existing queue policies and messages during subscription setup, and verify SNS-to-SQS delivery and configuration-cache reuse.
+- Add `DynamoDbModule` with SDK v2 table creation, listing, deletion, secondary indexes, stream/encryption settings, and build-classpath initializers.
+- Wait for DynamoDB table readiness before initialization and consuming tests, and wait for deletion to complete.
+- Include a Kotlin DSL DynamoDB example with a `buildSrc` initializer and configuration-cache verification.
 - Add a `docs` subproject with a static user guide, generated Java API reference, link checks, and ZIP packaging.
 - Use Kotlin DSL for the repository's build and settings scripts.
 - Move the published plugin into `plugin/` with separate `test`, `functional`, and `integration` source sets.

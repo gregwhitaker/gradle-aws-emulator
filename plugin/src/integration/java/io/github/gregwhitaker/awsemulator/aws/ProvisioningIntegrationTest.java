@@ -1,4 +1,4 @@
-package io.github.gregwhitaker.awsemulator;
+package io.github.gregwhitaker.awsemulator.aws;
 
 import io.github.gregwhitaker.awsemulator.aws.internal.AwsClientFactory;
 import io.github.gregwhitaker.awsemulator.internal.docker.ProcessCommandRunner;

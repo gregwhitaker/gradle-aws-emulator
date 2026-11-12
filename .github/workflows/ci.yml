@@ -32,7 +32,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6.4.1
         with:
           gradle-version: ${{ matrix.gradle }}
-      - run: gradle build --no-daemon
+      - run: gradle build :plugin:publishPlugins --validate-only --no-daemon
 
   docker:
     strategy:

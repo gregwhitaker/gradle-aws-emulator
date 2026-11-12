@@ -12,14 +12,14 @@ import java.util.Map;
 import java.util.Objects;
 
 /** Creates missing queues and verifies explicitly configured attributes on existing queues. */
-final class SqsQueueProvisioner {
-    static void validateName(String name) {
+public final class SqsQueueProvisioner {
+    public static void validateName(String name) {
         if (name.length() > 80 || !name.matches("[A-Za-z0-9_-]+(\\.fifo)?")) {
             throw new GradleException("queueName must contain 1–80 letters, numbers, underscores or hyphens, with an optional .fifo suffix.");
         }
     }
 
-    static void validate(String name, Map<String, String> attributes) {
+    public static void validate(String name, Map<String, String> attributes) {
         validateName(name);
         String fifo = attributes.getOrDefault("FifoQueue", "false");
         if ((!fifo.equals("true") && !fifo.equals("false")) || name.endsWith(".fifo") != fifo.equals("true")) {
@@ -30,7 +30,7 @@ final class SqsQueueProvisioner {
         }
     }
 
-    String provision(SqsClient client, String name, Map<String, String> attributes) {
+    public String provision(SqsClient client, String name, Map<String, String> attributes) {
         validate(name, attributes);
         String url;
         try {

@@ -17,6 +17,7 @@ toc::[]
 |AWS config |A separate `host-config` file with host-side paths
 |TLS trust |The generated `ca.pem` and per-JVM PKCS12 trust store
 |Metadata/discovery |EC2 metadata lookup and endpoint discovery disabled
+|Kinesis wire format |JSON through `aws.cborEnabled=false` and `CBOR_ENABLED=false` in opted-in JVMs
 |===
 
 The plugin removes inherited AWS credential, profile, and service-endpoint environment overrides, along with corresponding configured JVM credential/endpoint properties. It does not change the Gradle daemon's credentials or global trust settings.

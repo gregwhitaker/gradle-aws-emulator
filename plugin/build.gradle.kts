@@ -1,16 +1,19 @@
 import org.gradle.api.component.AdhocComponentWithVariants
 import org.gradle.external.javadoc.StandardJavadocDocletOptions
+import org.gradle.plugin.compatibility.compatibility
 
 plugins {
     `java-gradle-plugin`
     `java-test-fixtures`
     `maven-publish`
+    id("com.gradle.plugin-publish") version "2.2.1"
 }
 
 group = "io.github.gregwhitaker"
 version = providers.gradleProperty("pluginVersion").get()
 description = "Gradle lifecycle, resource provisioning, and test integration for AWS Emulator"
 base { archivesName.set("gradle-aws-emulator") }
+val projectWebsite = "https://github.com/gregwhitaker/gradle-aws-emulator"
 
 repositories { mavenCentral() }
 
@@ -39,6 +42,12 @@ publishing {
         pom {
             name.set("AWS Emulator Gradle Plugin")
             description.set(project.description)
+            url.set(projectWebsite)
+            scm {
+                url.set(projectWebsite)
+                connection.set("scm:git:$projectWebsite.git")
+                developerConnection.set("scm:git:git@github.com:gregwhitaker/gradle-aws-emulator.git")
+            }
             licenses {
                 license {
                     name.set("Apache License, Version 2.0")
@@ -61,7 +70,22 @@ dependencies {
         exclude(group = "software.amazon.awssdk", module = "apache-client")
         exclude(group = "software.amazon.awssdk", module = "netty-nio-client")
     }
+    implementation("software.amazon.awssdk:sns") {
+        exclude(group = "software.amazon.awssdk", module = "apache-client")
+        exclude(group = "software.amazon.awssdk", module = "netty-nio-client")
+    }
+    implementation("software.amazon.awssdk:dynamodb") {
+        exclude(group = "software.amazon.awssdk", module = "apache-client")
+        exclude(group = "software.amazon.awssdk", module = "netty-nio-client")
+    }
     implementation("software.amazon.awssdk:url-connection-client")
+    for (service in listOf("ssm", "secretsmanager", "eventbridge", "kinesis", "kms", "cloudwatchlogs")) {
+        implementation("software.amazon.awssdk:$service") {
+            exclude(group = "software.amazon.awssdk", module = "apache-client")
+            exclude(group = "software.amazon.awssdk", module = "netty-nio-client")
+        }
+    }
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.18.6")
     implementation("org.apache.commons:commons-compress:1.28.0")
     testImplementation(platform("org.junit:junit-bom:5.11.4"))
     testImplementation("org.junit.jupiter:junit-jupiter")
@@ -75,6 +99,8 @@ dependencies {
 }
 
 gradlePlugin {
+    website.set(projectWebsite)
+    vcsUrl.set("$projectWebsite.git")
     testSourceSets(functionalSourceSet, integrationSourceSet)
     plugins {
         create("awsEmulator") {
@@ -82,6 +108,12 @@ gradlePlugin {
             implementationClass = "io.github.gregwhitaker.awsemulator.AwsEmulatorPlugin"
             displayName = "AWS Emulator Gradle Plugin"
             description = project.description
+            tags.set(listOf("aws", "aws-emulator", "docker", "testing", "integration-testing"))
+            compatibility {
+                features {
+                    configurationCache = true
+                }
+            }
         }
     }
 }
@@ -103,6 +135,10 @@ val functionalTest = tasks.register<Test>("functionalTest") {
 }
 
 tasks.register<Test>("integrationTest") {
+    systemProperty("services.example", rootProject.layout.projectDirectory.dir("examples/services").asFile.absolutePath)
+    inputs.files(rootProject.fileTree("examples/services") {
+        include("build.gradle.kts", "src/**", "fixtures/**")
+    }).withPropertyName("servicesExample").withPathSensitivity(PathSensitivity.RELATIVE)
     description = "Runs integration tests against a real Docker daemon and AWS Emulator."
     group = "verification"
     testClassesDirs = integrationSourceSet.output.classesDirs
@@ -111,6 +147,7 @@ tasks.register<Test>("integrationTest") {
 }
 
 tasks.named("check") { dependsOn(functionalTest) }
+tasks.named("publishPlugins") { dependsOn(tasks.named("check")) }
 
 val javaComponent = components["java"] as AdhocComponentWithVariants
 javaComponent.withVariantsFromConfiguration(configurations["testFixturesApiElements"]) { skip() }

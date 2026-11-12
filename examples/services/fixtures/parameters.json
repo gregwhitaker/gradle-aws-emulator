@@ -1,0 +1,5 @@
+[
+  {"name":"/example/service/url","value":"http://localhost:8080","type":"String"},
+  {"name":"/example/service/features","value":"catalog,checkout","type":"StringList"},
+  {"name":"/example/service/token","value":"local-token","type":"SecureString","keyId":"alias/example-services"}
+]

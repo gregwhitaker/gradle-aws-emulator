@@ -1,4 +1,4 @@
-package io.github.gregwhitaker.awsemulator;
+package io.github.gregwhitaker.awsemulator.emulator;
 
 import io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorSettings;
 import io.github.gregwhitaker.awsemulator.internal.docker.ProcessCommandRunner;
@@ -13,7 +13,7 @@ import java.util.List;
 import static io.github.gregwhitaker.awsemulator.testsupport.GradleBuilds.runner;
 import static org.junit.jupiter.api.Assertions.*;
 
-class DockerIntegrationTest {
+class EmulatorIntegrationTest {
     @TempDir Path project;
 
     @Test

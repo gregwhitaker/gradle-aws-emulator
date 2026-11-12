@@ -47,6 +47,7 @@ public record EmulatorConnection(int port, String region, Path directory) {
         env.put("AWS_EC2_METADATA_DISABLED", "true");
         env.put("AWS_DISABLE_HOST_PREFIX_INJECTION", "true");
         env.put("AWS_ENDPOINT_DISCOVERY_ENABLED", "false");
+        env.put("CBOR_ENABLED", "false");
         env.put("AWS_REGION", region);
         env.put("AWS_DEFAULT_REGION", region);
         return env;
@@ -58,6 +59,7 @@ public record EmulatorConnection(int port, String region, Path directory) {
             "aws.secretAccessKey", "aws.secretKey", "aws.sessionToken", "aws.profile", "aws.roleArn",
             "aws.roleSessionName", "aws.webIdentityTokenFile", "javax.net.ssl.trustStorePassword",
             "javax.net.ssl.trustStoreProvider").contains(key));
+        props.put("aws.cborEnabled", "false");
         props.put("aws.endpointUrl", endpoint());
         props.put("aws.region", region);
         props.put("aws.profile", "default");

@@ -1,0 +1,4 @@
+[
+  {"source":"example.orders","detailType":"OrderCreated","detail":{"id":"order-1"}},
+  {"source":"example.ignored","detailType":"OrderCreated","detail":{"id":"ignored"}}
+]

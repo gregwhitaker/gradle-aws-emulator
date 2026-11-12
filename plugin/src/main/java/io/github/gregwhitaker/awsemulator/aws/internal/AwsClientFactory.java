@@ -12,6 +12,20 @@ import software.amazon.awssdk.profiles.ProfileFile;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.sqs.SqsClient;
+import software.amazon.awssdk.services.sns.SnsClient;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+
+import software.amazon.awssdk.services.ssm.SsmClient;
+
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+
+import software.amazon.awssdk.services.eventbridge.EventBridgeClient;
+
+import software.amazon.awssdk.services.kinesis.KinesisClient;
+
+import software.amazon.awssdk.services.kms.KmsClient;
+
+import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient;
 
 import java.net.URI;
 import java.time.Duration;
@@ -37,6 +51,70 @@ public final class AwsClientFactory {
 
     public SqsClient sqs() {
         return SqsClient.builder()
+            .endpointOverride(URI.create(connection.endpoint())).region(Region.of(connection.region()))
+            .credentialsProvider(credentials()).httpClientBuilder(http())
+            .fipsEnabled(false).dualstackEnabled(false)
+            .overrideConfiguration(overrides()).build();
+    }
+
+    public SnsClient sns() {
+        return SnsClient.builder()
+            .endpointOverride(URI.create(connection.endpoint())).region(Region.of(connection.region()))
+            .credentialsProvider(credentials()).httpClientBuilder(http())
+            .fipsEnabled(false).dualstackEnabled(false)
+            .overrideConfiguration(overrides()).build();
+    }
+
+    public DynamoDbClient dynamoDb() {
+        return DynamoDbClient.builder()
+            .endpointOverride(URI.create(connection.endpoint())).region(Region.of(connection.region()))
+            .credentialsProvider(credentials()).httpClientBuilder(http())
+            .fipsEnabled(false).dualstackEnabled(false).endpointDiscoveryEnabled(false)
+            .overrideConfiguration(overrides()).build();
+    }
+
+    public SsmClient ssm() {
+        return SsmClient.builder()
+            .endpointOverride(URI.create(connection.endpoint())).region(Region.of(connection.region()))
+            .credentialsProvider(credentials()).httpClientBuilder(http())
+            .fipsEnabled(false).dualstackEnabled(false)
+            .overrideConfiguration(overrides()).build();
+    }
+
+    public SecretsManagerClient secretsManager() {
+        return SecretsManagerClient.builder()
+            .endpointOverride(URI.create(connection.endpoint())).region(Region.of(connection.region()))
+            .credentialsProvider(credentials()).httpClientBuilder(http())
+            .fipsEnabled(false).dualstackEnabled(false)
+            .overrideConfiguration(overrides()).build();
+    }
+
+    public EventBridgeClient eventBridge() {
+        return EventBridgeClient.builder()
+            .endpointOverride(URI.create(connection.endpoint())).region(Region.of(connection.region()))
+            .credentialsProvider(credentials()).httpClientBuilder(http())
+            .fipsEnabled(false).dualstackEnabled(false)
+            .overrideConfiguration(overrides()).build();
+    }
+
+    public KinesisClient kinesis() {
+        return KinesisClient.builder()
+            .endpointOverride(URI.create(connection.endpoint())).region(Region.of(connection.region()))
+            .credentialsProvider(credentials()).httpClientBuilder(http())
+            .fipsEnabled(false).dualstackEnabled(false)
+            .overrideConfiguration(overrides()).build();
+    }
+
+    public KmsClient kms() {
+        return KmsClient.builder()
+            .endpointOverride(URI.create(connection.endpoint())).region(Region.of(connection.region()))
+            .credentialsProvider(credentials()).httpClientBuilder(http())
+            .fipsEnabled(false).dualstackEnabled(false)
+            .overrideConfiguration(overrides()).build();
+    }
+
+    public CloudWatchLogsClient cloudWatchLogs() {
+        return CloudWatchLogsClient.builder()
             .endpointOverride(URI.create(connection.endpoint())).region(Region.of(connection.region()))
             .credentialsProvider(credentials()).httpClientBuilder(http())
             .fipsEnabled(false).dualstackEnabled(false)

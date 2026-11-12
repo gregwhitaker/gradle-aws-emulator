@@ -27,6 +27,11 @@ val prepareDocs = tasks.register<Sync>("prepareDocs") {
         include("settings.gradle.kts", "build.gradle.kts", "src/integration/java/**/*.java", "src/integration/messages/**")
         into("examples/basic")
     }
+    from(rootProject.layout.projectDirectory.dir("examples/dynamodb")) {
+        include("settings.gradle.kts", "build.gradle.kts", "buildSrc/settings.gradle.kts", "buildSrc/build.gradle.kts",
+            "buildSrc/src/main/java/**/*.java")
+        into("examples/dynamodb")
+    }
     into(preparedSources)
 }
 

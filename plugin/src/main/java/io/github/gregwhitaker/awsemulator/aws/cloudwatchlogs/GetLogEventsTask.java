@@ -1,0 +1,38 @@
+package io.github.gregwhitaker.awsemulator.aws.cloudwatchlogs;
+
+import io.github.gregwhitaker.awsemulator.aws.AbstractAwsResourceTask;
+import io.github.gregwhitaker.awsemulator.aws.internal.*;
+import org.gradle.api.GradleException;
+import org.gradle.api.provider.*;
+import org.gradle.api.file.*;
+import org.gradle.api.tasks.*;
+import org.gradle.api.tasks.options.Option;
+import org.gradle.work.DisableCachingByDefault;
+import java.util.List;
+import java.util.Map;
+
+/** Writes paginated log stream events to a JSON file without printing message bodies. */
+@DisableCachingByDefault(because = "Uses live emulator resources")
+public abstract class GetLogEventsTask extends AbstractAwsResourceTask {
+    public GetLogEventsTask() { getMaxEvents().convention(10000); }
+    @Input public abstract Property<String> getLogGroupName();
+    @Option(option = "logGroupName", description = "LogGroupName") public void setLogGroupNameOption(String value) { getLogGroupName().set(value); }
+    @Input public abstract Property<String> getLogStreamName();
+    @Option(option = "logStreamName", description = "LogStreamName") public void setLogStreamNameOption(String value) { getLogStreamName().set(value); }
+    @Input @Optional public abstract Property<Long> getStartTime();
+    @Input public abstract Property<Integer> getMaxEvents();
+    @OutputFile public abstract RegularFileProperty getOutputFile();
+    @TaskAction
+    public void executeTask() {
+        String group = CloudWatchLogsOperations.group(getLogGroupName().get());
+        String stream = CloudWatchLogsOperations.stream(getLogStreamName().get());
+        int max = getMaxEvents().get();
+        if (max < 1 || max > 1000000) throw new GradleException("maxEvents must be between 1 and 1000000.");
+        Long start = getStartTime().getOrNull();
+        if (start != null && start < 0) throw new GradleException("startTime must be nonnegative epoch milliseconds.");
+        try (var client = new AwsClientFactory(connection(), getApiCallTimeoutSeconds().get()).cloudWatchLogs()) {
+            var ops = new CloudWatchLogsOperations();
+            ops.output(getOutputFile().get().getAsFile().toPath(), ops.get(client, group, stream, start, max));
+        }
+    }
+}

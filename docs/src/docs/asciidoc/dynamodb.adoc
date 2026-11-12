@@ -1,0 +1,152 @@
+= DynamoDB tables
+include::_partials/attributes.adoc[]
+:description: Create, initialize, list, and delete DynamoDB tables with AWS SDK for Java v2 and Gradle.
+
+`DynamoDbModule` groups the DynamoDB tasks under *AWS Emulator - DynamoDB*. It follows the same module structure and runtime selection as the S3 and SQS tasks.
+
+toc::[]
+
+== Tasks and runtime selection
+
+[cols="2,2,3",options="header"]
+|===
+|Task type |Registration |Behavior
+|`CreateDynamoDbTableTask` |Register a named task in your build |Create or reuse a table, wait for `ACTIVE`, and optionally initialize a new table.
+|`ListDynamoDBTablesTask` |`listDynamoDbTables` |List all table names, following every response page.
+|`DeleteDynamoDbTableTask` |`deleteDynamoDbTable` |Delete one explicitly named table and its items; wait for deletion to complete.
+|===
+
+The two registered commands default to `EmulatorMode.DEVELOPMENT`. Custom task instances default to `EmulatorMode.MANAGED`, sharing the instance used by `awsEmulator.useWith(...)`. All three accept `--mode=MANAGED` or `--mode=DEVELOPMENT`.
+
+[source,shell]
+----
+./gradlew listDynamoDbTables
+./gradlew deleteDynamoDbTable --tableName=catalog.products
+----
+
+Each command starts or reuses its selected emulator on demand. Listing an empty emulator succeeds. Deleting a missing table fails with a clear error, matching the LocalStack task's behavior. Other SDK errors remain build failures.
+
+== Create a table before tests
+
+[source,kotlin]
+----
+import io.github.gregwhitaker.awsemulator.aws.dynamodb.CreateDynamoDbTableTask
+import software.amazon.awssdk.services.dynamodb.model.AttributeDefinition
+import software.amazon.awssdk.services.dynamodb.model.KeySchemaElement
+import software.amazon.awssdk.services.dynamodb.model.KeyType
+import software.amazon.awssdk.services.dynamodb.model.ScalarAttributeType
+
+plugins {
+    java
+    id("io.github.gregwhitaker.aws-emulator")
+}
+
+val createProducts = tasks.register<CreateDynamoDbTableTask>("createProducts") {
+    tableName.set("catalog.products")
+    keySchema.add(KeySchemaElement.builder().attributeName("id").keyType(KeyType.HASH).build())
+    attributeDefinitions.add(AttributeDefinition.builder().attributeName("id").attributeType(ScalarAttributeType.S).build())
+}
+val tests = tasks.named<Test>("test") { dependsOn(createProducts) }
+awsEmulator {
+    port.set(0)
+    useWith(tests)
+}
+----
+
+For a development session, set `mode` to `EmulatorMode.DEVELOPMENT` or run your creation task with `--mode=DEVELOPMENT`. A managed creation task invoked alone creates a table that disappears when the build finishes.
+
+=== Creation properties
+
+The schema properties accept immutable AWS SDK for Java v2 model objects using Gradle's lazy property API.
+
+[cols="2,2,3",options="header"]
+|===
+|Property |Type |Default or requirement
+|`tableName` |`Property<String>` |Required; 3–255 letters, numbers, underscores, hyphens, or periods.
+|`keySchema` |`ListProperty<KeySchemaElement>` |Required; one `HASH` key and an optional distinct `RANGE` key.
+|`attributeDefinitions` |`ListProperty<AttributeDefinition>` |Required; scalar `S`, `N`, or `B` definitions for exactly the table and index key attributes.
+|`globalSecondaryIndexes` |`ListProperty<GlobalSecondaryIndex>` |Empty. Each configured GSI needs a key schema, projection, and provisioned throughput.
+|`localSecondaryIndexes` |`ListProperty<LocalSecondaryIndex>` |Empty. LSIs require a composite table key and share the table's partition key.
+|`provisionedThroughput` |`Property<ProvisionedThroughput>` |100 read and 100 write capacity units, matching the LocalStack task.
+|`sseSpecification` |`Property<SSESpecification>` |`enabled=true`, matching the LocalStack task.
+|`streamSpecification` |`Property<StreamSpecification>` |Unset. Enabled streams require a `streamViewType`.
+|`initializer` |`Property<String>` |Unset; fully qualified class name on the build classpath.
+|`waitTimeoutSeconds` |`Property<Integer>` |60; positive SDK waiter timeout for creation and deletion.
+|`apiCallTimeoutSeconds` |`Property<Integer>` |30; positive timeout for each SDK operation, including retries.
+|`mode` |`Property<EmulatorMode>` |`MANAGED` for custom task instances.
+|===
+
+These are provisioned-capacity tables. Set each GSI's throughput separately. The task passes encryption and stream settings to the emulator; it does not provision a KMS key or a stream consumer.
+
+An existing table is reused without changing its schema, indexes, capacity, encryption, streams, or items. Requested creation settings are validated but are not reconciled against existing settings. The task waits for an existing table in transition to become `ACTIVE`. To apply a different table definition, delete and recreate the development table or start a fresh managed build.
+
+== Table initializers
+
+The initializer contract follows the LocalStack plugin, updated for SDK v2:
+
+* A public, concrete class available on the build classpath.
+* A public constructor accepting one `DynamoDbClient`.
+* A public instance `void run()` method with no arguments.
+
+The plugin passes its authenticated emulator client and owns the client's lifetime. The initializer runs only when this task creates the table, after the table becomes `ACTIVE`. Reusing a table, including after another task creates it concurrently, does not rerun initialization.
+
+An initializer failure fails the build with the original cause. Managed cleanup still runs. A development table remains available for inspection; retrying creation reuses that table and does not retry initialization. Delete and recreate it to rerun its initializer.
+
+=== Share the build classpath
+
+When using `buildSrc`, depend on both the plugin and the SDK there. This places the task classes, initializer, and SDK types on the same build classpath and avoids loading separate copies of SDK model classes.
+
+The checkout example uses a composite build in `buildSrc/settings.gradle.kts` to resolve the unpublished plugin:
+
+[source,kotlin]
+----
+include::examples/dynamodb/buildSrc/settings.gradle.kts[]
+----
+
+Its `buildSrc/build.gradle.kts` declares the dependencies:
+
+[source,kotlin]
+----
+include::examples/dynamodb/buildSrc/build.gradle.kts[]
+----
+
+The main build applies the plugin without a version because `buildSrc` supplies it. Application and test code still declare their own SDK dependencies.
+
+=== Initializer implementation
+
+[source,java]
+----
+include::examples/dynamodb/buildSrc/src/main/java/example/buildsrc/dynamodb/ProductTableInitializer.java[]
+----
+
+== Run the complete example
+
+From the plugin repository root:
+
+[source,shell]
+----
+./gradlew -p examples/dynamodb integrationTest --configuration-cache
+----
+
+The example creates and initializes a table with a global secondary index and stream settings, then verifies item reads and index queries over authenticated HTTPS. Run it again to verify configuration-cache reuse with fresh managed state.
+
+.View the Kotlin build script
+[%collapsible]
+====
+[source,kotlin]
+----
+include::examples/dynamodb/build.gradle.kts[]
+----
+====
+
+For the development runtime:
+
+[source,shell]
+----
+./gradlew -p examples/dynamodb createProducts --mode=DEVELOPMENT
+./gradlew -p examples/dynamodb listDynamoDbTables
+./gradlew -p examples/dynamodb deleteDynamoDbTable --tableName=example-products
+./gradlew -p examples/dynamodb stopAwsEmulator
+----
+
+API: link:api/io/github/gregwhitaker/awsemulator/aws/dynamodb/CreateDynamoDbTableTask.html[CreateDynamoDbTableTask], link:api/io/github/gregwhitaker/awsemulator/aws/dynamodb/ListDynamoDBTablesTask.html[ListDynamoDBTablesTask], link:api/io/github/gregwhitaker/awsemulator/aws/dynamodb/DeleteDynamoDbTableTask.html[DeleteDynamoDbTableTask].

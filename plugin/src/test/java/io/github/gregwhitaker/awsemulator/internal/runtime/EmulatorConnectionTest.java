@@ -26,6 +26,7 @@ class EmulatorConnectionTest {
         assertEquals("/bin", env.get("PATH"));
         assertEquals("https://127.0.0.1:9297", env.get("AWS_ENDPOINT_URL"));
         assertEquals("eu-west-1", env.get("AWS_REGION"));
+        assertEquals("false", env.get("CBOR_ENABLED"));
         connection.writeHostConfig();
         String config = Files.readString(directory.resolve("host-config"));
         assertTrue(config.contains("region = eu-west-1"));
@@ -36,6 +37,7 @@ class EmulatorConnectionTest {
     void overridesJvmCredentialsAndTrustWithoutChangingTheGradleJvm() {
         var connection = new EmulatorConnection(9300, "us-east-1", directory);
         String parentTrustStore = System.getProperty("javax.net.ssl.trustStore");
+        String parentCbor = System.getProperty("aws.cborEnabled");
         var props = connection.systemProperties(Map.of("aws.accessKeyId", "real-key", "aws.secretAccessKey", "secret",
             "aws.endpointUrl.s3", "https://aws.example", "javax.net.ssl.trustStorePassword", "old-password", "custom", "kept"));
         assertFalse(props.containsKey("aws.accessKeyId"));
@@ -45,5 +47,7 @@ class EmulatorConnectionTest {
         assertEquals("kept", props.get("custom"));
         assertEquals(directory.resolve("truststore.p12").toString(), props.get("javax.net.ssl.trustStore"));
         assertEquals(parentTrustStore, System.getProperty("javax.net.ssl.trustStore"));
+        assertEquals("false", props.get("aws.cborEnabled"));
+        assertEquals(parentCbor, System.getProperty("aws.cborEnabled"));
     }
 }

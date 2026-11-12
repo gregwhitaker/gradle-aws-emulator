@@ -1,6 +1,6 @@
 # AWS Emulator Gradle Plugin
 
-Gradle lifecycle tasks, S3/SQS resource management, and opt-in JVM test integration for [AWS Emulator](https://github.com/aws/aws-emulator).
+Gradle lifecycle tasks, AWS resource management, and opt-in JVM test integration for [AWS Emulator](https://github.com/aws/aws-emulator).
 
 Plugin ID: **`io.github.gregwhitaker.aws-emulator`**. Version **0.2.0** is implemented in this repository; it has not been published to the Gradle Plugin Portal.
 
@@ -15,6 +15,8 @@ Generate the user guide and Java API reference locally:
 ```
 
 Open `docs/build/site/index.html` in a browser. `./gradlew :docs:check` checks local links and assets; `./gradlew :docs:siteZip` creates a verified static-site archive in `docs/build/distributions/`. Site generation requires Java and Gradle, with no Docker or separate frontend toolchain. See [docs/README.md](docs/README.md) for authoring and hosting instructions.
+
+The [GitHub Pages workflow](.github/workflows/pages.yml) deploys the verified guide and API reference on pushes to `main` or a manual run from `main`. Enable **GitHub Actions** as the repository's Pages source using the [deployment setup instructions](docs/README.md#github-pages).
 
 ## Try the included example
 
@@ -33,6 +35,21 @@ To demonstrate cleanup after a failed test:
 ```
 
 That command is expected to fail its test; its managed container is still removed.
+
+## Additional AWS services
+
+Typed resource tasks now cover **SSM Parameter Store, Secrets Manager, EventBridge, Kinesis Data Streams, KMS, and CloudWatch Logs**. They support managed tests and persistent development instances using the same local SDK connection as the existing S3/SQS tasks.
+
+Run the complete example twice to verify SDK round trips and configuration-cache reuse:
+
+```sh
+./gradlew -p examples/services verifyServices --configuration-cache
+./gradlew -p examples/services verifyServices --configuration-cache
+```
+
+The example seeds configuration and secrets from JSON, routes EventBridge events into SQS, publishes/consumes stream records, encrypts/decrypts a file, and retrieves application logs. Use `-PfailExample=true` to exercise cleanup after a failed test. For persistent resources, run `provisionServices -Pdevelopment=true`, then `stopAwsEmulator` when finished.
+
+See [the service task guide](docs/src/docs/asciidoc/services.adoc) for the complete task/property reference, Kotlin/Groovy DSL, fixture schemas, overwrite rules, deletion semantics, and supported limits. The generated guide is available at `docs/build/site/services.html` after `./gradlew :docs:site`.
 
 ## Apply from a checkout
 
@@ -310,6 +327,84 @@ awsEmulator { useWith(tasks.named<Test>("test")) }
 
 FIFO targets require `messageGroupId` (or `--messageGroupId` on `publishSqs`). Each delivery gets a unique deduplication ID so identical fixture lines remain separate messages. Publishing tasks always execute, including on configuration-cache reuse.
 
+## SNS topics and SQS subscriptions
+
+SNS tasks create standard/FIFO topics, subscribe SQS queues, list topics and subscriptions, publish messages, and delete topics.
+
+```kotlin
+import io.github.gregwhitaker.awsemulator.aws.sns.CreateSnsTopicWithSqsEndpointTask
+import io.github.gregwhitaker.awsemulator.aws.sns.PublishSnsTask
+
+val createNotifications = tasks.register<CreateSnsTopicWithSqsEndpointTask>("createNotifications") {
+    topicName.set("application-notifications")
+    subscriptionAttributes.put("RawMessageDelivery", "true")
+}
+val publishNotification = tasks.register<PublishSnsTask>("publishTestNotification") {
+    dependsOn(createNotifications)
+    topicName.set("application-notifications")
+    message.set("""{"event":"created"}""")
+}
+val notificationTests = tasks.named<Test>("test") { dependsOn(publishNotification) }
+awsEmulator { useWith(notificationTests) }
+```
+
+The subscriber queue defaults to `<topic>-subscriber`. The task preserves existing queue messages and policy statements, adds a topic-specific delivery grant, and reuses the subscription. Existing topics and queues must match explicitly requested attributes. Use `CreateSnsTopicTask` with `topicName` and optional `attributes` for a topic without a queue.
+
+Four convenience tasks target the persistent development instance:
+
+```sh
+./gradlew listSnsTopics
+./gradlew listSnsTopicSubscriptions --topicName=application-notifications
+./gradlew publishSns --topicName=application-notifications --message='{"event":"created"}'
+./gradlew deleteSnsTopic --topicName=application-notifications
+```
+
+Provision those development topics with `mode.set(EmulatorMode.DEVELOPMENT)` first. Topic deletion also removes subscriptions but retains their SQS queues. See the [SNS guide](docs/src/docs/asciidoc/sns.adoc) for all task properties, FIFO configuration, and Groovy examples.
+
+## DynamoDB tables
+
+`DynamoDbModule` groups table tasks under `AWS Emulator - DynamoDB` using AWS SDK for Java v2.
+
+| Task type | Registration | Behavior |
+| --- | --- | --- |
+| `CreateDynamoDbTableTask` | Register a named task | Create or reuse a table, wait for `ACTIVE`, and optionally initialize a newly created table. |
+| `ListDynamoDBTablesTask` | `listDynamoDbTables` | List every table, following all response pages. |
+| `DeleteDynamoDbTableTask` | `deleteDynamoDbTable` | Delete the named table and its items; wait for deletion to complete. |
+
+```kotlin
+import io.github.gregwhitaker.awsemulator.aws.dynamodb.CreateDynamoDbTableTask
+import software.amazon.awssdk.services.dynamodb.model.*
+
+val createProducts = tasks.register<CreateDynamoDbTableTask>("createProducts") {
+    tableName.set("catalog.products")
+    keySchema.add(KeySchemaElement.builder().attributeName("id").keyType(KeyType.HASH).build())
+    attributeDefinitions.add(AttributeDefinition.builder().attributeName("id").attributeType(ScalarAttributeType.S).build())
+}
+tasks.named<Test>("test") { dependsOn(createProducts) }
+awsEmulator { useWith(tasks.named<Test>("test")) }
+```
+
+Creation supports `globalSecondaryIndexes`, `localSecondaryIndexes`, `provisionedThroughput` (100 read/write units by default), `sseSpecification` (`enabled=true` by default), and optional `streamSpecification`. These are lazy properties containing SDK v2 model objects. Each GSI requires its own throughput. The task validates the schema before starting Docker.
+
+Existing tables are reused without changing their definitions or items and without rerunning initializers. Creation and deletion use `waitTimeoutSeconds` (default `60`); individual SDK calls use `apiCallTimeoutSeconds` (default `30`). Deleting a missing table fails, matching the LocalStack task.
+
+The registered list/delete commands use the development emulator; custom tasks default to managed mode. For a development session:
+
+```sh
+./gradlew createProducts --mode=DEVELOPMENT
+./gradlew listDynamoDbTables
+./gradlew deleteDynamoDbTable --tableName=catalog.products
+./gradlew stopAwsEmulator
+```
+
+Set `initializer` to the fully qualified name of a public build-classpath class with a `DynamoDbClient` constructor and a public instance `void run()` method. It receives the plugin's client after the new table is active. When using `buildSrc`, include the plugin and SDK together in its dependencies so they share SDK types.
+
+The [DynamoDB guide](docs/src/docs/asciidoc/dynamodb.adoc) covers all properties and initializer setup. The [standalone example](examples/dynamodb/build.gradle.kts) uses a Kotlin build and a `buildSrc` initializer:
+
+```sh
+./gradlew -p examples/dynamodb integrationTest --configuration-cache
+```
+
 ## Configuration
 
 All properties use Gradle's lazy property API.
@@ -381,6 +476,8 @@ plugin/
       AbstractAwsResourceTask.java  shared resource-task configuration
       s3/                           S3Module, S3 task types, and provisioning helpers
       sqs/                          SqsModule, SQS task types, and provisioning helpers
+      sns/                          SnsModule, SNS tasks, and SQS subscription helpers
+      dynamodb/                     DynamoDbModule, table tasks, and initializer support
       internal/                     execution-scoped SDK clients
     core/                           shared emulator task base
     model/                          public configuration types
@@ -394,17 +491,19 @@ plugin/
 examples/basic/                      runnable Kotlin DSL consumer
 ```
 
-Tasks are organized by feature, following the module pattern in `gradle-localstack`. `AwsEmulatorPlugin` loads `EmulatorModule` and `AwsModule`; `AwsModule` loads `S3Module` and `SqsModule`. Each service package keeps its module, task types, and provisioning helpers together. Modules register or configure tasks lazily when the plugin is applied. The build service owns the runtime lifetime, and everything under `internal` is an implementation detail.
+Tasks are organized by feature, following the module pattern in `gradle-localstack`. `AwsEmulatorPlugin` loads `EmulatorModule` and `AwsModule`; `AwsModule` loads the AWS service modules. Each service package keeps its module, task types, and provisioning helpers together. Modules register or configure tasks lazily when the plugin is applied. The build service owns the runtime lifetime, and everything under `internal` is an implementation detail.
 
 | Module | Gradle task group | Responsibilities |
 | --- | --- | --- |
 | `EmulatorModule` | `AWS Emulator` | Runtime configuration and the six lifecycle tasks. |
 | `S3Module` | `AWS Emulator - S3` | Bucket creation, listing, purging, and deletion. |
 | `SqsModule` | `AWS Emulator - SQS` | Queue and DLQ creation, listing, purging, and message publishing. |
+| `SnsModule` | `AWS Emulator - SNS` | Topic creation, listing, deletion, SQS subscriptions, and message publishing. |
+| `DynamoDbModule` | `AWS Emulator - DynamoDB` | Table creation, initialization, listing, and deletion. |
 
 Register named resource tasks in your build; their service module supplies the group and default description. Imports use `io.github.gregwhitaker.awsemulator.aws.s3.CreateS3BucketTask` and `io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueueTask`.
 
-Separate test source sets follow [Gradle's plugin testing guidance](https://docs.gradle.org/current/userguide/testing_gradle_plugins.html#sec:organizing_test_source_code). The feature modules are packaged together in the plugin artifact.
+Separate test source sets follow [Gradle's plugin testing guidance](https://docs.gradle.org/current/userguide/testing_gradle_plugins.html#sec:organizing_test_source_code). Functional and integration tests mirror the production packages: service-specific tests live under `aws.<service>`, scenarios spanning AWS services under `aws`, emulator lifecycle integration tests under `emulator`, and plugin-wide tests in the root plugin package. The feature modules are packaged together in the plugin artifact.
 
 ## Build and verify
 
@@ -423,7 +522,47 @@ To run TestKit consumers against another Gradle version:
 
 `-PtestGradleInstallation=/path/to/gradle` can instead use an existing installation. The CI matrix is configured for Gradle 8.14.3 and 9.6.1, Java 17 and 21, and real Docker execution on Linux AMD64 and ARM64. Windows runs the Docker-free suite; Docker integration on Windows has not been verified.
 
-`java-gradle-plugin` and `maven-publish` generate the plugin artifact and marker publication. Build artifacts are in `plugin/build/libs/`; reports are in `plugin/build/reports/tests/`. The implementation coordinate remains `io.github.gregwhitaker:gradle-aws-emulator:0.2.0` and the plugin ID remains `io.github.gregwhitaker.aws-emulator`. Use the composite build above for local development. Publishing to the Gradle Plugin Portal is a separate release step and is not performed by this repository's CI.
+`java-gradle-plugin`, `maven-publish`, and `com.gradle.plugin-publish` generate the plugin artifact and marker publication. Build artifacts are in `plugin/build/libs/`; reports are in `plugin/build/reports/tests/`. The implementation coordinate remains `io.github.gregwhitaker:gradle-aws-emulator:0.2.0` and the plugin ID remains `io.github.gregwhitaker.aws-emulator`. Use the composite build above for local development. CI validates the publication without uploading it; the release workflow publishes version tags.
+
+## Publish to the Gradle Plugin Portal
+
+The release version comes from `pluginVersion` in the root `gradle.properties`. Publishing includes the implementation JAR, sources, Javadoc, dependency metadata, and the plugin marker; test fixtures and the documentation subproject are not published. `publishPlugins` runs the plugin's unit tests, functional tests, and plugin validation before publishing.
+
+Validate the release locally without credentials or uploading artifacts:
+
+```sh
+./gradlew build :plugin:publishPlugins --validate-only
+./gradlew :plugin:integrationTest
+```
+
+Create a [Plugin Portal account and API key](https://plugins.gradle.org/docs/publish-plugin), linked to the `gregwhitaker` GitHub account so the Portal can verify the plugin namespace. Add the key and secret to this repository's GitHub Actions secrets as `GRADLE_PUBLISH_KEY` and `GRADLE_PUBLISH_SECRET`.
+
+To release through GitHub Actions:
+
+1. Set `pluginVersion` to the release version, update the changelog, and commit the release changes.
+2. Push that commit and a matching version tag, for example `v0.2.0` for `pluginVersion=0.2.0`.
+3. The [publish workflow](.github/workflows/publish.yml) checks the tag, builds the plugin and docs, runs unit/functional/Docker integration tests, validates the publication, then uploads it. It can also be dispatched manually against a matching version tag.
+
+For example, from the intended release commit:
+
+```sh
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+To publish locally, provide `GRADLE_PUBLISH_KEY` and `GRADLE_PUBLISH_SECRET` in your environment, or put `gradle.publish.key` and `gradle.publish.secret` in your user-level `~/.gradle/gradle.properties`. Keep credentials out of this repository. After running the validation commands above:
+
+```sh
+./gradlew :plugin:publishPlugins
+```
+
+The first publication requires [Portal approval](https://plugins.gradle.org/docs/publish-plugin#approval). Published versions are immutable; use a new version for subsequent releases. After approval, update the publication-status text in this README and the user guide. Applications can then apply the released plugin without a composite build:
+
+```kotlin
+plugins {
+    id("io.github.gregwhitaker.aws-emulator") version "0.2.0"
+}
+```
 
 ## License
 

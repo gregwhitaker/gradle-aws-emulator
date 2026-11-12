@@ -22,9 +22,21 @@ The tasks support `--configuration-cache`. Open `docs/build/site/index.html` dir
 python3 -m http.server 8000 --bind 127.0.0.1 --directory docs/build/site
 ```
 
-Then visit <http://127.0.0.1:8000>. Upload the contents of `docs/build/site/` (or the unzipped archive) to a static host. Links are relative and also work under a path prefix. This project does not publish or require a hosting account.
+Then visit <http://127.0.0.1:8000>. Upload the contents of `docs/build/site/` (or the unzipped archive) to a static host. Links are relative and also work under a path prefix. Local builds do not publish or require a hosting account.
 
 The guide and Java API reference include the same light/dark theme toggle on desktop and mobile. They follow the system theme until a reader chooses one, then share that preference through browser storage. Both themes use neutral grays and blue accents. Printing uses a light palette.
+
+## GitHub Pages
+
+The [Deploy docs to GitHub Pages workflow](../.github/workflows/pages.yml) publishes the guide and Java API reference on pushes to `main`. It runs `./gradlew :docs:check --no-daemon` with Java 17, uploads `docs/build/site`, and deploys only after the build and link checks succeed. The existing CI workflow also checks the documentation on pull requests.
+
+To enable deployment:
+
+1. Open the repository's **Settings > Pages** and set **Build and deployment > Source** to **GitHub Actions**, as described in [GitHub's publishing instructions](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site#publishing-with-a-custom-github-actions-workflow).
+2. Commit and push the workflow and documentation changes to `main`. Later pushes to `main` automatically update the site.
+3. To redeploy manually, open **Actions > Deploy docs to GitHub Pages > Run workflow** and select `main`. Runs on other branches can build the site but do not deploy it.
+
+After a successful deployment, the site is available at <https://gregwhitaker.github.io/gradle-aws-emulator/>. The deployment job also reports the site URL through the `github-pages` environment. The workflow uses GitHub's built-in token; no personal access token or additional repository secret is required. Deployment permissions are scoped to the deployment job, and deployments run one at a time without canceling an active run.
 
 ## Authoring
 

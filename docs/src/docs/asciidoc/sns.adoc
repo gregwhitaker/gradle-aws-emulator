@@ -1,0 +1,140 @@
+= SNS topics & subscriptions
+include::_partials/attributes.adoc[]
+:description: Provision standard and FIFO SNS topics, subscribe SQS queues, publish messages, and manage development topics.
+
+The SNS module supplies typed tasks for topic creation, SQS subscriptions, listing, deletion, and publishing. All task types live in `io.github.gregwhitaker.awsemulator.aws.sns` and use the `AWS Emulator - SNS` task group.
+
+toc::[]
+
+== Provision and publish before tests
+
+=== Kotlin DSL
+
+[source,kotlin]
+----
+import io.github.gregwhitaker.awsemulator.aws.sns.CreateSnsTopicWithSqsEndpointTask
+import io.github.gregwhitaker.awsemulator.aws.sns.PublishSnsTask
+
+plugins {
+    java
+    id("io.github.gregwhitaker.aws-emulator")
+}
+
+val notifications = tasks.register<CreateSnsTopicWithSqsEndpointTask>("createNotifications") {
+    topicName.set("application-notifications")
+    subscriptionAttributes.put("RawMessageDelivery", "true")
+}
+val publish = tasks.register<PublishSnsTask>("publishNotification") {
+    dependsOn(notifications)
+    topicName.set("application-notifications")
+    message.set("""{"event":"created"}""")
+}
+val tests = tasks.named<Test>("test") { dependsOn(publish) }
+awsEmulator {
+    port.set(0)
+    useWith(tests)
+}
+----
+
+The example creates `application-notifications-subscriber`. Tests can receive the published JSON from that queue using their own SQS SDK client. `RawMessageDelivery=true` delivers the message body directly; the default subscription wraps it in an SNS notification envelope.
+
+=== Groovy DSL
+
+[source,groovy]
+----
+import io.github.gregwhitaker.awsemulator.aws.sns.CreateSnsTopicWithSqsEndpointTask
+import io.github.gregwhitaker.awsemulator.aws.sns.PublishSnsTask
+
+plugins {
+    id 'java'
+    id 'io.github.gregwhitaker.aws-emulator'
+}
+
+def notifications = tasks.register('createNotifications', CreateSnsTopicWithSqsEndpointTask) {
+    topicName.set('application-notifications')
+    subscriptionAttributes.put('RawMessageDelivery', 'true')
+}
+def publish = tasks.register('publishNotification', PublishSnsTask) {
+    dependsOn(notifications)
+    topicName.set('application-notifications')
+    message.set('{"event":"created"}')
+}
+def tests = tasks.named('test') { dependsOn(publish) }
+awsEmulator {
+    port.set(0)
+    useWith(tests)
+}
+----
+
+== Task properties
+
+All properties use Gradle's lazy property API. Every task also accepts `mode` (custom instances default to `MANAGED`) and `apiCallTimeoutSeconds` (default `30`, positive). Tasks always execute against live emulator state, including on configuration-cache reuse, and never use the build cache.
+
+[cols="1,1,2",options="header"]
+|===
+|Task type |Required |Optional
+|`CreateSnsTopicTask` |`topicName` |`attributes` (map)
+|`CreateSnsTopicWithSqsEndpointTask` |`topicName` |`topicAttributes`, `queueName`, `queueAttributes`, `subscriptionAttributes`
+|`ListSnsTopicsTask` |None |None
+|`ListSnsTopicSubscriptionsTask` |`topicName` |None
+|`DeleteSnsTopicTask` |`topicName` |None
+|`PublishSnsTask` |`topicName`, `message` |`subject`, `messageGroupId`, `messageDeduplicationId`
+|===
+
+Use `CreateSnsTopicTask` to create a topic without a subscriber. Attribute maps use AWS attribute names and string values. Existing topics and queues are reused when explicitly configured attributes match; conflicting values fail without replacing the resource. Comparisons use returned strings, including JSON-valued attributes. Unspecified attributes retain their existing values.
+
+Topic names allow 1–256 letters, numbers, underscores, or hyphens, including an optional `.fifo` suffix. The default subscriber queue name is `<topic>-subscriber`, with `-subscriber` before `.fifo`. SQS queue names have an 80-character limit, so longer topics need an explicit shorter `queueName`.
+
+== SQS delivery and repeated setup
+
+The subscription task resolves actual topic and queue ARNs from the emulator. It adds a queue policy statement granting only `sqs:SendMessage` to the SNS service, constrained to this topic's ARN, following the https://docs.aws.amazon.com/sns/latest/dg/subscribe-sqs-queue-to-sns-topic.html[AWS SNS-to-SQS setup]. Existing policy statements and queue messages are preserved. Repeated setup reuses that grant and the subscription, applying explicitly configured subscription attributes when they differ.
+
+`queueAttributes` must not include `Policy`; the subscription task manages its delivery grant by merging the policy it reads from the queue. Existing permissions configured separately are retained. Malformed policies and conflicting grant identifiers fail instead of overwriting existing permissions.
+
+`subscriptionAttributes` supports service attributes such as `RawMessageDelivery`, `FilterPolicy`, and `FilterPolicyScope`. For example, use `FilterPolicyScope=MessageBody` with a JSON `FilterPolicy` when filtering the JSON messages published by `PublishSnsTask`. The service validates supported attributes and policies.
+
+Provisioning involves multiple service calls. If a later call fails, earlier successful creations or subscription updates remain. SDK errors fail the build.
+
+== FIFO topics
+
+Set both a `.fifo` topic name and `FifoTopic=true`:
+
+[source,kotlin]
+----
+val orders = tasks.register<CreateSnsTopicWithSqsEndpointTask>("createOrders") {
+    topicName.set("application-orders.fifo")
+    topicAttributes.put("FifoTopic", "true")
+    subscriptionAttributes.put("RawMessageDelivery", "true")
+}
+val publishOrder = tasks.register<PublishSnsTask>("publishOrder") {
+    dependsOn(orders)
+    topicName.set("application-orders.fifo")
+    message.set("""{"orderId":"123"}""")
+    messageGroupId.set("integration-tests")
+}
+----
+
+This creates `application-orders-subscriber.fifo` with `FifoQueue=true` inferred. An SNS FIFO topic can also use an explicitly named standard queue; a standard SNS topic cannot use a FIFO queue.
+
+Publishing to FIFO topics requires `messageGroupId`. Each execution generates a fresh deduplication ID so repeated identical fixture messages remain separate deliveries. Set `messageDeduplicationId` explicitly when testing deduplication. Standard topics reject that property.
+
+== Development commands
+
+Register a provisioning task with `mode.set(EmulatorMode.DEVELOPMENT)` to leave its resources available between builds. The following module convenience tasks default to that same persistent development runtime:
+
+[source,shell]
+----
+./gradlew listSnsTopics
+./gradlew listSnsTopicSubscriptions --topicName=application-notifications
+./gradlew publishSns --topicName=application-notifications --message='{"event":"created"}'
+./gradlew publishSns --topicName=application-orders.fifo --message='{"orderId":"123"}' --messageGroupId=orders
+./gradlew deleteSnsTopic --topicName=application-notifications
+----
+
+Every task accepts `--mode=MANAGED` or `--mode=DEVELOPMENT`. Managed resources are removed when the build finishes; provisioning and consumers must select the same runtime.
+
+Topic and subscription listings follow all response pages. Publishing and subscription listing fail when the selected topic is absent and do not create it. Deleting an absent topic succeeds; deleting an existing topic removes its subscriptions but retains subscriber queues and their policies.
+
+`publishSns --message` accepts message text. The task supports UTF-8 messages from 1 byte through 256 KiB and optional subjects of 1–99 characters without control characters. Message contents are not printed in task lifecycle logs. A later invocation publishes again, so reruns can produce duplicates.
+
+API: link:api/io/github/gregwhitaker/awsemulator/aws/sns/CreateSnsTopicTask.html[CreateSnsTopicTask], link:api/io/github/gregwhitaker/awsemulator/aws/sns/CreateSnsTopicWithSqsEndpointTask.html[CreateSnsTopicWithSqsEndpointTask], link:api/io/github/gregwhitaker/awsemulator/aws/sns/ListSnsTopicsTask.html[ListSnsTopicsTask], link:api/io/github/gregwhitaker/awsemulator/aws/sns/ListSnsTopicSubscriptionsTask.html[ListSnsTopicSubscriptionsTask], link:api/io/github/gregwhitaker/awsemulator/aws/sns/PublishSnsTask.html[PublishSnsTask], link:api/io/github/gregwhitaker/awsemulator/aws/sns/DeleteSnsTopicTask.html[DeleteSnsTopicTask].
