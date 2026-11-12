@@ -39,15 +39,20 @@ class ConnectionExportsTest {
         builder.environment().put("AWS_ACCESS_KEY_ID", "production-key");
         builder.environment().put("AWS_ENDPOINT_URL_CUSTOM_SERVICE", "https://production.example");
         builder.environment().put("AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE", "production-token");
-        builder.environment().put("KEEP_ME", "unchanged");
+        builder.environment().put("KEEP_ME", "unrelated-production-setting");
         var process = builder.redirectErrorStream(true).redirectOutput(output.toFile()).start();
-        assertTrue(process.waitFor(10, TimeUnit.SECONDS));
+        boolean finished = process.waitFor(10, TimeUnit.SECONDS);
+        if (!finished) process.destroyForcibly();
+        assertTrue(finished);
         assertEquals(0, process.exitValue());
-        String environment = Files.readString(output);
-        assertFalse(environment.contains("production"), environment);
-        assertTrue(environment.contains("AWS_SHARED_CREDENTIALS_FILE=" + connection.credentials()), environment);
-        assertTrue(environment.contains("KEEP_ME=unchanged"), environment);
-        assertTrue(environment.contains("NODE_EXTRA_CA_CERTS=" + connection.certificate()), environment);
+        var environment = Files.readAllLines(output);
+        for (String name : java.util.List.of("AWS_ACCESS_KEY_ID", "AWS_ENDPOINT_URL_CUSTOM_SERVICE",
+                "AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE")) {
+            assertFalse(environment.stream().anyMatch(line -> line.startsWith(name + "=")), name + " must be removed");
+        }
+        assertTrue(environment.contains("AWS_SHARED_CREDENTIALS_FILE=" + connection.credentials()), "Credentials path must match literally");
+        assertTrue(environment.contains("KEEP_ME=unrelated-production-setting"), "Unrelated variables must remain");
+        assertTrue(environment.contains("NODE_EXTRA_CA_CERTS=" + connection.certificate()), "Certificate path must match literally");
     }
 
     @Test
