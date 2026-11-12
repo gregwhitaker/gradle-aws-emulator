@@ -22,6 +22,7 @@ jobs:
           - os: windows-latest
             java: '21'
             gradle: '9.6.1'
+    timeout-minutes: 45
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7.0.1
@@ -33,22 +34,26 @@ jobs:
         with:
           gradle-version: ${{ matrix.gradle }}
       - run: gradle build :plugin:publishToMavenLocal :spring-boot-plugin:publishToMavenLocal "-Dmaven.repo.local=${{ runner.temp }}/plugin-publication" --no-daemon
-      - name: Smoke-test published plugins
+      - name: Smoke-test published plugins and configuration-cache reuse
         shell: bash
-        run: |
-          version="$(sed -n 's/^pluginVersion=//p' gradle.properties | tr -d '\r')"
-          for consumer in core spring-boot; do
-            gradle -p "smoke-tests/$consumer" build \
-              "-PpluginVersion=$version" \
-              "-PpluginRepository=${{ runner.temp }}/plugin-publication" \
-              --configuration-cache --configuration-cache-problems=fail --no-daemon
-          done
+        env:
+          GRADLE: gradle
+        run: bash scripts/smoke-test-publication.sh "${{ runner.temp }}/plugin-publication"
+
+  release-tools:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - run: python3 -m unittest discover -s scripts/tests -v
+      - run: bash -n scripts/smoke-test-publication.sh
 
   docker:
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, ubuntu-24.04-arm]
+    timeout-minutes: 45
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7.0.1

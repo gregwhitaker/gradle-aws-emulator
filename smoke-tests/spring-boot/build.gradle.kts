@@ -12,6 +12,12 @@ plugins {
 
 repositories { mavenCentral() }
 
+// Avoid Boot's main-class discovery probing not-yet-created class directories
+// during configuration, which invalidates the first build's configuration cache.
+tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
+    mainClass.set("example.Application")
+}
+
 awsEmulator {
     dockerExecutable.set("no-docker-in-publication-smoke-tests")
     springBoot { profiles.set(listOf("publication-smoke")) }
