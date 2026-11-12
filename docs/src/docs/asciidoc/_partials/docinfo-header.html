@@ -20,8 +20,12 @@
     <span class="brand-mark" aria-hidden="true">ae<span>.</span></span>
     <span>AWS Emulator<span class="brand-subtitle">GRADLE PLUGIN</span></span>
   </a>
+  <a class="header-section" href="index.html">Documentation</a>
   <div class="header-links">
-    <span class="version">v{revnumber} <span>unreleased</span></span>
+    <button class="search-toggle" type="button" aria-haspopup="dialog" aria-controls="docs-search" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+      <span>Search docs</span><kbd>⌘ K</kbd>
+    </button>
     <a href="{repo-url}">GitHub <span aria-hidden="true">↗</span></a>
     <button id="docs-theme-toggle" class="theme-toggle" type="button" role="switch" aria-checked="false" aria-label="Dark theme" title="Toggle dark theme" hidden>
       <svg class="theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg>
@@ -31,27 +35,47 @@
   </div>
 </header>
 <nav class="site-nav" id="site-nav" aria-label="Documentation">
-  <p class="nav-label">THE GUIDE</p>
-  <a href="index.html">Overview</a>
-  <a href="getting-started.html">Getting started</a>
-  <p class="nav-label">WORK WITH THE EMULATOR</p>
-  <a href="lifecycle.html">Development lifecycle</a>
-  <a href="scenarios.html">Data fixtures &amp; scenarios</a>
-  <a href="testing.html">Tests &amp; process execution</a>
-  <a href="shared-runtimes.html">Share across projects</a>
-  <a href="spring-boot.html">Spring Boot</a>
-  <a href="frameworks.html">Micronaut &amp; Ktor</a>
-  <a href="resources.html">S3 &amp; SQS resources</a>
-  <a href="sns.html">SNS topics &amp; subscriptions</a>
-  <a href="dynamodb.html">DynamoDB tables</a>
-  <a href="cognito.html">Cognito users &amp; authentication</a>
-  <a href="ses.html">SES email</a>
-  <a href="services.html">Configuration &amp; service fixtures</a>
-  <p class="nav-label">REFERENCE</p>
-  <a href="configuration.html">Configuration</a>
-  <a href="connections.html">Credentials &amp; TLS</a>
-  <a href="troubleshooting.html">Troubleshooting</a>
-  <a href="api/index.html">Java API <span aria-hidden="true">↗</span></a>
-  <a href="spring-boot-api/index.html">Spring Boot API <span aria-hidden="true">↗</span></a>
-  <div class="nav-note"><span class="status-dot" aria-hidden="true"></span> Built for local development<br><span>Java 17+ · Gradle 8.14+</span></div>
+  <div class="nav-version"><span class="status-dot" aria-hidden="true"></span> v{revnumber}<span>Unreleased</span></div>
+  <div class="nav-group">
+    <p class="nav-label">Start here</p>
+    <a href="index.html">Overview</a>
+    <a href="getting-started.html">Getting started</a>
+  </div>
+  <div class="nav-group">
+    <p class="nav-label">Development</p>
+    <a href="lifecycle.html">Emulator lifecycle</a>
+    <a href="testing.html">Tests &amp; processes</a>
+    <a href="scenarios.html">Fixtures &amp; scenarios</a>
+    <a href="shared-runtimes.html">Shared runtimes</a>
+    <a href="spring-boot.html">Spring Boot</a>
+    <a href="frameworks.html">Micronaut &amp; Ktor</a>
+  </div>
+  <div class="nav-group">
+    <p class="nav-label">AWS resources</p>
+    <a href="resources.html">S3 &amp; SQS</a>
+    <a href="sns.html">SNS</a>
+    <a href="dynamodb.html">DynamoDB</a>
+    <a href="cognito.html">Cognito</a>
+    <a href="ses.html">SES</a>
+    <a href="services.html">More services</a>
+  </div>
+  <div class="nav-group">
+    <p class="nav-label">Reference</p>
+    <a href="configuration.html">Configuration</a>
+    <a href="connections.html">Credentials &amp; TLS</a>
+    <a href="troubleshooting.html">Troubleshooting</a>
+    <a href="api/index.html">Java API <span aria-hidden="true">↗</span></a>
+    <a href="spring-boot-api/index.html">Spring Boot API <span aria-hidden="true">↗</span></a>
+  </div>
+  <div class="nav-note">Built for your local workflow.<br><span>Java 17+ · Gradle 8.14+ · Docker</span></div>
 </nav>
+<dialog class="search-dialog" id="docs-search" aria-label="Search documentation">
+  <div class="search-input-row">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+    <input id="docs-search-input" type="search" aria-label="Search documentation" placeholder="Search tasks, services, settings…" autocomplete="off" spellcheck="false" aria-controls="search-results">
+    <button class="search-close" type="button" aria-label="Close search">Esc</button>
+  </div>
+  <p class="search-status" role="status" aria-live="polite"></p>
+  <ul class="search-results" id="search-results"></ul>
+  <div class="search-footer"><span><kbd>↑</kbd> <kbd>↓</kbd> navigate <kbd>↵</kbd> open</span><span>Search the user guide</span></div>
+</dialog>

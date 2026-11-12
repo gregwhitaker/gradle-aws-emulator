@@ -14,5 +14,9 @@
  * limitations under the License.
  */
 
+pluginManagement {
+    includeBuild("build-logic")
+}
+
 rootProject.name = "gradle-aws-emulator"
 include("plugin", "spring-boot-plugin", "docs")

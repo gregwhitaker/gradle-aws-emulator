@@ -16,44 +16,50 @@
 
 plugins {
     base
+    jacoco
     id("com.adarshr.test-logger") version "4.0.0" apply false
-    id("net.minecraftforge.licenser") version "1.2.0"
+    id("io.github.gmazzo.gradle.testkit.jacoco") version "1.1.2" apply false
+    id("build.license")
 }
 
 description = "Build, verification, and documentation for the AWS Emulator Gradle plugin"
 
-license {
-    header(rootProject.file("config/license-header.txt"))
-    lineEnding.set("\n")
-    style.put("py", "HASH")
-    style.put("mjs", "BLOCK_COMMENT")
-    style.put("svg", "XML")
+repositories { mavenCentral() }
+jacoco { toolVersion = providers.gradleProperty("jacocoVersion").get() }
 
-    // One repository-wide task also covers the independent example and smoke builds.
-    tasks.register("repository") {
-        files.from(fileTree(rootDir) {
-            include(
-                "**/*.java", "**/*.kt", "**/*.kts", "**/*.css", "**/*.js", "**/*.mjs",
-                "**/*.py", "**/*.sh", "**/*.properties", "**/*.xml", "**/*.html", "**/*.svg",
-                "**/*.yml", "**/*.yaml"
-            )
-            exclude(
-                "**/build/**", "**/.gradle/**", "**/.aws-emulator/**", "**/.idea/**",
-                "**/node_modules/**", "**/fixtures/**", "gradle/wrapper/**"
-            )
+val coverageModules = listOf(project(":plugin"), project(":spring-boot-plugin"))
+for ((reportName, suites) in listOf(
+    "jacocoTestReport" to listOf("test", "functionalTest"),
+    "jacocoIntegrationTestReport" to listOf("integrationTest")
+)) {
+    tasks.register<JacocoReport>(reportName) {
+        group = "verification"
+        description = "Generates combined coverage for ${suites.joinToString()} in both plugins."
+        dependsOn(coverageModules.map { "${it.path}:$reportName" })
+        classDirectories.from(coverageModules.map { it.layout.buildDirectory.dir("classes/java/main") })
+        sourceDirectories.from(coverageModules.map { it.layout.projectDirectory.dir("src/main/java") })
+        executionData.from(coverageModules.flatMap { module ->
+            suites.map { module.layout.buildDirectory.file("jacoco/$it.exec") }
         })
+        reports {
+            html.required.set(true)
+            html.outputLocation.set(layout.buildDirectory.dir("reports/jacoco/${suites.first()}/html"))
+            xml.required.set(true)
+            xml.outputLocation.set(layout.buildDirectory.file("reports/jacoco/${suites.first()}/$reportName.xml"))
+            csv.required.set(false)
+        }
     }
 }
 
 tasks.named("assemble") { dependsOn(":plugin:assemble", ":spring-boot-plugin:assemble", ":docs:assemble") }
-tasks.named("check") { dependsOn(":plugin:check", ":spring-boot-plugin:check", ":docs:check") }
+tasks.named("check") { dependsOn(":plugin:check", ":spring-boot-plugin:check", ":docs:check", "jacocoTestReport") }
 tasks.named("clean") { dependsOn(":plugin:clean", ":spring-boot-plugin:clean", ":docs:clean") }
 
 // Preserve the 0.1 command while keeping real-emulator tests in their own source set.
 tasks.register("dockerTest") {
     group = "verification"
-    description = "Runs the plugin integration suite against a real Docker daemon."
-    dependsOn(":plugin:integrationTest", ":spring-boot-plugin:integrationTest")
+    description = "Runs both integration suites against Docker and generates coverage reports."
+    dependsOn("jacocoIntegrationTestReport")
 }
 
 tasks.named<Wrapper>("wrapper") {

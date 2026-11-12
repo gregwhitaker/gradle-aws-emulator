@@ -121,9 +121,15 @@ See the [documentation website](https://gregwhitaker.github.io/gradle-aws-emulat
 ./gradlew build       # Unit/functional tests, plugin validation, and documentation
 ./gradlew dockerTest  # Integration tests against Docker
 ./gradlew licenseFormat  # Apply Apache 2.0 headers to project-owned source files
+./gradlew jacocoTestReport  # Unit/functional coverage for both plugins
 ```
 
 `build` also checks license headers. Run `./gradlew licenseCheck` to check them separately.
+
+`build` generates JaCoCo HTML and XML reports for each plugin and a combined report.
+Open `build/reports/jacoco/test/html/index.html` for combined unit and functional
+coverage. See [coverage instructions](CONTRIBUTING.md#coverage-reports) for module
+reports and Docker integration coverage.
 
 The build and Docker checks cover the core and Spring Boot plugins; `build` does not require Docker. See [Contributing](CONTRIBUTING.md) for development setup and focused checks, [release instructions](CONTRIBUTING.md#publish-to-the-gradle-plugin-portal) for publishing, and the [changelog](CHANGELOG.md) for version history.
 

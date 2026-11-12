@@ -24,6 +24,7 @@ plugins {
     `java-test-fixtures`
     `maven-publish`
     id("com.adarshr.test-logger")
+    id("io.github.gmazzo.gradle.testkit.jacoco")
     id("com.gradle.plugin-publish") version "2.2.1"
 }
 
@@ -191,6 +192,8 @@ for (testTask in listOf(functionalTest, tasks.named<Test>("integrationTest"))) {
         }).withPropertyName("frameworkExamples").withPathSensitivity(PathSensitivity.RELATIVE)
     }
 }
+
+apply(from = rootProject.file("gradle/coverage.gradle.kts"))
 
 tasks.named("check") { dependsOn(functionalTest) }
 tasks.named("publishPlugins") { dependsOn(tasks.named("check")) }

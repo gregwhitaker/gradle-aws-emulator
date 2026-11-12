@@ -32,7 +32,7 @@
     const theme = preference || (systemTheme.matches ? 'dark' : 'light');
     root.dataset.theme = theme;
     document.querySelector('meta[name="theme-color"]')?.setAttribute(
-      'content', theme === 'dark' ? '#111827' : '#ffffff');
+      'content', theme === 'dark' ? '#111419' : '#ffffff');
     const next = theme === 'dark' ? 'light' : 'dark';
     document.querySelectorAll('.theme-toggle').forEach(button => {
       button.setAttribute('aria-checked', String(theme === 'dark'));

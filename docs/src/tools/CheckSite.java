@@ -52,6 +52,11 @@ class CheckSite {
                     || entry.getValue().references().stream().noneMatch(ref -> ref.endsWith("assets/theme.css"))) {
                 failures.add(root.relativize(source) + " -> missing shared theme assets or toggle");
             }
+            if (source.getParent().equals(root)
+                    && (!entry.getValue().ids().containsAll(Set.of("docs-search", "docs-search-input", "search-results"))
+                        || entry.getValue().references().stream().noneMatch(ref -> ref.equals("assets/search-index.js")))) {
+                failures.add(root.relativize(source) + " -> missing guide search assets or controls");
+            }
             for (String reference : entry.getValue().references()) {
                 try {
                     URI uri = URI.create(reference);
@@ -76,7 +81,7 @@ class CheckSite {
             failures.stream().sorted().forEach(System.err::println);
             throw new IllegalStateException(failures.size() + " broken documentation references");
         }
-        System.out.println("Verified local links, anchors, assets, and theme controls in " + pages.size() + " HTML pages.");
+        System.out.println("Verified local links, anchors, assets, theme and search controls in " + pages.size() + " HTML pages.");
     }
 
     private static Page read(Path path) throws IOException {

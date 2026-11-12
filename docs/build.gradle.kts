@@ -34,6 +34,7 @@ val pages = fileTree("src/docs/asciidoc") { include("*.adoc") }
 val pageNames = pages.files.map { it.name }.sorted()
 val preparedSources = layout.buildDirectory.dir("sources")
 val renderedPages = layout.buildDirectory.dir("rendered")
+val searchAssets = layout.buildDirectory.dir("search")
 val siteDirectory = layout.buildDirectory.dir("site")
 
 val prepareDocs = tasks.register<Sync>("prepareDocs") {
@@ -80,10 +81,24 @@ val renderDocs = tasks.register<JavaExec>("renderDocs") {
     args(pageNames.map { preparedSources.get().file(it).asFile.absolutePath })
 }
 
+val indexGuide = tasks.register<JavaExec>("indexGuide") {
+    description = "Builds the offline guide search index from rendered page content."
+    group = "documentation"
+    dependsOn(renderDocs)
+    val indexer = layout.projectDirectory.file("src/tools/IndexGuide.java")
+    mainClass.set(indexer.asFile.absolutePath)
+    args(renderedPages.get().asFile.absolutePath, searchAssets.get().file("assets/search-index.js").asFile.absolutePath)
+    args(pageNames.map { it.removeSuffix(".adoc") + ".html" })
+    inputs.file(indexer).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.files(pageNames.map { renderedPages.get().file(it.removeSuffix(".adoc") + ".html") })
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+    outputs.dir(searchAssets)
+}
+
 val site = tasks.register<Sync>("site") {
     description = "Generates the complete static site in docs/build/site."
     group = "documentation"
-    dependsOn(renderDocs, ":plugin:javadoc", ":spring-boot-plugin:javadoc")
+    dependsOn(renderDocs, indexGuide, ":plugin:javadoc", ":spring-boot-plugin:javadoc")
     val apiHeadFile = layout.projectDirectory.file("src/templates/api-head.html")
     val apiHeaderFile = layout.projectDirectory.file("src/templates/api-header.html")
     val apiHead = providers.fileContents(apiHeadFile).asText.get()
@@ -94,6 +109,7 @@ val site = tasks.register<Sync>("site") {
         include(pageNames.map { it.removeSuffix(".adoc") + ".html" })
     }
     from("src/site")
+    from(searchAssets)
     for ((module, destination) in listOf("plugin" to "api", "spring-boot-plugin" to "spring-boot-api")) {
         from(project(":$module").layout.buildDirectory.dir("docs/javadoc")) {
             into(destination)

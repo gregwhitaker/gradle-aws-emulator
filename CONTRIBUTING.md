@@ -42,6 +42,7 @@ downloads or builds the emulator image. No AWS account or AWS CLI is required.
 
 | Location | Purpose |
 | --- | --- |
+| `build-logic/` | Internal build convention plugins, including repository-wide license headers. |
 | `plugin/` | Core plugin, lifecycle management, resource tasks, and consumer integration. |
 | `spring-boot-plugin/` | Optional Spring Boot companion plugin. |
 | `docs/` | AsciiDoc user guide, site assets, Java API reference assembly, and link checker. |
@@ -89,6 +90,8 @@ Run checks appropriate to the change from the repository root:
 | `./gradlew dockerTest` | Both plugins' integration suites against a real emulator. |
 | `./gradlew :docs:check` | Generated site links, anchors, assets, and theme controls. |
 | `./gradlew licenseCheck` | Apache 2.0 headers across the repository. |
+| `./gradlew jacocoTestReport` | Combined and per-plugin unit/functional coverage in HTML and XML. |
+| `./gradlew jacocoIntegrationTestReport` | Combined and per-plugin integration coverage; requires Docker. |
 
 Both plugin modules use [Test Logger](https://github.com/radarsh/gradle-test-logger-plugin)
 with the Mocha theme for per-test results, failure details, slow-test timings, and
@@ -96,8 +99,11 @@ suite summaries across unit, functional, and integration tests. Add
 `--console=plain` for output without colors or Unicode symbols, or
 `-Dtestlogger.theme=standard` to select another theme.
 
-The root build uses [Licenser](https://github.com/MinecraftForge/licenser) to apply
-the notice in `config/license-header.txt`. Run `./gradlew licenseFormat` after
+The root build applies `build.license` from the `license` subproject of the
+included `build-logic` build. Its configuration lives in
+`build-logic/license/src/main/kotlin/build.license.gradle.kts` and uses
+[Licenser](https://github.com/MinecraftForge/licenser) to apply the notice in
+`config/license-header.txt`. Run `./gradlew licenseFormat` after
 adding source files, then `./gradlew licenseCheck` to verify them. The root `check`
 and `build` tasks include this verification; both license tasks support the
 configuration cache.
@@ -136,6 +142,37 @@ that the second run reuses the configuration cache:
 ```sh
 ./gradlew -p examples/basic integrationTest --configuration-cache
 ```
+
+### Coverage reports
+
+The normal `build` and `check` tasks generate JaCoCo reports from unit and
+Docker-free functional tests. Run `./gradlew jacocoTestReport` to run those tests
+and generate reports directly. To target one module, use
+`./gradlew :plugin:jacocoTestReport` or
+`./gradlew :spring-boot-plugin:jacocoTestReport`.
+
+| Scope | HTML report | XML report |
+| --- | --- | --- |
+| Both plugins | `build/reports/jacoco/test/html/index.html` | `build/reports/jacoco/test/jacocoTestReport.xml` |
+| Core plugin | `plugin/build/reports/jacoco/test/html/index.html` | `plugin/build/reports/jacoco/test/jacocoTestReport.xml` |
+| Spring Boot plugin | `spring-boot-plugin/build/reports/jacoco/test/html/index.html` | `spring-boot-plugin/build/reports/jacoco/test/jacocoTestReport.xml` |
+
+`./gradlew jacocoIntegrationTestReport` runs the Docker integration suites and
+generates separate reports under `reports/jacoco/integrationTest/` in each of
+the same build directories, with XML named `jacocoIntegrationTestReport.xml`.
+`./gradlew dockerTest` generates these reports too.
+Running an `integrationTest` task directly also generates that module's
+integration report. Integration data is kept out of the unit/functional reports.
+
+The [TestKit JaCoCo extension](https://github.com/gmazzo/gradle-testkit-jacoco-plugin)
+instruments copies of the plugin classes used by fixture builds. The shared
+`GradleBuilds` helper collects coverage after each build, including configuration
+cache reuse, into the owning test suite's execution-data file. Each test task
+clears its own data before executing, so reruns do not accumulate old coverage.
+The reports use the original production classes and sources; test fixtures and
+generated Gradle classes are not part of the coverage totals. `jacocoVersion` in
+`gradle.properties` pins the coverage engine. No minimum coverage threshold is
+enforced.
 
 ## Update documentation and examples
 

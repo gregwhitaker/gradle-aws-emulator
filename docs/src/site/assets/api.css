@@ -37,7 +37,7 @@
   --link-color: var(--link);
   --link-color-active: var(--link-hover);
   --snippet-background-color: var(--code-background);
-  --snippet-text-color: #e2e8f0;
+  --snippet-text-color: var(--code-ink);
   --snippet-highlight-color: var(--active);
   --border-color: var(--line);
   --table-border-color: var(--line);
@@ -65,7 +65,7 @@ main { max-width: 1400px; margin: 0 auto; padding: 28px 32px; box-sizing: border
 h1.title { font-size: 30px; letter-spacing: -.025em; line-height: 1.25; margin-bottom: 24px; }
 body.class-declaration-page .summary h2, body.class-declaration-page .details h2, body.class-use-page h2, body.module-declaration-page .block-list h2 { font-style: normal; }
 
-.api-site-header { display: flex; align-items: center; justify-content: space-between; gap: 18px; height: 80px; padding: 0 28px; box-sizing: border-box; background: var(--paper); border-bottom: 1px solid var(--line); }
+.api-site-header { display: flex; align-items: center; justify-content: space-between; gap: 18px; height: 68px; padding: 0 24px; box-sizing: border-box; background: var(--paper); border-bottom: 1px solid var(--line); }
 .api-site-header .brand { color: var(--heading); text-decoration: none; }
 .api-header-links { display: flex; align-items: center; gap: 24px; font-size: 13px; }
 .api-header-links > a { color: var(--nav-ink); white-space: nowrap; }
@@ -101,7 +101,7 @@ div.table-tabs > button:hover { background: var(--hover); color: var(--heading);
 .inherited-list, section[class$="-details"] .detail { background: var(--paper); }
 body.class-declaration-page .summary h3, body.class-declaration-page .details h3, body.class-declaration-page .summary .inherited-list h2 { background: var(--table-head); border-color: var(--line); }
 .member-signature, .member-signature .parameters, .member-signature .exceptions, .member-signature .type-parameters-long { white-space: pre-wrap; overflow-wrap: anywhere; max-width: 100%; }
-pre, .snippet-container { background: var(--code-background); color: #e2e8f0; padding: 16px; border: 1px solid var(--code-border); border-radius: 6px; overflow-x: auto; }
+pre, .snippet-container { background: var(--code-background); color: var(--code-ink); padding: 16px; border: 1px solid var(--code-border); border-radius: 6px; overflow-x: auto; }
 .tab, .search-tag-result:target { background: var(--active); color: var(--active-ink); }
 main a[href*="://"]::after { content: "↗"; background-image: none; width: auto; height: auto; color: var(--link); margin-bottom: 0; }
 main a[href*="://"]:hover::after, main a[href*="://"]:focus::after { background-image: none; color: var(--link-hover); }
@@ -119,7 +119,7 @@ table.striped > tbody > tr:nth-child(even) { background-color: var(--paper); }
   .top-nav { padding-bottom: 0; }
 }
 @media (max-width: 760px) {
-  .api-site-header { height: 72px; padding: 0 16px; gap: 12px; }
+  .api-site-header { height: 64px; padding: 0 16px; gap: 12px; }
   .api-header-links { gap: 12px; font-size: 12px; }
   main { padding: 20px 16px; }
   h1.title { font-size: 26px; }

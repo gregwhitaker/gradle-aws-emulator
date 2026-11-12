@@ -22,6 +22,7 @@ plugins {
     `java-gradle-plugin`
     `maven-publish`
     id("com.adarshr.test-logger")
+    id("io.github.gmazzo.gradle.testkit.jacoco")
     id("com.gradle.plugin-publish") version "2.2.1"
 }
 
@@ -136,6 +137,8 @@ tasks.register<Test>("integrationTest") {
     classpath = integrationSourceSet.runtimeClasspath
     shouldRunAfter(functionalTest)
 }
+apply(from = rootProject.file("gradle/coverage.gradle.kts"))
+
 tasks.named("check") { dependsOn(functionalTest) }
 tasks.named("publishPlugins") { dependsOn(tasks.named("check")) }
 tasks.withType<Javadoc>().configureEach {
