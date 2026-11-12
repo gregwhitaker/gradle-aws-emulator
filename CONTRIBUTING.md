@@ -95,6 +95,13 @@ one class. For runtime, SDK, or lifecycle changes, run the relevant module's
 intentionally fail nested fixture builds to verify cleanup; the enclosing tests
 should pass. Note any checks you could not run in your pull request.
 
+Maintainers can start a fresh CI validation from GitHub's **Actions → Build →
+Run workflow**, selecting the branch to check. This runs the same build,
+publication smoke, release-tool, and Docker checks as push and pull-request
+validation; it does not publish plugins. The Build workflow must be enabled for
+manual runs, and GitHub only offers manual dispatch once the workflow containing
+`workflow_dispatch` is on the default branch.
+
 Use JUnit 5 and mirror the production packages. Put unit tests in `src/test/`,
 Docker-free TestKit tests in `src/functional/`, and real-emulator tests in
 `src/integration/` within the relevant module. Reuse `GradleBuilds` from
