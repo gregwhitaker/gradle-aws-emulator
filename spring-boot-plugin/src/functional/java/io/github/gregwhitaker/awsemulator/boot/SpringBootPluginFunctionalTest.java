@@ -17,7 +17,11 @@ class SpringBootPluginFunctionalTest {
         settings();
         Files.writeString(project.resolve("build.gradle"), """
             plugins { id 'io.github.gregwhitaker.aws-emulator.spring-boot' }
-            awsEmulator { dockerExecutable.set('no-docker-during-configuration') }
+            awsEmulator {
+                dockerExecutable.set('no-docker-during-configuration')
+                springBoot { profiles.set(['standalone']) }
+            }
+            assert awsEmulator.springBoot.profiles.get() == ['standalone']
             assert plugins.hasPlugin('io.github.gregwhitaker.aws-emulator')
             assert !plugins.hasPlugin('org.springframework.boot')
             assert tasks.findByName('bootRunLocal') == null
@@ -56,14 +60,17 @@ class SpringBootPluginFunctionalTest {
                 optimizedLaunch.set(false)
             }
             def prepare = tasks.register('prepareApplication')
-            springBootEmulator {
-                mode.set(EmulatorMode.MANAGED)
-                profiles.set(['development', 'fixture'])
-                jvmArgs.add('-Dadditional=true')
-                setupTasks.add(prepare.name)
-                debugPort.set(5111)
-                debugSuspend.set(false)
+            awsEmulator {
+                springBoot {
+                    mode.set(EmulatorMode.MANAGED)
+                    profiles.set(['development', 'fixture'])
+                    jvmArgs.add('-Dadditional=true')
+                    setupTasks.add(prepare.name)
+                    debugPort.set(5111)
+                    debugSuspend.set(false)
+                }
             }
+            assert awsEmulator.springBoot.is(springBootEmulator)
             def local = tasks.named('bootRunLocal').get()
             def debug = tasks.named('bootRunLocalDebug').get()
             assert local instanceof BootRun
@@ -111,15 +118,21 @@ class SpringBootPluginFunctionalTest {
                 id("io.github.gregwhitaker.aws-emulator.spring-boot")
             }
             awsEmulator { dockerExecutable.set("no-docker-during-configuration") }
-            check(springBootEmulator.mode.get() == EmulatorMode.DEVELOPMENT)
-            check(springBootEmulator.profiles.get() == listOf("local"))
-            check(springBootEmulator.debugPort.get() == 5005)
-            check(springBootEmulator.debugSuspend.get())
+            check(awsEmulator.springBoot.mode.get() == EmulatorMode.DEVELOPMENT)
+            check(awsEmulator.springBoot.profiles.get() == listOf("local"))
+            check(awsEmulator.springBoot.debugPort.get() == 5005)
+            check(awsEmulator.springBoot.debugSuspend.get())
+            check(awsEmulator.springBoot === springBootEmulator)
+            springBootEmulator { profiles.set(listOf("legacy")) }
             val prepare = tasks.register("prepareApplication")
-            springBootEmulator {
-                profiles.set(emptyList())
-                setupTasks.add(prepare.name)
+            awsEmulator {
+                springBoot {
+                    check(profiles.get() == listOf("legacy"))
+                    profiles.set(emptyList())
+                    setupTasks.add(prepare.name)
+                }
             }
+            check(springBootEmulator.profiles.get().isEmpty())
             val run = tasks.named<BootRun>("bootRunLocal").get()
             check(run.jvmArgumentProviders.last().asArguments().none())
             """);

@@ -175,18 +175,20 @@ plugins {
     id("io.github.gregwhitaker.aws-emulator.spring-boot")
 }
 
-awsEmulator { port.set(0) }
-springBootEmulator {
-    profiles.set(listOf("local"))
-    debugPort.set(5005)
+awsEmulator {
+    port.set(0)
+    springBoot {
+        profiles.set(listOf("local"))
+        debugPort.set(5005)
+    }
 }
 ```
 
-The default development instance survives application exit. `bootRunLocalDebug` waits for a debugger on `localhost:5005`; `stopAwsEmulator` removes the development instance. Set `springBootEmulator.mode` to `EmulatorMode.MANAGED` for automatic cleanup.
+The default development instance survives application exit. `bootRunLocalDebug` waits for a debugger on `localhost:5005`; `stopAwsEmulator` removes the development instance. Set `awsEmulator.springBoot.mode` to `EmulatorMode.MANAGED` for automatic cleanup.
 
 Both local tasks automatically discover and run registered resource-creation tasks before starting the application, using the same emulator instance. For example, registering a `CreateSqsQueueTask` with its `queueName` is enough; no setup-task list or mode wiring is needed. Use `excludedSetupTasks` for test-only resources, or `autoCreateResources.set(false)` with explicit `setupTasks` for manual selection. Explicitly configured resource modes must match the application. Ordinary `bootRun` remains independently configured.
 
-Run `./gradlew -p examples/spring-boot bootRunLocal --configuration-cache` for a working SQS round trip. See the [Spring Boot guide](docs/src/docs/asciidoc/spring-boot.adoc) for Kotlin/Groovy DSL, setup tasks, and all settings, or the [example README](examples/spring-boot/README.md). Compatibility is tested with Spring Boot 3.5.16 and 4.1.2.
+Run `./gradlew -p examples/spring-boot bootRunLocal --configuration-cache` for a working SQS round trip. See the [companion plugin README](spring-boot-plugin/README.md) for setup and configuration, the [Spring Boot guide](docs/src/docs/asciidoc/spring-boot.adoc) for more detail, or the [example README](examples/spring-boot/README.md). Compatibility is tested with Spring Boot 3.5.16 and 4.1.2.
 
 The core API also supports explicit runtime selection and setup dependencies for any `Test` or `JavaExec` consumer: `awsEmulator.useWith(taskProvider, EmulatorMode.DEVELOPMENT, setupTaskProvider)`. The mode may be a `Provider<EmulatorMode>`. Existing one-argument calls continue to use managed instances.
 

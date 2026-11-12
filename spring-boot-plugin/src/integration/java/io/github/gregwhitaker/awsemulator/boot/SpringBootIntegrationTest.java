@@ -79,12 +79,14 @@ class SpringBootIntegrationTest {
                 implementation 'software.amazon.awssdk:sqs'
                 implementation 'software.amazon.awssdk:url-connection-client'
             }
-            awsEmulator { port.set(0) }
-            springBootEmulator {
-                mode.set(providers.gradleProperty('managed').isPresent() ? EmulatorMode.MANAGED : EmulatorMode.DEVELOPMENT)
-                jvmArgs.add('-Dfixture.additional=true')
-                debugSuspend.set(false)
-                debugPort.set(providers.gradleProperty('debugPort').map { it.toInteger() }.orElse(5005))
+            awsEmulator {
+                port.set(0)
+                springBoot {
+                    mode.set(providers.gradleProperty('managed').isPresent() ? EmulatorMode.MANAGED : EmulatorMode.DEVELOPMENT)
+                    jvmArgs.add('-Dfixture.additional=true')
+                    debugSuspend.set(false)
+                    debugPort.set(providers.gradleProperty('debugPort').map { it.toInteger() }.orElse(5005))
+                }
             }
             tasks.register('createApplicationQueue', CreateSqsQueueTask) {
                 queueName.set('boot-fixture-events')

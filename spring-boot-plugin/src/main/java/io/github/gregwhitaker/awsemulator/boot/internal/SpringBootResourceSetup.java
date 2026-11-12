@@ -54,7 +54,7 @@ final class SpringBootResourceSetup {
 
     private static GradleException incompatibleMode(AbstractAwsResourceTask resource, EmulatorMode mode, String consumer) {
         return new GradleException("Spring Boot setup task " + resource.getPath() + " uses " + resource.getMode().get()
-            + " but " + consumer + " uses " + mode + ". Set the resource mode to springBootEmulator.mode, "
-            + "exclude it with springBootEmulator.excludedSetupTasks, or disable autoCreateResources.");
+            + " but " + consumer + " uses " + mode + ". Set the resource mode to awsEmulator.springBoot.mode, "
+            + "exclude it with awsEmulator.springBoot.excludedSetupTasks, or disable autoCreateResources.");
     }
 }

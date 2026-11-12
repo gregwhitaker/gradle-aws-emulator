@@ -50,7 +50,7 @@ public final class SpringBootTasks {
                 task.getDebugOptions().getEnabled().set(true);
                 task.getDebugOptions().getHost().set("127.0.0.1");
                 task.getDebugOptions().getPort().set(extension.getDebugPort().map(port -> {
-                    if (port < 1 || port > 65535) throw new GradleException("springBootEmulator.debugPort must be between 1 and 65535.");
+                    if (port < 1 || port > 65535) throw new GradleException("awsEmulator.springBoot.debugPort must be between 1 and 65535.");
                     return port;
                 }));
                 task.getDebugOptions().getServer().set(true);

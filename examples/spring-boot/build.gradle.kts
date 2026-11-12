@@ -16,10 +16,12 @@ dependencies {
     implementation("software.amazon.awssdk:url-connection-client")
 }
 
-awsEmulator { port.set(0) }
-springBootEmulator {
-    profiles.set(listOf("local"))
-    mode.set(if (providers.gradleProperty("managed").isPresent) EmulatorMode.MANAGED else EmulatorMode.DEVELOPMENT)
+awsEmulator {
+    port.set(0)
+    springBoot {
+        profiles.set(listOf("local"))
+        mode.set(if (providers.gradleProperty("managed").isPresent) EmulatorMode.MANAGED else EmulatorMode.DEVELOPMENT)
+    }
 }
 tasks.register<CreateSqsQueueTask>("createApplicationQueue") {
     queueName.set("spring-boot-example-events")

@@ -22,6 +22,6 @@ For a fresh managed instance with automatic cleanup, including after an applicat
 
 The second command intentionally fails. Its managed instance is still removed.
 
-To debug, run `./gradlew -p examples/spring-boot bootRunLocalDebug`, then attach a debugger to `localhost:5005`. The JVM waits for the debugger by default. Configure `springBootEmulator.debugPort` and `debugSuspend` to change that behavior.
+To debug, run `./gradlew -p examples/spring-boot bootRunLocalDebug`, then attach a debugger to `localhost:5005`. The JVM waits for the debugger by default. Configure `debugPort` and `debugSuspend` inside `awsEmulator { springBoot { ... } }` to change that behavior.
 
 The application chooses Spring Boot 4.1.2 in [build.gradle.kts](build.gradle.kts). The companion does not choose or apply a Boot version. See [Application.java](src/main/java/example/Application.java) for the SDK round trip and the [Spring Boot guide](../../docs/src/docs/asciidoc/spring-boot.adoc) for Kotlin/Groovy configuration.

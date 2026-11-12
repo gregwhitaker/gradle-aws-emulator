@@ -4,7 +4,10 @@ import io.github.gregwhitaker.awsemulator.model.EmulatorMode;
 import org.gradle.api.provider.ListProperty;
 import org.gradle.api.provider.Property;
 
-/** Settings shared by bootRunLocal and bootRunLocalDebug; ordinary bootRun remains independently configured. */
+/**
+ * Settings in {@code awsEmulator.springBoot}, shared by bootRunLocal and bootRunLocalDebug.
+ * Ordinary bootRun remains independently configured.
+ */
 public abstract class SpringBootEmulatorExtension {
     /** DEVELOPMENT (default) retains the emulator after the application exits; MANAGED cleans it up. */
     public abstract Property<EmulatorMode> getMode();

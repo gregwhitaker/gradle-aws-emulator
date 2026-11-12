@@ -22,9 +22,11 @@ plugins {
     id("io.github.gregwhitaker.aws-emulator.spring-boot")
 }
 
-awsEmulator { port.set(0) }
-springBootEmulator {
-    profiles.set(listOf("local"))
+awsEmulator {
+    port.set(0)
+    springBoot {
+        profiles.set(listOf("local"))
+    }
 }
 tasks.register<CreateSqsQueueTask>("createApplicationQueue") {
     queueName.set("application-events")
@@ -41,9 +43,11 @@ plugins {
     id 'io.github.gregwhitaker.aws-emulator.spring-boot'
 }
 
-awsEmulator { port.set(0) }
-springBootEmulator {
-    profiles.set(['local'])
+awsEmulator {
+    port.set(0)
+    springBoot {
+        profiles.set(['local'])
+    }
 }
 tasks.register('createApplicationQueue', CreateSqsQueueTask) {
     queueName.set('application-events')
@@ -66,12 +70,14 @@ Explicit resource modes are respected. A conflicting mode fails with a configura
 
 [source,kotlin]
 ----
-springBootEmulator {
-    excludedSetupTasks.add("createTestQueue")
+awsEmulator {
+    springBoot {
+        excludedSetupTasks.add("createTestQueue")
+    }
 }
 ----
 
-Exclusions affect automatic discovery; explicit dependencies still run. To select all setup tasks manually, set `autoCreateResources` to `false` and use `setupTasks`. In that case, configure resource tasks to use `springBootEmulator.mode` yourself. Ordinary `bootRun`, test tasks, and standalone resource invocations retain their existing behavior.
+Exclusions affect automatic discovery; explicit dependencies still run. To select all setup tasks manually, set `autoCreateResources` to `false` and use `setupTasks`. In that case, configure resource tasks to use `awsEmulator.springBoot.mode` yourself. Ordinary `bootRun`, test tasks, and standalone resource invocations retain their existing behavior.
 
 == Run and debug
 
@@ -93,9 +99,11 @@ The base plugin supplies endpoint, region, generated credentials, and TLS trust 
 
 == Configuration
 
+Configure the companion in `awsEmulator { springBoot { ... } }`. The previous top-level `springBootEmulator` block remains an alias for the same settings for compatibility with existing builds.
+
 [cols="1,1,3",options="header"]
 |===
-|`springBootEmulator` property |Default |Behavior
+|`awsEmulator.springBoot` property |Default |Behavior
 |`mode` |`EmulatorMode.DEVELOPMENT` |Selects the persistent development instance or a build-owned `MANAGED` instance.
 |`profiles` |`["local"]` |Adds `spring.profiles.active`; an empty list adds no profile argument.
 |`jvmArgs` |`[]` |Additional JVM arguments for both local tasks.
@@ -114,7 +122,11 @@ Development instances retain their resources across Gradle invocations until `st
 ----
 import io.github.gregwhitaker.awsemulator.model.EmulatorMode
 
-springBootEmulator { mode.set(EmulatorMode.MANAGED) }
+awsEmulator {
+    springBoot {
+        mode.set(EmulatorMode.MANAGED)
+    }
+}
 ----
 
 Hard process termination or Docker daemon failure can prevent cleanup, as described in xref:testing.adoc[Tests and Java execution].

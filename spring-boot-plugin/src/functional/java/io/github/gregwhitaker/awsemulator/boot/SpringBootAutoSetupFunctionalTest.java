@@ -36,12 +36,12 @@ class SpringBootAutoSetupFunctionalTest {
         fixture(version, """
             // Realizing the consumer must not freeze the set of resource tasks.
             tasks.named('%s').get()
-            springBootEmulator.mode.set(EmulatorMode.%s)
+            awsEmulator.springBoot.mode.set(EmulatorMode.%s)
             %s
             tasks.register('inheritedQueue', io.github.gregwhitaker.awsemulator.boot.fixtures.InheritedQueueTask)
             tasks.register('customResource', io.github.gregwhitaker.awsemulator.boot.fixtures.CustomResourceTask)
             tasks.register('testOnlyQueue', CreateSqsQueueTask) { mode.set(EmulatorMode.MANAGED) }
-            springBootEmulator.excludedSetupTasks.add(':testOnlyQueue')
+            awsEmulator.springBoot.excludedSetupTasks.add(':testOnlyQueue')
             tasks.register('fixtureMessages', io.github.gregwhitaker.awsemulator.aws.sqs.PublishSqsTask)
             tasks.register('unrelatedTask') { throw new GradleException('Unrelated task was realized') }
             def consumer = tasks.named('%s').get()
@@ -93,9 +93,11 @@ class SpringBootAutoSetupFunctionalTest {
         fixture("4.1.2", """
             tasks.register('createQueue', CreateSqsQueueTask)
             tasks.register('explicitSetup')
-            springBootEmulator {
-                autoCreateResources.set(false)
-                setupTasks.add('explicitSetup')
+            awsEmulator {
+                springBoot {
+                    autoCreateResources.set(false)
+                    setupTasks.add('explicitSetup')
+                }
             }
             """);
         String output = runner(project, "bootRunLocal", "--dry-run").build().getOutput();
