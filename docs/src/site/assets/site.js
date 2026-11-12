@@ -202,6 +202,7 @@
     words: new Set(entry.text.toLowerCase().match(/[a-z0-9_]+/g) || [])
   }));
   if (!searchIndex.length || typeof dialog.showModal !== 'function') return;
+  const guidePages = links.map(link => searchIndex.find(entry => entry.url === link.getAttribute('href'))).filter(Boolean);
   searchToggle.hidden = false;
   searchToggle.setAttribute('aria-label', 'Search documentation');
   searchToggle.querySelector('kbd').textContent = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘ K' : 'Ctrl K';
@@ -230,10 +231,10 @@
       .map(entry => ({ ...entry, score: (entry.title.toLowerCase().includes(query) ? 20 : 0)
         + terms.reduce((score, term) => score + (entry.label.includes(term) ? 5 : 0) + (entry.words.has(term) ? 2 : 0), 0)
         - (entry.url.startsWith('index.html') ? 3 : 0) }))
-      .sort((a, b) => b.score - a.score) : searchIndex.filter(entry => !entry.url.includes('#'));
+      .sort((a, b) => b.score - a.score) : guidePages;
     const visible = matches.slice(0, 12);
     status.textContent = terms.length
-      ? matches.length ? `${matches.length} results${matches.length > 12 ? ' · showing the first 12' : ''}` : 'No results. Try a service name, task, or setting.'
+      ? matches.length ? `${matches.length} result${matches.length === 1 ? '' : 's'}${matches.length > 12 ? ' · showing the first 12' : ''}` : 'No results. Try a service name, task, or setting.'
       : 'Browse the guide, or search for a task, service, or setting.';
     results.replaceChildren();
     for (const entry of visible) {

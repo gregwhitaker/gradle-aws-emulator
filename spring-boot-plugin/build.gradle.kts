@@ -14,15 +14,13 @@
  * limitations under the License.
  */
 
-import com.adarshr.gradle.testlogger.theme.ThemeType
-import org.gradle.external.javadoc.StandardJavadocDocletOptions
 import org.gradle.plugin.compatibility.compatibility
 
 plugins {
     `java-gradle-plugin`
     `maven-publish`
-    id("com.adarshr.test-logger")
-    id("io.github.gmazzo.gradle.testkit.jacoco")
+    id("build.java-conventions")
+    id("build.jacoco")
     id("com.gradle.plugin-publish") version "2.2.1"
 }
 
@@ -32,33 +30,13 @@ description = "Spring Boot development and debugging with AWS Emulator"
 base { archivesName.set("gradle-aws-emulator-spring-boot") }
 val projectWebsite = "https://github.com/gregwhitaker/gradle-aws-emulator"
 
-repositories { mavenCentral() }
-
-java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
-    withSourcesJar()
-    withJavadocJar()
-}
-tasks.withType<JavaCompile>().configureEach { options.release.set(17) }
-tasks.withType<Jar>().configureEach {
-    from(rootProject.layout.projectDirectory.file("LICENSE")) { into("META-INF") }
-}
-
-val functionalSourceSet = sourceSets.create("functional")
-val integrationSourceSet = sourceSets.create("integration")
-for (testSourceSet in listOf(functionalSourceSet, integrationSourceSet)) {
-    configurations[testSourceSet.implementationConfigurationName].extendsFrom(configurations.testImplementation.get())
-    configurations[testSourceSet.runtimeOnlyConfigurationName].extendsFrom(configurations.testRuntimeOnly.get())
-}
+val functionalSourceSet = sourceSets["functional"]
+val integrationSourceSet = sourceSets["integration"]
 
 dependencies {
     implementation(project(":plugin"))
     // The consuming application supplies Spring Boot. Its classes are resolved from that plugin's loader.
-    testImplementation(platform("org.junit:junit-bom:5.11.4"))
-    testImplementation("org.junit.jupiter:junit-jupiter")
     testImplementation(project(":plugin"))
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     for (testSourceSet in listOf(functionalSourceSet, integrationSourceSet)) {
         add(testSourceSet.implementationConfigurationName, project(":spring-boot-plugin"))
         add(testSourceSet.implementationConfigurationName, testFixtures(project(":plugin")))
@@ -104,25 +82,14 @@ publishing {
     }
 }
 
-testlogger {
-    theme = ThemeType.MOCHA
-    showSimpleNames = true
-}
-
 tasks.withType<Test>().configureEach {
-    useJUnitPlatform()
-    maxParallelForks = 1
     systemProperty("test.gradle.version", providers.gradleProperty("testGradleVersion").getOrElse(""))
     systemProperty("test.gradle.installation", providers.gradleProperty("testGradleInstallation").getOrElse(""))
 }
-val functionalTest = tasks.register<Test>("functionalTest") {
-    group = "verification"
+tasks.named<Test>("functionalTest") {
     description = "Verifies Spring Boot compatibility without Docker."
-    testClassesDirs = functionalSourceSet.output.classesDirs
-    classpath = functionalSourceSet.runtimeClasspath
-    shouldRunAfter(tasks.named("test"))
 }
-tasks.register<Test>("integrationTest") {
+tasks.named<Test>("integrationTest") {
     systemProperty("cognito.example", rootProject.layout.projectDirectory.dir("examples/cognito").asFile.absolutePath)
     inputs.files(rootProject.fileTree("examples/cognito") {
         include("build.gradle.kts", "src/**", "fixtures/**")
@@ -131,22 +98,7 @@ tasks.register<Test>("integrationTest") {
     inputs.files(rootProject.fileTree("examples/spring-cloud-aws") {
         include("build.gradle.kts", "src/**", "fixtures/**")
     }).withPropertyName("springCloudAwsExample").withPathSensitivity(PathSensitivity.RELATIVE)
-    group = "verification"
     description = "Runs Spring Boot consumers against a real AWS Emulator."
-    testClassesDirs = integrationSourceSet.output.classesDirs
-    classpath = integrationSourceSet.runtimeClasspath
-    shouldRunAfter(functionalTest)
 }
-apply(from = rootProject.file("gradle/coverage.gradle.kts"))
 
-tasks.named("check") { dependsOn(functionalTest) }
 tasks.named("publishPlugins") { dependsOn(tasks.named("check")) }
-tasks.withType<Javadoc>().configureEach {
-    exclude("**/internal/**")
-    (options as StandardJavadocDocletOptions).apply {
-        addStringOption("Xdoclint:none", "-quiet")
-        setNoTimestamp(true)
-        encoding = "UTF-8"
-        docEncoding = "UTF-8"
-    }
-}

@@ -15,4 +15,4 @@
  */
 
 rootProject.name = "build-logic"
-include("license")
+include("jacoco", "java-conventions", "license", "test-logger")

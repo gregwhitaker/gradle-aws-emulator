@@ -18,8 +18,14 @@ plugins {
     id("net.minecraftforge.licenser")
 }
 
+val licenseHeader = resources.text.fromString(
+    checkNotNull(javaClass.getResource("/build.license/license-header.txt")) {
+        "The build.license plugin is missing its bundled license header."
+    }.readText()
+)
+
 license {
-    header(rootProject.file("config/license-header.txt"))
+    header.set(licenseHeader)
     lineEnding.set("\n")
     style.put("py", "HASH")
     style.put("mjs", "BLOCK_COMMENT")

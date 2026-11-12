@@ -42,7 +42,7 @@ downloads or builds the emulator image. No AWS account or AWS CLI is required.
 
 | Location | Purpose |
 | --- | --- |
-| `build-logic/` | Internal build convention plugins, including repository-wide license headers. |
+| `build-logic/` | Internal build convention plugins for Java, license headers, JaCoCo coverage, and test logging. |
 | `plugin/` | Core plugin, lifecycle management, resource tasks, and consumer integration. |
 | `spring-boot-plugin/` | Optional Spring Boot companion plugin. |
 | `docs/` | AsciiDoc user guide, site assets, Java API reference assembly, and link checker. |
@@ -55,6 +55,21 @@ subprojects. The shared plugin and documentation version is `pluginVersion` in
 Gradle, operating system, and architecture combinations checked in CI.
 
 ## Implementation conventions
+
+Both plugin modules apply `build.java-conventions` from the `java-conventions`
+subproject of the included `build-logic` build. Its configuration lives in
+`build-logic/java-conventions/src/main/kotlin/build.java-conventions.gradle.kts`.
+It provides Maven Central, Java 17 compatibility with UTF-8 compilation, source
+and Javadoc JARs, packaged license notices, shared Javadoc settings, JUnit 5,
+and the functional and integration test suites. Functional tests participate in
+`check`; integration tests run when explicitly requested. Compilation and tests
+use the JDK selected by the developer or CI, with `--release 17` enforcing the
+compiled code's Java compatibility.
+
+The Java convention also applies `build.test-logger`. Both modules apply
+`build.jacoco` separately. Production dependencies, Gradle plugin declarations,
+publication metadata, TestKit setup, and example-specific test inputs stay in the
+module build scripts.
 
 - Follow the existing Java formatting and feature-based packages under
   `io.github.gregwhitaker.awsemulator`. Keep each AWS service's module, task types,
@@ -93,9 +108,13 @@ Run checks appropriate to the change from the repository root:
 | `./gradlew jacocoTestReport` | Combined and per-plugin unit/functional coverage in HTML and XML. |
 | `./gradlew jacocoIntegrationTestReport` | Combined and per-plugin integration coverage; requires Docker. |
 
-Both plugin modules use [Test Logger](https://github.com/radarsh/gradle-test-logger-plugin)
-with the Mocha theme for per-test results, failure details, slow-test timings, and
-suite summaries across unit, functional, and integration tests. Add
+Both plugin modules receive `build.test-logger` through `build.java-conventions`.
+The logger comes from the `test-logger` subproject of the included `build-logic`
+build. Its configuration lives in
+`build-logic/test-logger/src/main/kotlin/build.test-logger.gradle.kts` and uses
+[Test Logger](https://github.com/radarsh/gradle-test-logger-plugin) with the Mocha
+theme and simple class names for per-test results, failure details, slow-test
+timings, and suite summaries across unit, functional, and integration tests. Add
 `--console=plain` for output without colors or Unicode symbols, or
 `-Dtestlogger.theme=standard` to select another theme.
 
@@ -103,7 +122,8 @@ The root build applies `build.license` from the `license` subproject of the
 included `build-logic` build. Its configuration lives in
 `build-logic/license/src/main/kotlin/build.license.gradle.kts` and uses
 [Licenser](https://github.com/MinecraftForge/licenser) to apply the notice in
-`config/license-header.txt`. Run `./gradlew licenseFormat` after
+`build-logic/license/src/main/resources/build.license/license-header.txt`, bundled with
+the plugin. Run `./gradlew licenseFormat` after
 adding source files, then `./gradlew licenseCheck` to verify them. The root `check`
 and `build` tasks include this verification; both license tasks support the
 configuration cache.
@@ -144,6 +164,11 @@ that the second run reuses the configuration cache:
 ```
 
 ### Coverage reports
+
+The root build and both plugin modules apply `build.jacoco` from the `jacoco`
+subproject of the included `build-logic` build. Its configuration lives in
+`build-logic/jacoco/src/main/kotlin/build.jacoco.gradle.kts` and includes the
+combined reports, per-module reports, and TestKit coverage setup.
 
 The normal `build` and `check` tasks generate JaCoCo reports from unit and
 Docker-free functional tests. Run `./gradlew jacocoTestReport` to run those tests
