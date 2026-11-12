@@ -15,12 +15,21 @@ import org.gradle.api.tasks.JavaExec;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.api.tasks.testing.Test;
 import javax.inject.Inject;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 /** Configuration for the AWS Emulator runtime and its opted-in consumers. */
 public abstract class AwsEmulatorExtension {
-    private Provider<AwsEmulatorService> service;
+    private final Property<AwsEmulatorService> service = getObjects().property(AwsEmulatorService.class);
+    private Provider<AwsEmulatorService> registeredService;
+    private final Set<Task> runtimeConsumers = new LinkedHashSet<>();
     private Project project;
     private ResourceSetModule resourceSetModule;
+    private AwsEmulatorExtension runtimeOwner;
+    private String sharedProjectPath;
+    private boolean selectedAsOwner;
+    private final Set<String> sharedResourceSets = new LinkedHashSet<>();
     private static final String MODE_EXTENSION = "awsEmulatorMode";
     private final NamedDomainObjectContainer<EmulatorScenario> scenarios = getObjects().domainObjectContainer(
         EmulatorScenario.class, name -> getObjects().newInstance(EmulatorScenario.class, name));
@@ -54,11 +63,92 @@ public abstract class AwsEmulatorExtension {
 
     void attach(Project project, Provider<AwsEmulatorService> service) {
         this.project = project;
-        this.service = service;
+        this.registeredService = service;
+        this.service.convention(service);
         this.resourceSetModule = new ResourceSetModule(project, this);
     }
 
+    Provider<AwsEmulatorService> runtime() { return service; }
+
+    void usesRuntime(Task task) {
+        runtimeConsumers.add(task);
+        // Gradle requires the original registered provider here, not a delegating Property.
+        task.usesService(registeredService);
+    }
+
     Object resolveSetup(Object setup, EmulatorMode mode) { return resourceSetModule.resolve(setup, mode); }
+
+    /**
+     * Uses an explicitly selected project's runtime and optional named resource sets in this build.
+     * The owner must apply the core plugin and own its runtime directly. Its runtime settings,
+     * working directory, and lifecycle are authoritative for this project's emulator tasks and
+     * opted-in JVM consumers. This method does not opt ordinary tasks into the emulator.
+     *
+     * <p>Selected resource sets are resolved in the owner's project and attached automatically to
+     * every {@code useWith} consumer, including the Spring Boot companion's local run tasks.
+     * They execute once per owner and mode in an invocation. Managed and development instances
+     * remain separate. Managed cleanup waits for consumers across all participating projects.
+     *
+     * <p>The owner is evaluated when selected. Configure its plugin and resources in its own build
+     * script. Repeated calls may add resource sets for the same owner; changing owners, selecting
+     * oneself, and chaining shared owners are rejected. Consumer runtime settings are ignored.
+     *
+     * @param ownerProject absolute Gradle project path, for example {@code :local-aws}
+     * @param resourceSets names of resource sets declared in the owner; omit to share only the runtime
+     */
+    public void useSharedRuntime(String ownerProject, String... resourceSets) {
+        if (ownerProject == null || !ownerProject.startsWith(":")) {
+            throw new GradleException("useSharedRuntime requires an absolute project path, for example ':local-aws'.");
+        }
+        Project owner = project.findProject(ownerProject);
+        if (owner == null) throw new GradleException("Unknown AWS Emulator runtime owner project: " + ownerProject);
+        if (owner == project) throw new GradleException("An AWS Emulator project cannot share its own runtime: " + ownerProject);
+        if (selectedAsOwner) throw new GradleException("AWS Emulator runtime owner " + project.getPath()
+            + " is already selected by another project and cannot useSharedRuntime. Select the owner directly; sharing cannot be chained.");
+        if (sharedProjectPath != null && !sharedProjectPath.equals(ownerProject)) {
+            throw new GradleException("AWS Emulator runtime for " + project.getPath() + " already selects " + sharedProjectPath
+                + "; cannot select " + ownerProject + ".");
+        }
+        for (String name : resourceSets) {
+            if (name == null || name.isBlank()) throw new GradleException("Shared AWS Emulator resource set names must not be blank.");
+        }
+        sharedProjectPath = ownerProject;
+        requireDirectOwner(owner.getExtensions().findByType(AwsEmulatorExtension.class), ownerProject);
+        project.evaluationDependsOn(ownerProject);
+        AwsEmulatorExtension selected = owner.getExtensions().findByType(AwsEmulatorExtension.class);
+        if (selected == null) throw new GradleException("AWS Emulator runtime owner " + ownerProject
+            + " must apply 'io.github.gregwhitaker.aws-emulator'.");
+        requireDirectOwner(selected, ownerProject);
+        selected.selectedAsOwner = true;
+        runtimeOwner = selected;
+        registeredService = selected.registeredService;
+        service.set(selected.runtime());
+        // Consumers may already have been realized by another plugin or the build script.
+        // Previously declared local services stay unused and never create a runtime.
+        for (Task consumer : runtimeConsumers) consumer.usesService(registeredService);
+        sharedResourceSets.addAll(java.util.List.of(resourceSets));
+    }
+
+    private static void requireDirectOwner(AwsEmulatorExtension owner, String path) {
+        if (owner != null && owner.sharedProjectPath != null) {
+            throw new GradleException("AWS Emulator runtime owner " + path + " already selects " + owner.sharedProjectPath
+                + ". Select the owner directly; sharing cannot be chained or cyclic.");
+        }
+    }
+
+    private Object resolveConsumerSetup(Object setup, EmulatorMode mode) {
+        var dependencies = new ArrayList<Object>();
+        if (runtimeOwner != null) {
+            for (String name : sharedResourceSets) {
+                if (!runtimeOwner.getResourceSets().getNames().contains(name)) {
+                    throw new GradleException("Unknown AWS Emulator resource set '" + name + "' in owner " + sharedProjectPath + ".");
+                }
+                dependencies.add(runtimeOwner.resolveSetup(runtimeOwner.getResourceSets().named(name), mode));
+            }
+        }
+        dependencies.add(resolveSetup(setup, mode));
+        return dependencies;
+    }
 
     /** Starts a build-owned emulator for this Test or JavaExec task, and configures its forked JVM. */
     public void useWith(TaskProvider<? extends Task> taskProvider) {
@@ -91,13 +181,13 @@ public abstract class AwsEmulatorExtension {
                 Property<EmulatorMode> selected = (Property<EmulatorMode>) task.getExtensions()
                     .getExtraProperties().get(MODE_EXTENSION);
                 selected.set(mode);
-                task.dependsOn(project.provider(() -> resolveSetup(setupTasks, selected.get())));
+                task.dependsOn(project.provider(() -> resolveConsumerSetup(setupTasks, selected.get())));
                 return;
             }
             Property<EmulatorMode> selected = objects.property(EmulatorMode.class).value(mode);
-            task.dependsOn(project.provider(() -> resolveSetup(setupTasks, selected.get())));
+            task.dependsOn(project.provider(() -> resolveConsumerSetup(setupTasks, selected.get())));
             task.getExtensions().getExtraProperties().set(MODE_EXTENSION, selected);
-            task.usesService(runtime);
+            usesRuntime(task);
             task.doFirst(new ConfigureEmulatorAction(runtime, selected));
             // Both runtimes have external state that Gradle cannot track.
             task.getOutputs().upToDateWhen(ignored -> false);

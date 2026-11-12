@@ -22,8 +22,8 @@ public final class EmulatorModule {
         Provider<AwsEmulatorService> service = registerService(project, extension);
         extension.attach(project, service);
         project.getTasks().withType(AbstractAwsEmulatorTask.class).configureEach(task -> {
-            task.getRuntime().convention(service);
-            task.usesService(service);
+            task.getRuntime().convention(extension.runtime());
+            extension.usesRuntime(task);
         });
         register(project, PREPARE_TASK_NAME, PrepareAwsEmulatorTask.class, "Builds or locates the AWS Emulator Docker image.");
         register(project, START_TASK_NAME, StartAwsEmulatorTask.class, "Starts the project's persistent development emulator.");

@@ -9,7 +9,7 @@ import org.gradle.api.provider.Property;
 import org.gradle.api.services.BuildService;
 import org.gradle.api.services.BuildServiceParameters;
 
-/** One runtime manager per project and Gradle invocation. */
+/** One runtime manager per owner project and Gradle invocation, shared by its explicit consumers. */
 public abstract class AwsEmulatorService implements BuildService<AwsEmulatorService.Parameters>, AutoCloseable {
     public interface Parameters extends BuildServiceParameters {
         Property<String> getOwner();

@@ -1,5 +1,9 @@
 # AWS Emulator Gradle Plugin
 
+[![Build](https://github.com/gregwhitaker/gradle-aws-emulator/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/gregwhitaker/gradle-aws-emulator/actions/workflows/ci.yml)
+[![Gradle Plugin Portal](https://img.shields.io/gradle-plugin-portal/v/io.github.gregwhitaker.aws-emulator?label=Gradle%20Plugin%20Portal)](https://plugins.gradle.org/plugin/io.github.gregwhitaker.aws-emulator)
+[![Docs](https://github.com/gregwhitaker/gradle-aws-emulator/actions/workflows/pages.yml/badge.svg?branch=main)](https://gregwhitaker.github.io/gradle-aws-emulator/)
+
 Gradle lifecycle tasks, AWS resource management, and opt-in JVM test integration for [AWS Emulator](https://github.com/aws/aws-emulator).
 
 Plugin ID: **`io.github.gregwhitaker.aws-emulator`**. Version **0.2.0** is implemented in this repository; it has not been published to the Gradle Plugin Portal.
