@@ -95,6 +95,13 @@ one class. For runtime, SDK, or lifecycle changes, run the relevant module's
 intentionally fail nested fixture builds to verify cleanup; the enclosing tests
 should pass. Note any checks you could not run in your pull request.
 
+Maintainers can start a fresh CI validation from GitHub's **Actions → Build →
+Run workflow**, selecting the branch to check. This runs the same build,
+publication smoke, release-tool, and Docker checks as push and pull-request
+validation; it does not publish plugins. The Build workflow must be enabled for
+manual runs, and GitHub only offers manual dispatch once the workflow containing
+`workflow_dispatch` is on the default branch.
+
 Use JUnit 5 and mirror the production packages. Put unit tests in `src/test/`,
 Docker-free TestKit tests in `src/functional/`, and real-emulator tests in
 `src/integration/` within the relevant module. Reuse `GradleBuilds` from
@@ -142,16 +149,11 @@ Run these commands from the repository root without publishing credentials or up
 
 ```sh
 ./gradlew build :plugin:publishToMavenLocal :spring-boot-plugin:publishToMavenLocal -Dmaven.repo.local="$PWD/build/publication-check"
-version="$(sed -n 's/^pluginVersion=//p' gradle.properties | tr -d '\r')"
-for consumer in core spring-boot; do
-    ./gradlew -p "smoke-tests/$consumer" build \
-        "-PpluginVersion=$version" "-PpluginRepository=$PWD/build/publication-check" \
-        --configuration-cache --configuration-cache-problems=fail
-done
+bash scripts/smoke-test-publication.sh "$PWD/build/publication-check"
 ./gradlew dockerTest
 ```
 
-The first command writes the implementation and marker publications to `build/publication-check/` without changing your usual Maven local repository. The smoke consumers restrict emulator artifacts to that repository, verify public task types and transitive dependencies, and package a minimal application with Spring Boot without starting Docker. The companion consumer applies only the companion ID, checking its dependency on the core artifact. Portal validation with `--validate-only` also requires publishing credentials and contacts the Portal, but does not upload the release.
+The first command writes the implementation and marker publications to `build/publication-check/` without changing your usual Maven local repository. The smoke consumers restrict emulator artifacts to that repository, verify public task types and transitive dependencies, and package a minimal application with Spring Boot without starting Docker. The companion consumer applies only the companion ID, checking its dependency on the core artifact. Each consumer runs twice, and the script fails unless the second run reuses the configuration cache. The script requires Bash (Git Bash on Windows); set `GRADLE` to a Gradle executable to check another installed distribution. Portal validation with `--validate-only` also requires publishing credentials and contacts the Portal, but does not upload the release.
 
 ### Publish with GitHub Actions
 
@@ -159,9 +161,18 @@ Create a [Plugin Portal account and API key](https://plugins.gradle.org/docs/pub
 
 To release through GitHub Actions:
 
-1. Set `pluginVersion` to the release version, update the changelog, and commit the release changes.
+1. Set `pluginVersion` to the release version. Use `MAJOR.MINOR.PATCH` or a SemVer prerelease such as `0.2.0-rc.1`, without `SNAPSHOT` or build metadata. Finalize the top changelog section with that exact version and a real release date, for example `## 0.2.0 — 2026-11-12`, replacing `Unreleased` only when releasing. Commit the release changes.
 2. Push that commit and a matching version tag, for example `v0.2.0` for `pluginVersion=0.2.0`.
-3. The [publish workflow](.github/workflows/publish.yml) checks the tag, builds the plugin and docs, runs unit/functional/Docker integration tests, validates the publication, then uploads it. It can also be dispatched manually against a matching version tag.
+3. The [publish workflow](.github/workflows/publish.yml) checks the tag and dated changelog, builds both plugins and docs, runs unit/functional/Docker integration tests, publishes to an isolated local repository, and checks both smoke consumers including configuration-cache reuse before validating and uploading both plugins. It can also be dispatched manually against a matching version tag.
+
+Before tagging, run the metadata guard locally (no credentials or network needed), substituting your version:
+
+```sh
+python3 -m unittest discover -s scripts/tests -v
+python3 scripts/verify-release.py --ref-type tag --ref-name v0.2.0
+```
+
+The guard intentionally rejects the current `Unreleased` changelog. Passing it verifies metadata, not the build or Portal approval. Review successful CI, including both Docker architectures, for the intended release commit before pushing the tag.
 
 For example, from the intended release commit:
 
@@ -178,6 +189,8 @@ To publish locally, provide `GRADLE_PUBLISH_KEY` and `GRADLE_PUBLISH_SECRET` in 
 ./gradlew :plugin:publishPlugins --validate-only :spring-boot-plugin:publishPlugins --validate-only
 ./gradlew :plugin:publishPlugins :spring-boot-plugin:publishPlugins
 ```
+
+The two Portal publications are not atomic. If the core uploads but the companion fails, inspect both versions on the Portal before retrying. Do not blindly rerun the full publish workflow against an already published core version; validate and publish only the missing companion from the same release commit after resolving the failure. Never replace an uploaded version with different artifacts.
 
 The first publication requires [Portal approval](https://plugins.gradle.org/docs/publish-plugin#approval). Published versions are immutable; use a new version for subsequent releases. After approval, update the publication-status text in the [README](README.md) and the user guide. Applications can then apply the released plugin without a composite build:
 
