@@ -112,8 +112,11 @@ class DynamoDbTaskFunctionalTest {
                 }
             }
             """);
+        // A fresh TestKit daemon also exercises Kotlin's lazy compiler initialization.
+        Path testKitDirectory = project.resolve("test-kit");
         for (int run = 0; run < 2; run++) {
-            String output = runner(project, "validInitializer", "invalidInitializer", "--continue").buildAndFail().getOutput();
+            String output = runner(project, "validInitializer", "invalidInitializer", "--continue")
+                .withTestKitDir(testKitDirectory.toFile()).buildAndFail().getOutput();
             assertTrue(output.contains("apiCallTimeoutSeconds must be positive"), output);
             assertTrue(output.contains("requires a public constructor accepting DynamoDbClient"), output);
             if (run == 1) assertTrue(output.contains("Reusing configuration cache"), output);

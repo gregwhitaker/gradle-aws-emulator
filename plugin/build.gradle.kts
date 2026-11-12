@@ -14,23 +14,21 @@
  * limitations under the License.
  */
 
+import buildlogic.testing.useExample
+import buildlogic.testing.useFrameworkExamples
 import org.gradle.api.component.AdhocComponentWithVariants
 import org.gradle.plugin.compatibility.compatibility
 
 plugins {
     `java-gradle-plugin`
     `java-test-fixtures`
-    `maven-publish`
     id("build.java-conventions")
     id("build.jacoco")
-    id("com.gradle.plugin-publish") version "2.2.1"
+    id("build.publishing")
 }
 
-group = "io.github.gregwhitaker"
-version = providers.gradleProperty("pluginVersion").get()
 description = "Gradle lifecycle, resource provisioning, and test integration for AWS Emulator"
 base { archivesName.set("gradle-aws-emulator") }
-val projectWebsite = "https://github.com/gregwhitaker/gradle-aws-emulator"
 
 val functionalSourceSet = sourceSets["functional"]
 val integrationSourceSet = sourceSets["integration"]
@@ -38,22 +36,7 @@ val integrationSourceSet = sourceSets["integration"]
 publishing {
     publications.withType<MavenPublication>().configureEach {
         if (name == "pluginMaven") artifactId = "gradle-aws-emulator"
-        pom {
-            name.set("AWS Emulator Gradle Plugin")
-            description.set(project.description)
-            url.set(projectWebsite)
-            scm {
-                url.set(projectWebsite)
-                connection.set("scm:git:$projectWebsite.git")
-                developerConnection.set("scm:git:git@github.com:gregwhitaker/gradle-aws-emulator.git")
-            }
-            licenses {
-                license {
-                    name.set("Apache License, Version 2.0")
-                    url.set("https://www.apache.org/licenses/LICENSE-2.0")
-                }
-            }
-        }
+        pom.name.set("AWS Emulator Gradle Plugin")
     }
 }
 
@@ -93,8 +76,6 @@ dependencies {
 }
 
 gradlePlugin {
-    website.set(projectWebsite)
-    vcsUrl.set("$projectWebsite.git")
     testSourceSets(functionalSourceSet, integrationSourceSet)
     plugins {
         create("awsEmulator") {
@@ -122,38 +103,16 @@ val functionalTest = tasks.named<Test>("functionalTest") {
 }
 
 tasks.named<Test>("integrationTest") {
-    systemProperty("ses.example", rootProject.layout.projectDirectory.dir("examples/ses").asFile.absolutePath)
-    inputs.files(rootProject.fileTree("examples/ses") {
-        include("build.gradle.kts", "src/**", "fixtures/**")
-    }).withPropertyName("sesExample").withPathSensitivity(PathSensitivity.RELATIVE)
-    systemProperty("multiProject.example", rootProject.layout.projectDirectory.dir("examples/multi-project").asFile.absolutePath)
-    inputs.files(rootProject.fileTree("examples/multi-project") {
-        include("**/build.gradle.kts", "settings.gradle.kts", "**/src/**")
-        exclude("**/build/**", "**/.gradle/**")
-    }).withPropertyName("multiProjectExample").withPathSensitivity(PathSensitivity.RELATIVE)
-    systemProperty("scenarios.example", rootProject.layout.projectDirectory.dir("examples/scenarios").asFile.absolutePath)
-    inputs.files(rootProject.fileTree("examples/scenarios") {
-        include("build.gradle.kts", "src/**", "fixtures/**")
-    }).withPropertyName("scenariosExample").withPathSensitivity(PathSensitivity.RELATIVE)
-    systemProperty("services.example", rootProject.layout.projectDirectory.dir("examples/services").asFile.absolutePath)
-    inputs.files(rootProject.fileTree("examples/services") {
-        include("build.gradle.kts", "src/**", "fixtures/**")
-    }).withPropertyName("servicesExample").withPathSensitivity(PathSensitivity.RELATIVE)
+    useExample("ses")
+    useExample("multi-project", multiProject = true)
+    useExample("scenarios")
+    useExample("services")
     description = "Runs integration tests against a real Docker daemon and AWS Emulator."
 }
 
 for (testTask in listOf(functionalTest, tasks.named<Test>("integrationTest"))) {
-    testTask.configure {
-        systemProperty("framework.examples", rootProject.layout.projectDirectory.dir("examples").asFile.absolutePath)
-        inputs.files(rootProject.fileTree("examples") {
-            for (framework in listOf("micronaut", "ktor")) {
-                include("$framework/build.gradle.kts", "$framework/settings.gradle.kts", "$framework/src/**")
-            }
-        }).withPropertyName("frameworkExamples").withPathSensitivity(PathSensitivity.RELATIVE)
-    }
+    testTask.configure { useFrameworkExamples("micronaut", "ktor") }
 }
-
-tasks.named("publishPlugins") { dependsOn(tasks.named("check")) }
 
 val javaComponent = components["java"] as AdhocComponentWithVariants
 javaComponent.withVariantsFromConfiguration(configurations["testFixturesApiElements"]) { skip() }

@@ -42,7 +42,7 @@ downloads or builds the emulator image. No AWS account or AWS CLI is required.
 
 | Location | Purpose |
 | --- | --- |
-| `build-logic/` | Internal build convention plugins for Java, license headers, JaCoCo coverage, and test logging. |
+| `build-logic/` | Internal build convention plugins for Java, license headers, publishing, JaCoCo coverage, and test logging. |
 | `plugin/` | Core plugin, lifecycle management, resource tasks, and consumer integration. |
 | `spring-boot-plugin/` | Optional Spring Boot companion plugin. |
 | `docs/` | AsciiDoc user guide, site assets, Java API reference assembly, and link checker. |
@@ -66,10 +66,18 @@ and the functional and integration test suites. Functional tests participate in
 use the JDK selected by the developer or CI, with `--release 17` enforcing the
 compiled code's Java compatibility.
 
-The Java convention also applies `build.test-logger`. Both modules apply
-`build.jacoco` separately. Production dependencies, Gradle plugin declarations,
-publication metadata, TestKit setup, and example-specific test inputs stay in the
-module build scripts.
+The Java convention also applies `build.test-logger`. Both modules also apply
+`build.jacoco` and `build.publishing`. Module build scripts supply production
+dependencies, Gradle plugin declarations, artifact IDs and POM names, TestKit
+setup, and example-specific test inputs.
+
+Tests that reuse runnable examples declare them with `useExample(...)` or
+`useFrameworkExamples(...)`. These helpers live in
+`build-logic/java-conventions/src/main/kotlin/buildlogic/testing/ExampleFixtures.kt`
+and configure both the fixture system properties and relative-path file inputs.
+Use `useExample("multi-project", multiProject = true)` for nested projects.
+Hyphenated example names become camel-case property names, such as
+`spring-cloud-aws` becoming `springCloudAws.example`.
 
 - Follow the existing Java formatting and feature-based packages under
   `io.github.gregwhitaker.awsemulator`. Keep each AWS service's module, task types,
@@ -222,6 +230,14 @@ to the generated site.
   `build/`, `.gradle/`, and `.aws-emulator/` contents out of commits.
 
 ## Publish to the Gradle Plugin Portal
+
+Both plugin modules apply `build.publishing` from the `publishing` subproject of
+the included `build-logic` build. Its configuration lives in
+`build-logic/publishing/src/main/kotlin/build.publishing.gradle.kts`. It applies
+Maven Publish and the pinned Plugin Publish Plugin, sets the shared group and
+version, configures website, SCM, description, and Apache 2.0 license metadata,
+and makes `publishPlugins` depend on `check`. Module build scripts supply artifact
+IDs, POM names, plugin declarations, and test-fixture publication exclusions.
 
 The release version comes from `pluginVersion` in the root `gradle.properties`. The core artifact is `io.github.gregwhitaker:gradle-aws-emulator`; the companion is `io.github.gregwhitaker:gradle-aws-emulator-spring-boot` and depends on the core. Both use the shared version. Publishing includes the implementation JAR, sources, Javadoc, dependency metadata, and the plugin marker; test fixtures and the documentation subproject are not published. `publishPlugins` runs the plugin's unit tests, functional tests, and plugin validation before publishing.
 

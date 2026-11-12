@@ -14,21 +14,18 @@
  * limitations under the License.
  */
 
+import buildlogic.testing.useExample
 import org.gradle.plugin.compatibility.compatibility
 
 plugins {
     `java-gradle-plugin`
-    `maven-publish`
     id("build.java-conventions")
     id("build.jacoco")
-    id("com.gradle.plugin-publish") version "2.2.1"
+    id("build.publishing")
 }
 
-group = "io.github.gregwhitaker"
-version = providers.gradleProperty("pluginVersion").get()
 description = "Spring Boot development and debugging with AWS Emulator"
 base { archivesName.set("gradle-aws-emulator-spring-boot") }
-val projectWebsite = "https://github.com/gregwhitaker/gradle-aws-emulator"
 
 val functionalSourceSet = sourceSets["functional"]
 val integrationSourceSet = sourceSets["integration"]
@@ -45,8 +42,6 @@ dependencies {
 }
 
 gradlePlugin {
-    website.set(projectWebsite)
-    vcsUrl.set("$projectWebsite.git")
     testSourceSets(functionalSourceSet, integrationSourceSet)
     plugins {
         create("awsEmulatorSpringBoot") {
@@ -63,22 +58,7 @@ gradlePlugin {
 publishing {
     publications.withType<MavenPublication>().configureEach {
         if (name == "pluginMaven") artifactId = "gradle-aws-emulator-spring-boot"
-        pom {
-            name.set("AWS Emulator Spring Boot Gradle Plugin")
-            description.set(project.description)
-            url.set(projectWebsite)
-            scm {
-                url.set(projectWebsite)
-                connection.set("scm:git:$projectWebsite.git")
-                developerConnection.set("scm:git:git@github.com:gregwhitaker/gradle-aws-emulator.git")
-            }
-            licenses {
-                license {
-                    name.set("Apache License, Version 2.0")
-                    url.set("https://www.apache.org/licenses/LICENSE-2.0")
-                }
-            }
-        }
+        pom.name.set("AWS Emulator Spring Boot Gradle Plugin")
     }
 }
 
@@ -90,15 +70,7 @@ tasks.named<Test>("functionalTest") {
     description = "Verifies Spring Boot compatibility without Docker."
 }
 tasks.named<Test>("integrationTest") {
-    systemProperty("cognito.example", rootProject.layout.projectDirectory.dir("examples/cognito").asFile.absolutePath)
-    inputs.files(rootProject.fileTree("examples/cognito") {
-        include("build.gradle.kts", "src/**", "fixtures/**")
-    }).withPropertyName("cognitoExample").withPathSensitivity(PathSensitivity.RELATIVE)
-    systemProperty("springCloudAws.example", rootProject.layout.projectDirectory.dir("examples/spring-cloud-aws").asFile.absolutePath)
-    inputs.files(rootProject.fileTree("examples/spring-cloud-aws") {
-        include("build.gradle.kts", "src/**", "fixtures/**")
-    }).withPropertyName("springCloudAwsExample").withPathSensitivity(PathSensitivity.RELATIVE)
+    useExample("cognito")
+    useExample("spring-cloud-aws")
     description = "Runs Spring Boot consumers against a real AWS Emulator."
 }
-
-tasks.named("publishPlugins") { dependsOn(tasks.named("check")) }

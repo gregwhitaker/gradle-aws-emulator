@@ -71,9 +71,24 @@ public final class GradleBuilds {
             throw new UncheckedIOException("Cannot enable TestKit coverage in " + project, e);
         }
         var args = new ArrayList<>(runner.getArguments());
-        // JaCoCo reads system properties while Gradle's Kotlin support may initialize
-        // this one lazily. Keep it stable on Gradle < 9.7 (gradle/gradle#30145).
-        args.add("-Didea.io.use.nio2=true");
+        // JaCoCo reads all system properties, including Kotlin's lazy compiler settings.
+        // Seed the values from IdeaStandaloneExecutionSetup.doSetup before configuration
+        // so a fresh daemon can reuse its first configuration cache entry.
+        // See gradle/gradle#30145 for the idea.io.use.nio2 workaround.
+        args.addAll(Arrays.asList(
+            "-Didea.io.use.nio2=true",
+            "-Dproject.structure.add.tools.jar.to.new.jdk=false",
+            "-Dpsi.track.invalidation=true",
+            "-Dpsi.incremental.reparse.depth.limit=1000",
+            "-Dpsi.sleep.in.validity.check=false",
+            "-Dide.hide.excluded.files=false",
+            "-Dast.loading.filter=false",
+            "-Didea.ignore.disabled.plugins=true",
+            "-Dplatform.random.idempotence.check.rate=1000",
+            "-Didea.config.path=some/non/existent/path",
+            "-Didea.plugins.compatible.build=999.SNAPSHOT",
+            "-Dide.enable.implicit.blocking.context=false"
+        ));
         args.addAll(Arrays.asList("--init-script", initScript.toString()));
         runner.withArguments(args);
     }
