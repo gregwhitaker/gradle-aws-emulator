@@ -1,0 +1,117 @@
+/* Keep Javadoc's navigation, search, filters, and layout; use the guide's palette. */
+:root {
+  /* Recent doclets use these variables; the rules below also cover Java 17. */
+  --body-font-family: var(--font-sans);
+  --block-font-family: var(--font-sans);
+  --code-font-family: var(--font-mono);
+  --body-text-color: var(--ink);
+  --block-text-color: var(--ink);
+  --body-background-color: var(--paper);
+  --section-background-color: var(--surface);
+  --detail-background-color: var(--paper);
+  --navbar-background-color: var(--surface);
+  --navbar-text-color: var(--nav-ink);
+  --subnav-background-color: var(--table-head);
+  --selected-background-color: var(--active);
+  --selected-text-color: var(--active-ink);
+  --selected-link-color: var(--link);
+  --even-row-color: var(--paper);
+  --odd-row-color: var(--surface);
+  --title-color: var(--heading);
+  --link-color: var(--link);
+  --link-color-active: var(--link-hover);
+  --snippet-background-color: var(--code-background);
+  --snippet-text-color: #e2e8f0;
+  --snippet-highlight-color: var(--active);
+  --border-color: var(--line);
+  --table-border-color: var(--line);
+  --search-input-background-color: var(--paper);
+  --search-input-text-color: var(--ink);
+  --search-input-placeholder-color: var(--muted);
+  --search-tag-highlight-color: var(--active);
+  --copy-button-background-color-active: var(--hover);
+  --invalid-tag-background-color: var(--warning-background);
+  --invalid-tag-text-color: var(--ink);
+}
+[data-theme="dark"] { --copy-icon-brightness: 200%; }
+html, body { color: var(--ink); background: var(--paper); }
+body, button, input, div.block, dl.notes > dt, dl.notes > dd, .deprecation-block, .preview-block, .ui-widget { font-family: var(--font-sans); }
+body { line-height: 1.6; }
+pre, code, tt, dt code, .summary-table dt code, .module-signature, .package-signature, .type-signature, .member-signature { font-family: var(--font-mono); }
+a:link, a:visited, .caption a:link, .caption a:visited, .ui-widget-content a { color: var(--link); }
+a[href]:hover, a[href]:focus, .caption a:hover, .caption a:active { color: var(--link-hover); }
+a:focus-visible, button:focus-visible, input:focus-visible, [tabindex]:focus-visible { outline: 3px solid #3b82f6; outline-offset: 3px; }
+a[name], .block, dl.notes > dt, .deprecation-block, .preview-block { color: var(--ink); }
+h1, h2, h3, h4, h5, h6, .title { color: var(--heading); }
+.sub-title, .watermark, .source-line-no, .help-footnote { color: var(--muted); }
+hr { border: 0; border-top: 1px solid var(--line); }
+main { max-width: 1400px; margin: 0 auto; padding: 28px 32px; box-sizing: border-box; overflow-wrap: anywhere; }
+h1.title { font-size: 30px; letter-spacing: -.025em; line-height: 1.25; margin-bottom: 24px; }
+body.class-declaration-page .summary h2, body.class-declaration-page .details h2, body.class-use-page h2, body.module-declaration-page .block-list h2 { font-style: normal; }
+
+.api-site-header { display: flex; align-items: center; justify-content: space-between; gap: 18px; height: 80px; padding: 0 28px; box-sizing: border-box; background: var(--paper); border-bottom: 1px solid var(--line); }
+.api-site-header .brand { color: var(--heading); text-decoration: none; }
+.api-header-links { display: flex; align-items: center; gap: 24px; font-size: 13px; }
+.api-header-links > a { color: var(--nav-ink); white-space: nowrap; }
+.top-nav, .sub-nav { background: var(--surface); color: var(--ink); border-bottom: 1px solid var(--line); }
+.top-nav a:link, .top-nav a:active, .top-nav a:visited { color: var(--nav-ink); }
+.top-nav a:hover { color: var(--link-hover); }
+.nav-bar-cell1-rev { background: var(--active); color: var(--active-ink); border-radius: 4px; }
+.top-nav { padding-bottom: 10px; }
+ul.sub-nav-list-small { background: var(--surface); color: var(--ink); }
+ul.sub-nav-list-small a:link, ul.sub-nav-list-small a:visited { color: var(--link); }
+ul.sub-nav-list-small a:hover { color: var(--link-hover); }
+button#navbar-toggle-button .nav-bar-toggle-icon { background-color: var(--nav-ink); }
+.sub-nav .nav-list-search { padding: 8px 12px; }
+.nav-list-search label { right: 0; margin-right: 6px; }
+#search-input { width: min(360px, 45vw); max-width: 100%; right: 0; height: 30px; padding: 4px 28px 4px 10px; box-sizing: border-box; border: 1px solid var(--line); border-radius: 4px; background: var(--paper); color: var(--ink); }
+#search-input::placeholder { color: var(--muted); }
+#reset-button { background-color: transparent; top: 0; left: -24px; }
+[data-theme="dark"] #reset-button { filter: invert(1); }
+#page-search-reset { color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 5px 10px; }
+[data-theme="dark"] a.anchor-link > img { filter: brightness(200%); }
+
+.summary-table, .details-table { border-color: var(--line); }
+.summary-table > div, .details-table > div { min-width: 0; padding: 10px 12px; }
+.table-header, .table-sub-heading-color { background: var(--table-head); color: var(--heading); }
+.even-row-color, .even-row-color .table-header { background-color: var(--paper); }
+.odd-row-color, .odd-row-color .table-header { background-color: var(--surface); }
+.caption { color: var(--heading); }
+.caption span { background: var(--table-head); color: var(--heading); height: auto; }
+div.table-tabs > button.table-tab { background: var(--surface); color: var(--nav-ink); }
+div.table-tabs > button.active-table-tab { background: var(--active); color: var(--active-ink); }
+div.table-tabs > button:hover { background: var(--hover); color: var(--heading); }
+.summary section[class$="-summary"], .details section[class$="-details"], .class-uses .detail, .serialized-class-details { border-color: var(--line); background: var(--surface); }
+.inherited-list, section[class$="-details"] .detail { background: var(--paper); }
+body.class-declaration-page .summary h3, body.class-declaration-page .details h3, body.class-declaration-page .summary .inherited-list h2 { background: var(--table-head); border-color: var(--line); }
+.member-signature, .member-signature .parameters, .member-signature .exceptions, .member-signature .type-parameters-long { white-space: pre-wrap; overflow-wrap: anywhere; max-width: 100%; }
+pre, .snippet-container { background: var(--code-background); color: #e2e8f0; padding: 16px; border: 1px solid var(--code-border); border-radius: 6px; overflow-x: auto; }
+.tab, .search-tag-result:target { background: var(--active); color: var(--active-ink); }
+main a[href*="://"]::after { content: "↗"; background-image: none; width: auto; height: auto; color: var(--link); margin-bottom: 0; }
+main a[href*="://"]:hover::after, main a[href*="://"]:focus::after { background-image: none; color: var(--link-hover); }
+table.plain, table.striped, table.plain th, table.plain td, table.striped th, table.striped td { border-color: var(--line); }
+table.striped > thead > tr > th, table.striped > thead > tr > td { background-color: var(--table-head); }
+table.striped > tbody > tr:nth-child(odd) { background-color: var(--surface); }
+table.striped > tbody > tr:nth-child(even) { background-color: var(--paper); }
+
+.ui-widget-content, .ui-widget-header, ul.ui-autocomplete { background: var(--paper); color: var(--ink); border-color: var(--line); }
+.ui-autocomplete-category { background: var(--surface); color: var(--heading); }
+.ui-state-active, .ui-widget-content .ui-state-active, .ui-widget-header .ui-state-active, a.ui-button:active, .ui-button:active, .ui-button.ui-state-active:hover { background: var(--active); color: var(--active-ink); border: 1px solid var(--link); }
+.ui-autocomplete { max-width: calc(100vw - 32px); white-space: normal; overflow-wrap: anywhere; }
+
+@media (max-width: 920px) {
+  .top-nav { padding-bottom: 0; }
+}
+@media (max-width: 760px) {
+  .api-site-header { height: 72px; padding: 0 16px; gap: 12px; }
+  .api-header-links { gap: 12px; font-size: 12px; }
+  main { padding: 20px 16px; }
+  h1.title { font-size: 26px; }
+  .three-column-summary, .four-column-summary { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  #search-input { width: 190px; }
+}
+@media print {
+  .api-site-header { display: none; }
+  main { max-width: none; margin: 0; padding: 0; }
+  pre, pre.snippet, .snippet-container { color: var(--ink); background: var(--surface); border-color: var(--line); white-space: pre-wrap; }
+}

@@ -1,0 +1,41 @@
+# Documentation site
+
+This Gradle subproject generates a static, offline-capable HTML guide with the plugin's Java API reference. It uses [AsciidoctorJ](https://docs.asciidoctor.org/asciidoctorj/latest/) through a pinned JVM CLI dependency. Java 17+ and the repository's Gradle wrapper are sufficient; no Node, Python, Ruby installation, Docker daemon, or AWS account is required to build the site.
+
+Run these commands from the repository root:
+
+```sh
+./gradlew :docs:site
+./gradlew :docs:check
+./gradlew :docs:siteZip
+```
+
+- `site` generates `docs/build/site/index.html`, local assets, and `api/` from `:plugin:javadoc`.
+- `check` verifies every generated HTML page's local links, fragment targets, assets, and shared theme controls. External URLs are not fetched.
+- `siteZip` validates and packages the site at `docs/build/distributions/aws-emulator-docs-<version>.zip`.
+- `build` generates, verifies, and packages the site. The root `build` includes this project, so the existing CI build checks documentation too.
+- `clean` removes generated documentation. The root `clean` includes this project.
+
+The tasks support `--configuration-cache`. Open `docs/build/site/index.html` directly in a browser. Optionally serve the directory with any static HTTP server. For example, if Python is installed:
+
+```sh
+python3 -m http.server 8000 --bind 127.0.0.1 --directory docs/build/site
+```
+
+Then visit <http://127.0.0.1:8000>. Upload the contents of `docs/build/site/` (or the unzipped archive) to a static host. Links are relative and also work under a path prefix. This project does not publish or require a hosting account.
+
+The guide and Java API reference include the same light/dark theme toggle on desktop and mobile. They follow the system theme until a reader chooses one, then share that preference through browser storage. Both themes use neutral grays and blue accents. Printing uses a light palette.
+
+## Authoring
+
+- Add top-level pages in `src/docs/asciidoc/`. Each page starts with a title followed by `include::_partials/attributes.adoc[]`.
+- Use `xref:page.adoc#section-id[Label]` for internal links. Top-level pages are discovered automatically at configuration time. Add each new page to the navigation in `_partials/docinfo-header.html`.
+- Keep reusable partials under `_partials/`; they are included, not rendered as standalone pages.
+- The getting-started guide includes the actual build scripts and SDK test from `examples/basic`. `prepareDocs` stages those files so source changes invalidate generation.
+- Update styles and browser behavior in `src/site/assets/`. Assets are local; the guide has no CDN or web-font dependency. JavaScript enhances navigation, copy buttons, and tables; content and links remain usable without it.
+- `theme.css` and `theme.js` define the shared palette, toggle, and preference. `api.css` adapts Javadoc's tables, navigation, search results, and method filters to that palette.
+- `site` injects `src/templates/api-head.html` and `api-header.html` into copied Javadoc pages, resolving asset and guide links relative to each page's depth. The plugin's standalone Javadoc output and Javadoc JAR are unchanged. The link checker requires shared theme assets on every page and a toggle on every page with content; Javadoc's redirect pages do not need a header.
+- `pluginVersion` in the root `gradle.properties` is shared with the plugin artifact and injected as the AsciiDoc `revnumber` attribute. Update publication-status text when the plugin is released.
+- Asciidoctor warnings, missing includes, and unresolved attributes fail generation. `src/tools/CheckSite.java` checks the output using only the JDK.
+
+The output is ignored by Git. `site` uses Gradle `Sync` and copies only current source pages, removing obsolete pages from the final site. The ZIP uses stable file ordering and omits file timestamps. Javadoc output follows the JDK used by Gradle; for byte-identical builds, keep the JDK and dependency versions fixed.

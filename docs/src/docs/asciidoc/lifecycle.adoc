@@ -1,0 +1,79 @@
+= Development lifecycle
+include::_partials/attributes.adoc[]
+:description: Prepare, start, stop, restart, inspect, and read logs from a persistent AWS Emulator instance.
+
+Lifecycle tasks operate on a persistent development instance owned by the current project. It stays running after Gradle exits, ready for interactive development.
+
+toc::[]
+
+== Task reference
+
+[cols="1,3",options="header"]
+|===
+|Task |Behavior
+|`prepareAwsEmulator` |Build the pinned image, or locate/pull a configured image override.
+|`startAwsEmulator` |Start the development container and wait for HTTPS readiness. Reuse an existing instance if its settings match.
+|`stopAwsEmulator` |Gracefully stop and remove the development container and its generated connection files. Safe to repeat.
+|`restartAwsEmulator` |Stop and start the development instance with the current settings and empty resource state.
+|`statusAwsEmulator` |Report the development container's state, health, and endpoint.
+|`logsAwsEmulator` |Print the last 100 lines of development-container logs.
+|===
+
+== Start a development session
+
+From the plugin repository, use the example application:
+
+[source,shell]
+----
+./gradlew -p examples/basic startAwsEmulator -PawsEmulator.port=9297
+./gradlew -p examples/basic statusAwsEmulator
+./gradlew -p examples/basic logsAwsEmulator
+./gradlew -p examples/basic stopAwsEmulator
+----
+
+In your own project, omit `-p examples/basic`. The start and status tasks report the actual endpoint and runtime directory, including when you select a port automatically.
+
+An unrelated container with the same name is never adopted or stopped. The plugin checks ownership before operating on containers.
+
+== Change settings or start fresh
+
+If the development instance is already running, changed settings require `restartAwsEmulator`:
+
+[source,shell]
+----
+./gradlew -p examples/basic restartAwsEmulator -PawsEmulator.port=0
+----
+
+WARNING: The emulator keeps resources in memory. Stop and restart discard buckets, objects, queues, and messages. This emulator release has no state-persistence or reset API.
+
+The Docker image remains cached after an instance stops. `prepareAwsEmulator` can build or pull it ahead of a development session without starting a runtime.
+
+== Provision development resources
+
+Set the mode on each typed provisioning task:
+
+[source,kotlin]
+----
+import io.github.gregwhitaker.awsemulator.model.EmulatorMode
+import io.github.gregwhitaker.awsemulator.aws.s3.CreateS3BucketTask
+
+val developmentBucket = tasks.register<CreateS3BucketTask>("createDevelopmentBucket") {
+    mode.set(EmulatorMode.DEVELOPMENT)
+    bucketName.set("application-development-data")
+}
+----
+
+Run `./gradlew createDevelopmentBucket` in that application. The task starts or reuses the development instance and leaves it running. Use `stopAwsEmulator` to remove it.
+
+Use `MANAGED` resource tasks for xref:testing.adoc[tests opted in with `useWith`]. Development tasks do not seed the separate managed instance.
+
+== Recover from an interrupted build
+
+Graceful cleanup needs the Gradle process and Docker daemon to remain available. A hard kill or daemon failure can leave a container behind. Find plugin-owned containers with:
+
+[source,shell]
+----
+docker ps -a --filter label=io.github.gregwhitaker.aws-emulator.owner
+----
+
+Identify the specific stale container before removing it. The plugin does not prune other containers, images, or AWS configuration. See xref:troubleshooting.adoc[troubleshooting] for startup and connection failures.

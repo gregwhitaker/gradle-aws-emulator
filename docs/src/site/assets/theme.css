@@ -1,0 +1,91 @@
+/* Shared by the user guide and the generated Java API reference. */
+:root {
+  color-scheme: light;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  --ink: #1f2937;
+  --muted: #64748b;
+  --heading: #0f172a;
+  --accent: #bfdbfe;
+  --line: #e2e8f0;
+  --paper: #ffffff;
+  --surface: #f8fafc;
+  --hover: #edf2f7;
+  --nav-ink: #475569;
+  --link: #2563eb;
+  --link-hover: #1e40af;
+  --active: #eaf1ff;
+  --active-ink: #1d4ed8;
+  --inline-code: #eff2f6;
+  --table-head: #f1f5f9;
+  --code-background: #111827;
+  --code-border: #1e293b;
+  --brand-background: #0f172a;
+  --brand-ink: #ffffff;
+  --brand-dot: #bfdbfe;
+  --warning-background: #fff8e8;
+  --warning-border: #d8bc78;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ink: #e2e8f0;
+  --muted: #a8b3c4;
+  --heading: #f8fafc;
+  --accent: #1e3554;
+  --line: #334155;
+  --paper: #111827;
+  --surface: #182233;
+  --hover: #263449;
+  --nav-ink: #cbd5e1;
+  --link: #93c5fd;
+  --link-hover: #bfdbfe;
+  --active: #1e3554;
+  --active-ink: #bfdbfe;
+  --inline-code: #263449;
+  --table-head: #263449;
+  --code-background: #0b1120;
+  --code-border: #334155;
+  --brand-background: #e2e8f0;
+  --brand-ink: #111827;
+  --brand-dot: #2563eb;
+  --warning-background: #30291b;
+  --warning-border: #aa833f;
+}
+[hidden] { display: none !important; }
+.brand { display: flex; align-items: center; gap: 12px; color: var(--heading); text-decoration: none; font: 700 17px/1.3 var(--font-sans); }
+.brand-mark { display: grid; place-content: center; width: 38px; height: 42px; border-radius: 8px; background: var(--brand-background); color: var(--brand-ink); font: 700 23px var(--font-mono); position: relative; }
+.brand-mark span { position: absolute; bottom: 1px; right: 4px; color: var(--brand-dot); }
+.brand-subtitle { display: block; margin-top: 5px; letter-spacing: .15em; font-size: 9px; font-weight: 600; }
+.theme-toggle { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 36px; padding: 5px 12px; box-sizing: border-box; color: var(--ink); border: 1px solid var(--line); border-radius: 5px; background: var(--paper); font: 13px/1.4 var(--font-sans); cursor: pointer; }
+.theme-toggle:hover { background: var(--hover); }
+.theme-toggle:focus-visible { outline: 3px solid #3b82f6; outline-offset: 4px; }
+.theme-toggle svg { width: 16px; height: 16px; flex-shrink: 0; }
+.theme-icon-sun, [data-theme="dark"] .theme-icon-moon { display: none; }
+[data-theme="dark"] .theme-icon-sun { display: block; }
+@media (max-width: 760px) {
+  .brand { font-size: 14px; gap: 8px; }
+  .brand-mark { width: 32px; height: 36px; font-size: 19px; }
+}
+@media (max-width: 420px) {
+  .theme-toggle { padding: 7px 9px; }
+  .theme-toggle [data-theme-label] { display: none; }
+}
+@media print {
+  :root, :root[data-theme] {
+    color-scheme: light;
+    --ink: #111111;
+    --heading: #111111;
+    --muted: #444444;
+    --paper: #ffffff;
+    --surface: #f3f3f3;
+    --line: #dddddd;
+    --link: #1e40af;
+    --active: #eeeeee;
+    --active-ink: #111111;
+    --inline-code: #f3f3f3;
+    --table-head: #f3f3f3;
+    --warning-background: #fff8e8;
+    --warning-border: #d8bc78;
+  }
+  .theme-toggle { display: none; }
+}

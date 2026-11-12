@@ -1,0 +1,75 @@
+= Troubleshooting
+include::_partials/attributes.adoc[]
+:description: Resolve plugin resolution, Docker startup, ports, TLS, and resource setup failures.
+
+Use the failing task and its reported endpoint or runtime directory to narrow the problem. Development lifecycle tasks and managed test tasks operate on separate instances.
+
+toc::[]
+
+== The plugin cannot be resolved
+
+Version {revnumber} has not been published to the Gradle Plugin Portal. Configure `pluginManagement { includeBuild(...) }` in your application's settings, pointing at this checkout. Apply the plugin without a version in the consuming build.
+
+Check that Java is at least 17 and Gradle is at least 8.14. See xref:getting-started.adoc#apply-from-a-checkout[apply from a checkout].
+
+== Docker is unavailable or startup times out
+
+Confirm the local Docker engine is running Linux containers and that the configured `dockerExecutable` is available. The first run needs network access to build or pull the image.
+
+For a development instance:
+
+[source,shell]
+----
+./gradlew statusAwsEmulator
+./gradlew logsAwsEmulator
+----
+
+Use `buildTimeoutSeconds` for slow image builds or pulls, `commandTimeoutSeconds` for normal Docker commands, and `startupTimeoutSeconds` for HTTPS readiness after startup. Increasing one does not change the others.
+
+These status/log tasks inspect the development instance. For managed failures, inspect the failed Gradle task's output; they do not target the managed container.
+
+== A port is already in use
+
+Use `port.set(0)` for concurrent projects, builds, or a managed instance alongside a persistent development instance. A fixed default of `9297` can collide with another process.
+
+Automatic selection has a short race before Docker binds the port. If another process claims it, startup fails and cleans up. Retry after resolving the competing process.
+
+If you configure `port.set(0)` explicitly, `-PawsEmulator.port=...` no longer controls it unless your property expression reads that override. The xref:configuration.adoc#configure-a-project[configuration examples] preserve this behavior.
+
+== Development settings changed
+
+`startAwsEmulator` only reuses an instance whose settings match. Use `restartAwsEmulator` to apply changed settings. Restarting discards the emulator's in-memory AWS resources.
+
+== A test ran without prepared resources
+
+Check both pieces of wiring:
+
+. The test depends on the provisioning tasks with `dependsOn(...)`.
+. The same test provider is passed to `awsEmulator.useWith(...)`.
+
+Keep provisioning tasks in the default `MANAGED` mode to share the test runtime. A `DEVELOPMENT` task creates resources in a separate instance. A standalone managed provisioning build removes its resources at the end; run setup and consumers in the same build.
+
+Tests that are skipped or have no sources do not start the emulator themselves, but their provisioning dependencies can still execute.
+
+== SQS attributes conflict
+
+An existing queue is reused only when explicitly requested attributes match the returned strings. The task fails instead of updating or purging a queue on mismatch. Check the requested values, including the formatting of JSON-valued attributes.
+
+For FIFO queues, use both a `.fifo` suffix and the `FifoQueue` attribute set to the string `true`. Use distinct queue names when concurrent tests share an instance.
+
+== HTTPS or authentication fails
+
+Use a compatible SDK and its normal endpoint and credential providers. Explicit client settings can override the plugin. For host-prefix operations in Java, configure `SdkAdvancedClientOption.DISABLE_HOST_PREFIX_INJECTION`.
+
+If the same JVM calls other HTTPS services, its emulator-only trust store needs additional trust roots. See xref:connections.adoc[credentials and TLS]. Check that host clients use `host-config`, not the emulator's config with container paths.
+
+== A container remains after interruption
+
+Ordinary task failures trigger managed cleanup. A hard kill or unavailable Docker daemon can prevent it. List plugin-owned containers:
+
+[source,shell]
+----
+docker ps -a --filter label=io.github.gregwhitaker.aws-emulator.owner
+----
+
+Identify and remove only the stale container. A running development instance intentionally survives Gradle; use `stopAwsEmulator` when that session is finished.

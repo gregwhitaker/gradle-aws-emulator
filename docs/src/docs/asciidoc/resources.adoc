@@ -1,0 +1,128 @@
+= S3 & SQS resources
+include::_partials/attributes.adoc[]
+:description: Create S3 buckets and standard or FIFO SQS queues with typed Gradle tasks.
+
+Register typed Gradle tasks to prepare your application's AWS resources. Each task starts the selected emulator on demand and waits until it is ready.
+
+toc::[]
+
+== Register resource tasks
+
+Make your test task depend on provisioning, then opt that same consumer into the emulator. Provisioning tasks default to the shared managed instance.
+
+=== Kotlin DSL
+
+[source,kotlin]
+----
+import io.github.gregwhitaker.awsemulator.aws.s3.CreateS3BucketTask
+import io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueueTask
+
+plugins {
+    java
+    id("io.github.gregwhitaker.aws-emulator")
+}
+
+val createBucket = tasks.register<CreateS3BucketTask>("createTestBucket") {
+    bucketName.set("application-test-data")
+}
+val createQueue = tasks.register<CreateSqsQueueTask>("createTestQueue") {
+    queueName.set("application-test-events")
+    attributes.put("VisibilityTimeout", "45")
+}
+val tests = tasks.named<Test>("test") {
+    dependsOn(createBucket, createQueue)
+}
+awsEmulator {
+    port.set(0)
+    useWith(tests)
+}
+----
+
+=== Groovy DSL
+
+[source,groovy]
+----
+import io.github.gregwhitaker.awsemulator.aws.s3.CreateS3BucketTask
+import io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueueTask
+
+plugins {
+    id 'java'
+    id 'io.github.gregwhitaker.aws-emulator'
+}
+
+def createBucket = tasks.register('createTestBucket', CreateS3BucketTask) {
+    bucketName.set('application-test-data')
+}
+def createQueue = tasks.register('createTestQueue', CreateSqsQueueTask) {
+    queueName.set('application-test-events')
+    attributes.put('VisibilityTimeout', '45')
+}
+def tests = tasks.named('test') {
+    dependsOn(createBucket, createQueue)
+}
+awsEmulator {
+    port.set(0)
+    useWith(tests)
+}
+----
+
+NOTE: A managed provisioning task invoked alone creates resources that disappear when the build finishes. To keep resources available for a development session, select xref:lifecycle.adoc#provision-development-resources[`DEVELOPMENT` mode].
+
+== Task properties
+
+All properties use Gradle's lazy property API.
+
+[cols="1,1,2",options="header"]
+|===
+|Task type |Required |Optional
+|`CreateS3BucketTask` |`bucketName` |`mode`, `apiCallTimeoutSeconds`
+|`CreateSqsQueueTask` |`queueName` |`attributes`, `mode`, `apiCallTimeoutSeconds`
+|===
+
+[cols="1,1,3",options="header"]
+|===
+|Shared property |Default |Meaning
+|`mode` |`EmulatorMode.MANAGED` |Select the build-owned runtime or the persistent `DEVELOPMENT` runtime.
+|`apiCallTimeoutSeconds` |`30` |Positive timeout for each SDK operation, including retries.
+|===
+
+Provisioning tasks always execute and are never restored from the build cache because they operate on live emulator state. The plugin supplies its own SDK dependencies for these tasks; the application declares its own dependencies.
+
+== S3 bucket behavior
+
+`CreateS3BucketTask` creates general-purpose buckets in `awsEmulator.region`. For `us-east-1`, it omits the location constraint; for other regions, it sends the configured region.
+
+If an accessible bucket already exists, the task reuses it without another `CreateBucket` call. Its objects and configuration remain intact. A region mismatch reported by `HeadBucket` fails the task.
+
+Directory buckets, access points, bucket policies, and object seeding are outside this release's scope. Seed objects in application setup using the SDK when needed.
+
+API: link:api/io/github/gregwhitaker/awsemulator/aws/s3/CreateS3BucketTask.html[CreateS3BucketTask].
+
+== SQS queue behavior
+
+`CreateSqsQueueTask` supports standard and FIFO queues. Its `attributes` map uses AWS attribute names and string values.
+
+An existing queue is reused when the explicitly requested attribute values match. A mismatch fails the task without changing or purging the queue. Unspecified attributes keep their existing values. Comparisons use the returned strings, including JSON-valued attributes; semantically equivalent JSON with different formatting can still differ.
+
+AWS service errors remain build failures.
+
+=== FIFO queues
+
+Provide both a `.fifo` suffix and `FifoQueue = true`:
+
+[source,kotlin]
+----
+val createFifo = tasks.register<CreateSqsQueueTask>("createTestFifo") {
+    queueName.set("application-events.fifo")
+    attributes.put("FifoQueue", "true")
+    attributes.put("ContentBasedDeduplication", "true")
+}
+----
+
+Add `createFifo` to your consumer's `dependsOn(...)` list to create the queue before it runs.
+
+API: link:api/io/github/gregwhitaker/awsemulator/aws/sqs/CreateSqsQueueTask.html[CreateSqsQueueTask].
+
+== SDK connection isolation
+
+Provisioning clients use explicit emulator endpoints, regions, generated credentials, and per-client TLS trust. They bypass inherited proxy settings. They do not modify the Gradle daemon's credentials or global SSL configuration, and they do not require the AWS CLI.

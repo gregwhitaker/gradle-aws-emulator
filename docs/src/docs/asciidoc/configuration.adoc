@@ -1,0 +1,82 @@
+= Configuration
+include::_partials/attributes.adoc[]
+:description: Complete configuration reference and defaults for the awsEmulator Gradle extension.
+
+Configure the `awsEmulator` extension using Gradle's lazy properties. Settings apply to the project's managed and development runtimes; restart an existing development instance after changing them.
+
+toc::[]
+
+== Extension reference
+
+[cols="1,1,3",options="header"]
+|===
+|Property |Default |Meaning
+|`emulatorVersion` |`1.0.322` |Pinned AWS Emulator package used when building an image.
+|`image` |Unset |Use this Docker image instead of building one. Pull it if it is missing locally.
+|`platform` |`auto` |Detect the Docker engine architecture, or select `linux/amd64` or `linux/arm64`.
+|`port` |`9297` |Host and container port. `0` selects a port. Also configurable with `-PawsEmulator.port=...`.
+|`region` |`us-east-1` |Region passed to consuming SDKs and resource provisioning.
+|`telemetryEnabled` |`false` |Explicitly enable the emulator's AWS telemetry.
+|`dockerExecutable` |`docker` |Docker command name or absolute executable path.
+|`memoryLimit` |`2g` |Container memory limit. Swap is capped at the same total.
+|`startupTimeoutSeconds` |`60` |HTTPS readiness deadline after the container starts.
+|`commandTimeoutSeconds` |`60` |Timeout for each normal Docker command.
+|`buildTimeoutSeconds` |`600` |Timeout for an image build or pull.
+|`workingDirectory` |`.aws-emulator` in the project |Generated Dockerfiles, locks, and isolated runtime homes.
+|===
+
+The `useWith(taskProvider)` method accepts an existing `Test` or `JavaExec` task provider. See xref:testing.adoc[tests and Java execution] for lifecycle and caching behavior.
+
+API: link:api/io/github/gregwhitaker/awsemulator/emulator/AwsEmulatorExtension.html[AwsEmulatorExtension].
+
+== Configure a project
+
+.Kotlin DSL
+[source,kotlin]
+----
+awsEmulator {
+    port.set(providers.gradleProperty("awsEmulator.port").map(String::toInt).orElse(0))
+    region.set("us-west-2")
+    memoryLimit.set("3g")
+    startupTimeoutSeconds.set(120)
+    buildTimeoutSeconds.set(900)
+    workingDirectory.set(layout.projectDirectory.dir(".aws-emulator"))
+    useWith(tasks.named<Test>("test"))
+}
+----
+
+.Groovy DSL
+[source,groovy]
+----
+awsEmulator {
+    port.set(providers.gradleProperty('awsEmulator.port').map { it.toInteger() }.orElse(0))
+    region.set('us-west-2')
+    memoryLimit.set('3g')
+    startupTimeoutSeconds.set(120)
+    buildTimeoutSeconds.set(900)
+    workingDirectory.set(layout.projectDirectory.dir('.aws-emulator'))
+    useWith(tasks.named('test'))
+}
+----
+
+The plugin's default port convention reads `awsEmulator.port`. An explicit `port.set(...)` replaces that convention. The snippets above keep the command-line override while changing the fallback to automatic port selection.
+
+== Image and platform overrides
+
+Leave `image` unset to build the pinned AWS package. Set it only for an image whose entrypoint runs AWS Emulator, binds `0.0.0.0`, and accepts the emulator's normal CLI flags.
+
+`platform = auto` detects the Docker engine architecture, which may differ from the host running Gradle. Explicit values are `linux/amd64` and `linux/arm64`.
+
+The initial build or pull needs network access. Images stay in Docker's cache when the plugin removes runtime containers.
+
+== Runtime files
+
+Add `.aws-emulator/`, or your chosen `workingDirectory`, to the application's `.gitignore`. It contains generated local credentials while instances run. Managed and development runtime homes are isolated within this directory.
+
+The plugin does not modify your personal AWS configuration. See xref:connections.adoc[credentials and TLS] for the host-side connection files and how consuming JVMs receive them.
+
+== Resource task configuration
+
+`mode` and `apiCallTimeoutSeconds` belong to individual provisioning tasks, not the extension. The default timeout is `30` seconds per SDK operation, and the default mode is `EmulatorMode.MANAGED`.
+
+See xref:resources.adoc#task-properties[resource task properties] for required bucket/queue names and optional SQS attributes.

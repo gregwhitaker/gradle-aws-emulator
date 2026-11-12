@@ -1,0 +1,76 @@
+= AWS, inside your Gradle build.
+include::_partials/attributes.adoc[]
+:description: Run AWS Emulator, provision S3 and SQS resources, and connect JVM tests from Gradle.
+
+Bring AWS Emulator into your local development loop. Start a development instance, prepare S3 buckets and SQS queues, or give your JVM tests a fresh emulator for each build.
+
+[.lead]
+One plugin. Your existing Gradle tasks. No AWS account or AWS CLI required.
+
+++++
+<div class="quick-links">
+  <a href="getting-started.html"><strong>Start with a working build →</strong><span>Apply the plugin and run the included SDK example.</span></a>
+  <a href="configuration.html"><strong>Find a setting →</strong><span>Ports, images, regions, timeouts, and every default.</span></a>
+</div>
+++++
+
+NOTE: Version {revnumber} is implemented in this repository and has not been published to the Gradle Plugin Portal. Use a local composite build to apply the plugin.
+
+toc::[]
+
+== A small addition to your build
+
+After xref:getting-started.adoc#apply-from-a-checkout[including the plugin checkout], opt your test task in:
+
+.build.gradle.kts
+[source,kotlin]
+----
+plugins {
+    java
+    id("io.github.gregwhitaker.aws-emulator")
+}
+
+awsEmulator {
+    port.set(0)
+    useWith(tasks.named<Test>("test"))
+}
+----
+
+Applying the plugin registers tasks and configuration. Docker starts only when a lifecycle task, resource task, or opted-in consumer needs an emulator.
+
+++++
+<div class="runtime-flow" aria-label="Managed test lifecycle">
+  <div class="runtime-step"><b>01 / PREPARE</b><strong>Start fresh</strong><span>Build or reuse the image. Start a managed container and wait for HTTPS readiness.</span></div>
+  <div class="runtime-step"><b>02 / RUN</b><strong>Use real SDK clients</strong><span>Provision resources and pass the endpoint, credentials, and TLS trust to your JVM.</span></div>
+  <div class="runtime-step"><b>03 / FINISH</b><strong>Clean up</strong><span>Remove the managed container and connection files after its consumers finish.</span></div>
+</div>
+++++
+
+== Choose the right lifetime
+
+[cols="1,2,2",options="header"]
+|===
+| |Managed instance |Development instance
+|Start with |`awsEmulator.useWith(...)` or a default resource task |`startAwsEmulator` or a resource task with `DEVELOPMENT` mode
+|Lifetime |Shared by participating tasks in one project, within the build |Survives the Gradle invocation
+|Cleanup |Automatic after consumers finish, including ordinary task failures |Explicit `stopAwsEmulator`
+|Best for |Tests and Gradle-launched Java applications |Interactive local development
+|===
+
+Both instances keep AWS resources in memory. Stop or restart discards those resources. Managed and development instances use separate container names and working directories.
+
+== What you can do
+
+* xref:lifecycle.adoc[Prepare, start, stop, restart, inspect, and read logs] for a development instance.
+* xref:testing.adoc[Connect existing `Test` and `JavaExec` tasks] to a build-owned emulator.
+* xref:resources.adoc[Create or reuse S3 buckets and standard/FIFO SQS queues] before application code runs.
+* xref:connections.adoc[Use signed HTTPS requests] with generated emulator credentials and per-JVM TLS trust.
+* link:api/index.html[Browse the Java API] for the extension, task types, and configuration model.
+
+== Requirements
+
+The plugin requires Java 17+, Gradle 8.14+, and a local Docker engine running Linux containers. It builds an image from AWS's pinned `1.0.322` package on first use. Linux AMD64 and ARM64 are supported; later runs reuse the image.
+
+Docker integration is verified on Linux AMD64 and ARM64. Windows runs the Docker-free verification suite; Docker integration on Windows has not been verified.
+
+This guide describes the plugin's current implementation. See https://github.com/aws/aws-emulator[AWS Emulator] for the upstream emulator project.

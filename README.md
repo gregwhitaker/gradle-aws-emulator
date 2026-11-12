@@ -6,6 +6,16 @@ Plugin ID: **`io.github.gregwhitaker.aws-emulator`**. Version **0.2.0** is imple
 
 Requires Java 17+, Gradle 8.14+, and a local Docker engine running Linux containers. The plugin builds an image from AWS's pinned `1.0.322` Linux package on first use. AMD64 and ARM64 are supported; subsequent runs reuse the image. No AWS account or AWS CLI is needed.
 
+## Documentation site
+
+Generate the user guide and Java API reference locally:
+
+```sh
+./gradlew :docs:site
+```
+
+Open `docs/build/site/index.html` in a browser. `./gradlew :docs:check` checks local links and assets; `./gradlew :docs:siteZip` creates a verified static-site archive in `docs/build/distributions/`. Site generation requires Java and Gradle, with no Docker or separate frontend toolchain. See [docs/README.md](docs/README.md) for authoring and hosting instructions.
+
 ## Try the included example
 
 From this repository:
@@ -131,8 +141,8 @@ Register typed tasks for the resources your application needs, then make your te
 Kotlin DSL:
 
 ```kotlin
-import io.github.gregwhitaker.awsemulator.tasks.s3.CreateS3BucketTask
-import io.github.gregwhitaker.awsemulator.tasks.sqs.CreateSqsQueueTask
+import io.github.gregwhitaker.awsemulator.aws.s3.CreateS3BucketTask
+import io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueueTask
 
 plugins {
     java
@@ -158,8 +168,8 @@ awsEmulator {
 Groovy DSL:
 
 ```groovy
-import io.github.gregwhitaker.awsemulator.tasks.s3.CreateS3BucketTask
-import io.github.gregwhitaker.awsemulator.tasks.sqs.CreateSqsQueueTask
+import io.github.gregwhitaker.awsemulator.aws.s3.CreateS3BucketTask
+import io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueueTask
 
 plugins {
     id 'java'
@@ -209,7 +219,7 @@ To provision the persistent development instance, select `DEVELOPMENT` on each r
 
 ```kotlin
 import io.github.gregwhitaker.awsemulator.model.EmulatorMode
-import io.github.gregwhitaker.awsemulator.tasks.s3.CreateS3BucketTask
+import io.github.gregwhitaker.awsemulator.aws.s3.CreateS3BucketTask
 
 val developmentBucket = tasks.register<CreateS3BucketTask>("createDevelopmentBucket") {
     mode.set(EmulatorMode.DEVELOPMENT)
@@ -268,27 +278,36 @@ AWS references: [Docker installation](https://docs.aws.amazon.com/emulator/lates
 
 ## Repository and package layout
 
-The repository uses Kotlin DSL build scripts. The root build coordinates one published plugin subproject. The example is an independent composite build that consumes the plugin as an application would.
+The repository uses Kotlin DSL build scripts. The root build coordinates the plugin and documentation subprojects. Only the plugin produces a published library artifact. The example is an independent composite build that consumes the plugin as an application would.
 
 ```text
 build.gradle.kts                     root verification and wrapper configuration
-settings.gradle.kts                  includes :plugin
+settings.gradle.kts                  includes :plugin and :docs
+gradle.properties                    shared plugin/documentation version
+docs/                               static user guide, site assets, and link verification
+  build.gradle.kts                   site generation, Java API inclusion, and ZIP packaging
+  src/docs/asciidoc/                 guide pages and shared navigation
+  src/site/                         browser assets
 plugin/
   build.gradle.kts                   plugin dependencies, metadata, and publishing
   src/main/java/io/github/gregwhitaker/awsemulator/
-    AwsEmulatorPlugin.java           registers the extension, service, and tasks
-    AwsEmulatorExtension.java        lazy runtime settings and useWith integration
-    model/                           public configuration types
-    tasks/
-      lifecycle/                     one task type per lifecycle operation
-      s3/                            public S3 task types
-      sqs/                           public SQS task types
-    services/                        Gradle build service and runtime lifetime
+    AwsEmulatorPlugin.java           loads the emulator and AWS modules
+    emulator/
+      EmulatorModule.java           registers the lifecycle task group and runtime
+      AwsEmulatorExtension.java     lazy runtime settings and useWith integration
+      AwsEmulatorService.java       shared runtime lifetime
+      *AwsEmulatorTask.java         lifecycle task types
+    aws/
+      AwsModule.java                loads the AWS service modules
+      AbstractAwsResourceTask.java  shared resource-task configuration
+      s3/                           S3Module, S3 task types, and provisioning helpers
+      sqs/                          SqsModule, SQS task types, and provisioning helpers
+      internal/                     execution-scoped SDK clients
+    core/                           shared emulator task base
+    model/                          public configuration types
     internal/
-      aws/                           SDK client creation and per-client TLS
-      docker/                        process execution, Docker commands, image builds
-      provisioning/                  S3/SQS creation and reuse behavior
-      runtime/                       runtime coordination, connections, owned files
+      docker/                       process execution, Docker commands, image builds
+      runtime/                      runtime coordination, TLS, connections, owned files
   src/test/                          unit tests without Docker
   src/functional/                    Gradle TestKit DSL and configuration tests
   src/integration/                   real Docker and SDK integration tests
@@ -296,9 +315,17 @@ plugin/
 examples/basic/                      runnable Kotlin DSL consumer
 ```
 
-Task classes expose inputs and delegate to provisioning or runtime code. The build service owns the runtime lifetime. Docker, SDK, and filesystem operations live in focused internal classes. Everything under `internal` is an implementation detail.
+Tasks are organized by feature, following the module pattern in `gradle-localstack`. `AwsEmulatorPlugin` loads `EmulatorModule` and `AwsModule`; `AwsModule` loads `S3Module` and `SqsModule`. Each service package keeps its module, task types, and provisioning helpers together. Modules register or configure tasks lazily when the plugin is applied. The build service owns the runtime lifetime, and everything under `internal` is an implementation detail.
 
-Separate test source sets follow [Gradle's plugin testing guidance](https://docs.gradle.org/current/userguide/testing_gradle_plugins.html#sec:organizing_test_source_code). The plugin remains a single artifact; additional published modules are unnecessary for the current scope.
+| Module | Gradle task group | Responsibilities |
+| --- | --- | --- |
+| `EmulatorModule` | `AWS Emulator` | Runtime configuration and the six lifecycle tasks. |
+| `S3Module` | `AWS Emulator - S3` | S3 task configuration and bucket provisioning. |
+| `SqsModule` | `AWS Emulator - SQS` | SQS task configuration and queue provisioning. |
+
+Register named resource tasks in your build; their service module supplies the group and default description. Imports use `io.github.gregwhitaker.awsemulator.aws.s3.CreateS3BucketTask` and `io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueueTask`.
+
+Separate test source sets follow [Gradle's plugin testing guidance](https://docs.gradle.org/current/userguide/testing_gradle_plugins.html#sec:organizing_test_source_code). The feature modules are packaged together in the plugin artifact.
 
 ## Build and verify
 
@@ -307,7 +334,7 @@ Separate test source sets follow [Gradle's plugin testing guidance](https://docs
 ./gradlew :plugin:integrationTest
 ```
 
-`build` runs unit tests, Gradle TestKit tests that require no Docker, and plugin validation. `:plugin:integrationTest` (also available as `dockerTest`) requires a running local Docker daemon and downloads/builds the emulator image if necessary. It verifies signed HTTPS SDK requests, sharing between tasks, configuration-cache reuse, failure cleanup, all lifecycle tasks, parallel projects, S3/SQS provisioning, repeated setup without data loss, and queue attribute conflicts. Docker tests deliberately fail a nested fixture build to check cleanup; the enclosing test must pass.
+`build` runs unit tests, Gradle TestKit tests that require no Docker, plugin validation, and documentation generation/link checks/packaging. `:plugin:integrationTest` (also available as `dockerTest`) requires a running local Docker daemon and downloads/builds the emulator image if necessary. It verifies signed HTTPS SDK requests, sharing between tasks, configuration-cache reuse, failure cleanup, all lifecycle tasks, parallel projects, S3/SQS provisioning, repeated setup without data loss, and queue attribute conflicts. Docker tests deliberately fail a nested fixture build to check cleanup; the enclosing test must pass.
 
 To run TestKit consumers against another Gradle version:
 

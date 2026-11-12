@@ -1,0 +1,121 @@
+= Getting started
+include::_partials/attributes.adoc[]
+:description: Apply the AWS Emulator Gradle plugin from a checkout and run the included integration example.
+
+Start with Java 17+, Gradle 8.14+, and Docker running Linux containers. The first emulator run downloads and builds the pinned package; later runs reuse the image.
+
+toc::[]
+
+== Run the included example
+
+From the plugin repository root:
+
+[source,shell]
+----
+./gradlew -p examples/basic integrationTest --configuration-cache
+----
+
+The example creates an S3 bucket and standard/FIFO SQS queues, verifies object and message round trips and a signed STS request, then removes its managed container. Run the command a second time to exercise configuration-cache reuse.
+
+No AWS account, AWS CLI, or personal AWS credentials are needed. The plugin supplies the emulator connection at task execution time.
+
+== Apply from a checkout
+
+Version {revnumber} is unpublished. Include the plugin repository in your application's plugin management instead of resolving a version from the Gradle Plugin Portal. Adjust the relative path for your checkout layout.
+
+=== Kotlin DSL
+
+.settings.gradle.kts
+[source,kotlin]
+----
+pluginManagement {
+    includeBuild("../gradle-aws-emulator")
+}
+----
+
+.build.gradle.kts
+[source,kotlin]
+----
+plugins {
+    java
+    id("io.github.gregwhitaker.aws-emulator")
+}
+
+awsEmulator {
+    port.set(0)
+    useWith(tasks.named<Test>("test"))
+}
+----
+
+=== Groovy DSL
+
+.settings.gradle
+[source,groovy]
+----
+pluginManagement {
+    includeBuild('../gradle-aws-emulator')
+}
+----
+
+.build.gradle
+[source,groovy]
+----
+plugins {
+    id 'java'
+    id 'io.github.gregwhitaker.aws-emulator'
+}
+
+awsEmulator {
+    port.set(0)
+    useWith(tasks.named('test'))
+}
+----
+
+Add `.aws-emulator/` to the consuming application's `.gitignore`. It holds generated runtime files, including local emulator credentials while the instance runs.
+
+Then run your application's `./gradlew test`. Tests with work run against a fresh managed emulator. A `NO-SOURCE` test task does not start one by itself. Your application must declare its own AWS SDK and test dependencies; the plugin's SDK dependencies support its provisioning tasks.
+
+TIP: `port.set(0)` selects an available host port. Use it for parallel projects, concurrent builds, or simultaneous managed and development instances.
+
+== The complete example
+
+The following files are included directly from `examples/basic` during site generation.
+
+.examples/basic/settings.gradle.kts
+[source,kotlin]
+----
+include::examples/basic/settings.gradle.kts[]
+----
+
+.View the example build script
+[%collapsible]
+====
+[source,kotlin]
+----
+include::examples/basic/build.gradle.kts[]
+----
+====
+
+.View the SDK integration test
+[%collapsible]
+====
+[source,java]
+----
+include::examples/basic/src/integration/java/example/EmulatorIntegrationTest.java[]
+----
+====
+
+The example deliberately configures invalid credentials before opting in. The plugin replaces those settings for the forked JVM. See xref:connections.adoc[credentials and TLS] for the boundaries of this configuration.
+
+== Verify cleanup after failure
+
+From the plugin repository root:
+
+[source,shell]
+----
+./gradlew -p examples/basic integrationTest -PfailExample=true
+----
+
+This command is expected to fail its test. The managed container is still removed after the build's consumers finish.
+
+Next, xref:resources.adoc[provision the resources your application needs] or xref:lifecycle.adoc[start a persistent development instance].

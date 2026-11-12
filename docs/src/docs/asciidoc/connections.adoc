@@ -1,0 +1,77 @@
+= Credentials & TLS
+include::_partials/attributes.adoc[]
+:description: How the plugin supplies isolated emulator endpoints, credentials, and HTTPS trust to JVM tasks.
+
+The emulator uses signed requests over HTTPS. After readiness succeeds, the plugin configures each opted-in JVM with the current endpoint, region, credential paths, and TLS trust store.
+
+toc::[]
+
+== What the plugin supplies
+
+[cols="1,2",options="header"]
+|===
+|Setting |Supplied value
+|Endpoint |HTTPS on `127.0.0.1` at the selected port, through the SDK environment and JVM settings
+|Region |The configured `awsEmulator.region`
+|Credentials |The generated `emulator_credentials` file
+|AWS config |A separate `host-config` file with host-side paths
+|TLS trust |The generated `ca.pem` and per-JVM PKCS12 trust store
+|Metadata/discovery |EC2 metadata lookup and endpoint discovery disabled
+|===
+
+The plugin removes inherited AWS credential, profile, and service-endpoint environment overrides, along with corresponding configured JVM credential/endpoint properties. It does not change the Gradle daemon's credentials or global trust settings.
+
+Connection files are generated at execution time and are not serialized as configuration-cache values. Authentication remains enabled. Readiness checks validate the generated certificate and the endpoint hostname.
+
+== Use compatible SDK clients
+
+Use an SDK that supports external endpoint configuration. The runnable example verifies AWS SDK for Java v2 `2.39.6`. An SDK client that hardcodes an endpoint will keep using it.
+
+For operations that use host prefixes, Java clients also need `SdkAdvancedClientOption.DISABLE_HOST_PREFIX_INJECTION` in their client override configuration:
+
+[source,java]
+----
+import software.amazon.awssdk.core.client.config.SdkAdvancedClientOption;
+import software.amazon.awssdk.services.sts.StsClient;
+
+try (var sts = StsClient.builder()
+        .overrideConfiguration(config -> config.putAdvancedOption(
+            SdkAdvancedClientOption.DISABLE_HOST_PREFIX_INJECTION, true))
+        .build()) {
+    var identity = sts.getCallerIdentity();
+}
+----
+
+The environment setting alone does not control host-prefix injection in Java. The endpoint uses `127.0.0.1` to support S3 path-style routing.
+
+Explicit SDK credentials/endpoints, JVM argument providers, and JVM options injected through the environment can override the plugin's values. Use normal SDK providers as shown in the xref:getting-started.adoc#the-complete-example[example application].
+
+== Trusting other HTTPS services
+
+IMPORTANT: The supplied Java trust store contains only the emulator certificate. A consuming JVM that must also reach other HTTPS servers needs a combined trust store. This release does not merge trust roots automatically.
+
+Configure that trust separately in your application. Do not disable certificate verification to work around a trust error.
+
+The plugin's own provisioning tasks use per-client trust and explicit emulator connections. Their TLS settings are separate from the consuming application's JVM trust store.
+
+== Development connection files
+
+For a development instance on port `9297`, host-side files live under:
+
+[source,text]
+----
+.aws-emulator/development/.aws/emulator/9297/
+  emulator_credentials
+  ca.pem
+  truststore.p12
+  host-config
+----
+
+Lifecycle tasks report the actual directory and endpoint. The emulator's own `config` contains container paths, so host consumers should use the generated `host-config` instead. Starting a development instance alone does not configure JVM tasks; `useWith` selects the separate managed runtime.
+
+== Upstream references
+
+* https://docs.aws.amazon.com/emulator/latest/userguide/getting-started-docker.html[AWS Emulator Docker installation]
+* https://docs.aws.amazon.com/emulator/latest/userguide/point-sdk-to-emulator.html[Point an SDK at AWS Emulator]
+* https://docs.aws.amazon.com/emulator/latest/userguide/cli-reference.html[CLI and runtime files]
+* https://docs.aws.amazon.com/emulator/latest/userguide/versioning.html[Versioned emulator packages]

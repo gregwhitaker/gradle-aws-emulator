@@ -1,0 +1,89 @@
+= Tests & Java execution
+include::_partials/attributes.adoc[]
+:description: Connect Gradle Test and JavaExec tasks to a managed AWS Emulator instance.
+
+Opt existing JVM tasks into the emulator with `awsEmulator.useWith(taskProvider)`. One fresh managed instance is shared by the participating tasks in each project.
+
+toc::[]
+
+== Opt in tests
+
+The method supports Gradle `Test` and `JavaExec` tasks, including subclasses. Applying the plugin alone does not modify your tests.
+
+.Use the existing test task
+[source,kotlin]
+----
+awsEmulator {
+    port.set(0)
+    useWith(tasks.named<Test>("test"))
+}
+----
+
+.Opt in only an existing integrationTest task
+[source,kotlin]
+----
+awsEmulator {
+    port.set(0)
+    useWith(tasks.named<Test>("integrationTest"))
+}
+----
+
+These snippets configure tasks that already exist. The plugin does not create `integrationTest`; the xref:getting-started.adoc#the-complete-example[included example] demonstrates creating a test source set and task.
+
+== Run a Java application
+
+For an existing `JavaExec` task, such as `run` from Gradle's application plugin:
+
+[source,kotlin]
+----
+awsEmulator {
+    port.set(0)
+    useWith(tasks.named<JavaExec>("run"))
+}
+----
+
+The managed emulator stays available while that task consumes it. Spring Boot-specific task creation is not part of this release.
+
+== Provision before consumers run
+
+Make the consumer depend on the required resource tasks. Their default `MANAGED` mode uses the same instance as `useWith` in that project.
+
+[source,kotlin]
+----
+import io.github.gregwhitaker.awsemulator.aws.s3.CreateS3BucketTask
+
+val createBucket = tasks.register<CreateS3BucketTask>("createTestBucket") {
+    bucketName.set("application-test-data")
+}
+val tests = tasks.named<Test>("test") {
+    dependsOn(createBucket)
+}
+awsEmulator {
+    port.set(0)
+    useWith(tests)
+}
+----
+
+See xref:resources.adoc[S3 and SQS resources] for queue attributes, FIFO queues, and reuse behavior.
+
+== Execution and cleanup
+
+* The service starts the managed emulator on demand and waits for HTTPS readiness.
+* The plugin supplies the forked JVM's endpoint, region, credential paths, and TLS trust at execution time.
+* Participating tasks in one project share an instance. Different projects receive separate instances.
+* The service removes its managed container and files after consumers finish, including ordinary task or test failures.
+* A skipped or `NO-SOURCE` consumer does not start an emulator itself. Its explicit provisioning dependencies can still execute.
+
+Opted-in tasks with work always execute. Up-to-date skipping and build-cache reuse are disabled because each managed run starts with fresh external state. Configuration-cache reuse is supported: connection files are generated for the current execution instead of being stored in the configuration cache.
+
+== Parallel builds
+
+Set `port` to `0` when projects or builds may run concurrently. The plugin selects a host port and supplies that same nonzero port to Docker and the emulator. A competing process can still claim the selected port before Docker binds it; startup then fails and the plugin cleans up.
+
+Tasks sharing an instance also share AWS resources. Use distinct bucket and queue names when tests run concurrently. A fixed port can also conflict with a development instance that remains running.
+
+== Use the normal SDK providers
+
+Your application should use an AWS SDK that supports external endpoint configuration. The example verifies AWS SDK for Java v2 `2.39.6`.
+
+Clients with explicit endpoint or credential configuration can override the plugin's supplied values. JVM argument providers or options injected through the environment can also override them. See xref:connections.adoc[credentials, endpoints, and TLS] before mixing emulator traffic with other HTTPS services.

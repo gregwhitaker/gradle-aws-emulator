@@ -1,0 +1,17 @@
+:doctype: article
+:lang: en
+:toc: macro
+:toc-title: On this page
+:toclevels: 2
+:sectanchors:
+:idprefix:
+:idseparator: -
+:docinfo: shared
+:docinfodir: _partials
+:stylesheet!:
+:webfonts!:
+:nofooter:
+:reproducible:
+:source-language: kotlin
+:repo-url: https://github.com/gregwhitaker/gradle-aws-emulator
+:plugin-id: io.github.gregwhitaker.aws-emulator
