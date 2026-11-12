@@ -1,9 +1,27 @@
+/*
+ * Copyright 2026 Greg Whitaker
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import com.adarshr.gradle.testlogger.theme.ThemeType
 import org.gradle.external.javadoc.StandardJavadocDocletOptions
 import org.gradle.plugin.compatibility.compatibility
 
 plugins {
     `java-gradle-plugin`
     `maven-publish`
+    id("com.adarshr.test-logger")
     id("com.gradle.plugin-publish") version "2.2.1"
 }
 
@@ -85,12 +103,16 @@ publishing {
     }
 }
 
+testlogger {
+    theme = ThemeType.MOCHA
+    showSimpleNames = true
+}
+
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
     maxParallelForks = 1
     systemProperty("test.gradle.version", providers.gradleProperty("testGradleVersion").getOrElse(""))
     systemProperty("test.gradle.installation", providers.gradleProperty("testGradleInstallation").getOrElse(""))
-    testLogging { events("failed", "skipped") }
 }
 val functionalTest = tasks.register<Test>("functionalTest") {
     group = "verification"

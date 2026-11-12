@@ -88,6 +88,26 @@ Run checks appropriate to the change from the repository root:
 | `./gradlew :plugin:functionalTest :spring-boot-plugin:functionalTest` | Gradle TestKit checks without Docker. |
 | `./gradlew dockerTest` | Both plugins' integration suites against a real emulator. |
 | `./gradlew :docs:check` | Generated site links, anchors, assets, and theme controls. |
+| `./gradlew licenseCheck` | Apache 2.0 headers across the repository. |
+
+Both plugin modules use [Test Logger](https://github.com/radarsh/gradle-test-logger-plugin)
+with the Mocha theme for per-test results, failure details, slow-test timings, and
+suite summaries across unit, functional, and integration tests. Add
+`--console=plain` for output without colors or Unicode symbols, or
+`-Dtestlogger.theme=standard` to select another theme.
+
+The root build uses [Licenser](https://github.com/MinecraftForge/licenser) to apply
+the notice in `config/license-header.txt`. Run `./gradlew licenseFormat` after
+adding source files, then `./gradlew licenseCheck` to verify them. The root `check`
+and `build` tasks include this verification; both license tasks support the
+configuration cache.
+
+Headers cover Java and Kotlin sources, Gradle scripts, Python and shell scripts,
+workflow/configuration files, and documentation site code, including the
+independent examples and publication smoke consumers. Generated output, Gradle
+wrapper files, fixture payloads, prose, and files without comment syntax are
+excluded. Keep the copyright year in the shared template fixed unless deliberately
+updating the project's notice.
 
 Use `--tests '<fully.qualified.TestClass>'` with a specific test task to focus on
 one class. For runtime, SDK, or lifecycle changes, run the relevant module's

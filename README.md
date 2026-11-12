@@ -120,9 +120,12 @@ See the [documentation website](https://gregwhitaker.github.io/gradle-aws-emulat
 ```sh
 ./gradlew build       # Unit/functional tests, plugin validation, and documentation
 ./gradlew dockerTest  # Integration tests against Docker
+./gradlew licenseFormat  # Apply Apache 2.0 headers to project-owned source files
 ```
 
-Both commands cover the core and Spring Boot plugins; `build` does not require Docker. See [Contributing](CONTRIBUTING.md) for development setup and focused checks, [release instructions](CONTRIBUTING.md#publish-to-the-gradle-plugin-portal) for publishing, and the [changelog](CHANGELOG.md) for version history.
+`build` also checks license headers. Run `./gradlew licenseCheck` to check them separately.
+
+The build and Docker checks cover the core and Spring Boot plugins; `build` does not require Docker. See [Contributing](CONTRIBUTING.md) for development setup and focused checks, [release instructions](CONTRIBUTING.md#publish-to-the-gradle-plugin-portal) for publishing, and the [changelog](CHANGELOG.md) for version history.
 
 ## License
 
