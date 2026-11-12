@@ -48,6 +48,7 @@ plugins {
 val createQueue = tasks.register<CreateSqsQueueTask>("createTestQueue") {
     queueName.set("application-events")
 }
+
 val tests = tasks.named<Test>("test") {
     dependsOn(createQueue)
 }
