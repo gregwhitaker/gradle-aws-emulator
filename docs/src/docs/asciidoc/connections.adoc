@@ -100,7 +100,7 @@ Run `exportAwsEmulatorConnection` to start or reuse the persistent development i
 ----
 ./gradlew exportAwsEmulatorConnection
 . .aws-emulator/development/connection.sh
-aws sts get-caller-identity --no-cli-pager
+aws --endpoint-url "$AWS_ENDPOINT_URL" sts get-caller-identity --no-cli-pager
 ----
 
 PowerShell:
@@ -109,7 +109,7 @@ PowerShell:
 ----
 ./gradlew exportAwsEmulatorConnection
 . ./.aws-emulator/development/connection.ps1
-aws sts get-caller-identity --no-cli-pager
+aws --endpoint-url "$env:AWS_ENDPOINT_URL" sts get-caller-identity --no-cli-pager
 ----
 
 The task prints the actual paths for custom working directories and shared runtime owners. Script paths and values are quoted for spaces, apostrophes, dollar signs, and other shell metacharacters. They contain connection settings and file paths, never credential values. Source them in a dedicated development shell: conflicting AWS credentials, profiles, web-identity/container-credential settings, and service endpoints are cleared from the shell at source time. They do not modify your AWS config files. Close the shell to discard its environment.

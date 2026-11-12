@@ -213,7 +213,7 @@ For a shell or an IDE-launched application, export the persistent development co
 ```sh
 ./gradlew exportAwsEmulatorConnection
 . .aws-emulator/development/connection.sh
-aws sts get-caller-identity --no-cli-pager
+aws --endpoint-url "$AWS_ENDPOINT_URL" sts get-caller-identity --no-cli-pager
 ```
 
 PowerShell uses `. ./.aws-emulator/development/connection.ps1`. The task prints the actual paths, including with a custom working directory or shared runtime owner. Source the script in a dedicated development shell, then launch the application or a fresh IDE process from it. You can also copy the exported values into an IDE run configuration and remove conflicting AWS overrides there. Scripts contain paths, never credential values, and clear overrides when sourced. Regenerate and source them after restarting the emulator. Close the development shell to discard its environment; `stopAwsEmulator` removes the connection scripts and generated credentials.

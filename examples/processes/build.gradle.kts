@@ -20,6 +20,10 @@ val nodeProbe = tasks.register<Exec>("nodeProbe") {
 val awsIdentity = tasks.register<Exec>("awsIdentity") {
     description = "Makes a signed STS call using an installed AWS CLI v2."
     commandLine(providers.gradleProperty("awsExecutable").getOrElse("aws"), "sts", "get-caller-identity", "--no-cli-pager")
+    // useWith prepends connection setup; resolve the endpoint after that setup, at execution time.
+    doFirst {
+        args("--endpoint-url", environment.getValue("AWS_ENDPOINT_URL"))
+    }
 }
 awsEmulator {
     port.set(0)
