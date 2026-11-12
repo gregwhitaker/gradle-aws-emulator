@@ -1,5 +1,8 @@
-import io.github.gregwhitaker.awsemulator.aws.s3.CreateS3BucketTask
+import io.github.gregwhitaker.awsemulator.aws.s3.CreateS3BucketsTask
 import io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueueTask
+import io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueuesTask
+import io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueueWithDlqTask
+import io.github.gregwhitaker.awsemulator.aws.sqs.PublishSqsTask
 
 plugins {
     java
@@ -21,22 +24,31 @@ dependencies {
     "integrationRuntimeOnly"("org.junit.platform:junit-platform-launcher")
 }
 
-val createBucket = tasks.register<CreateS3BucketTask>("createExampleBucket") {
-    bucketName.set("example-test-bucket")
+val createBuckets = tasks.register<CreateS3BucketsTask>("createExampleBuckets") {
+    buckets.set(listOf("example-test-bucket", "example-uploads"))
 }
 val createQueue = tasks.register<CreateSqsQueueTask>("createExampleQueue") {
     queueName.set("example-test-queue")
     attributes.put("VisibilityTimeout", "45")
 }
-val createFifoQueue = tasks.register<CreateSqsQueueTask>("createExampleFifoQueue") {
+val createFifoQueue = tasks.register<CreateSqsQueueWithDlqTask>("createExampleFifoQueue") {
     queueName.set("example-events.fifo")
-    attributes.put("FifoQueue", "true")
-    attributes.put("ContentBasedDeduplication", "true")
+    queueAttributes.put("FifoQueue", "true")
+    queueAttributes.put("ContentBasedDeduplication", "true")
+    maxReceiveCount.set(3)
+}
+val createFixtureQueues = tasks.register<CreateSqsQueuesTask>("createFixtureQueues") {
+    queueNames.set(listOf("example-seeded-queue", "example-secondary-queue"))
+}
+val publishFixtures = tasks.register<PublishSqsTask>("publishFixtures") {
+    dependsOn(createFixtureQueues)
+    queueNames.add("example-seeded-queue")
+    messages.from(layout.projectDirectory.dir("src/integration/messages"))
 }
 
 val integrationTest = tasks.register<Test>("integrationTest") {
     description = "Verifies provisioned S3 and SQS resources using signed AWS SDK requests."
-    dependsOn(createBucket, createQueue, createFifoQueue)
+    dependsOn(createBuckets, createQueue, createFifoQueue, publishFixtures)
     group = "verification"
     testClassesDirs = integrationSourceSet.output.classesDirs
     classpath = integrationSourceSet.runtimeClasspath

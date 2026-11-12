@@ -1,0 +1,2 @@
+{"event":"order-created","orderId":"example-1"}
+{"event":"order-shipped","orderId":"example-1"}

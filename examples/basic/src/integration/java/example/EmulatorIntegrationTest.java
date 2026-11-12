@@ -7,6 +7,8 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.core.client.config.SdkAdvancedClientOption;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -50,6 +52,21 @@ class EmulatorIntegrationTest {
                 assertEquals("Hello queue", messages.get(0).body());
                 sqs.deleteMessage(request -> request.queueUrl(url).receiptHandle(messages.get(0).receiptHandle()));
             }
+        }
+    }
+
+    @Test
+    void readsPublishedFixturesAndTheFifoDeadletterPolicy() {
+        try (SqsClient sqs = SqsClient.builder().httpClientBuilder(UrlConnectionHttpClient.builder()).build()) {
+            String url = sqs.getQueueUrl(request -> request.queueName("example-seeded-queue")).queueUrl();
+            var bodies = sqs.receiveMessage(request -> request.queueUrl(url).maxNumberOfMessages(10).waitTimeSeconds(5))
+                .messages().stream().map(message -> message.body()).collect(Collectors.toSet());
+            assertEquals(Set.of("{\"event\":\"order-created\",\"orderId\":\"example-1\"}",
+                "{\"event\":\"order-shipped\",\"orderId\":\"example-1\"}"), bodies);
+            String fifoUrl = sqs.getQueueUrl(request -> request.queueName("example-events.fifo")).queueUrl();
+            String policy = sqs.getQueueAttributes(request -> request.queueUrl(fifoUrl).attributeNamesWithStrings("RedrivePolicy"))
+                .attributesAsStrings().get("RedrivePolicy");
+            assertTrue(policy.contains("example-events-dlq.fifo"));
         }
     }
 }

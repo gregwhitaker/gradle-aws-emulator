@@ -24,7 +24,7 @@ val prepareDocs = tasks.register<Sync>("prepareDocs") {
     description = "Stages documentation and the runnable example used by the guide."
     from("src/docs/asciidoc")
     from(rootProject.layout.projectDirectory.dir("examples/basic")) {
-        include("settings.gradle.kts", "build.gradle.kts", "src/integration/java/**/*.java")
+        include("settings.gradle.kts", "build.gradle.kts", "src/integration/java/**/*.java", "src/integration/messages/**")
         into("examples/basic")
     }
     into(preparedSources)

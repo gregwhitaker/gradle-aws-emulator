@@ -15,7 +15,7 @@ From the plugin repository root:
 ./gradlew -p examples/basic integrationTest --configuration-cache
 ----
 
-The example creates an S3 bucket and standard/FIFO SQS queues, verifies object and message round trips and a signed STS request, then removes its managed container. Run the command a second time to exercise configuration-cache reuse.
+The example creates S3 buckets, standard/FIFO SQS queues and a FIFO DLQ, publishes message fixtures, verifies object and message round trips and a signed STS request, then removes its managed container. Run the command a second time to exercise configuration-cache reuse.
 
 No AWS account, AWS CLI, or personal AWS credentials are needed. The plugin supplies the emulator connection at task execution time.
 
@@ -102,6 +102,15 @@ include::examples/basic/build.gradle.kts[]
 [source,java]
 ----
 include::examples/basic/src/integration/java/example/EmulatorIntegrationTest.java[]
+----
+====
+
+.View the message fixtures (`src/integration/messages/events.jsonl`)
+[%collapsible]
+====
+[source,json]
+----
+include::examples/basic/src/integration/messages/events.jsonl[]
 ----
 ====
 

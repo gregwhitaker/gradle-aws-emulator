@@ -9,6 +9,10 @@
 - Organize tasks by feature using `EmulatorModule`, `AwsModule`, `S3Module`, and `SqsModule`, with separate lifecycle, S3, and SQS task groups.
 - Separate Docker commands, image preparation, workspace ownership, and runtime coordination.
 - Add `CreateS3BucketTask` and `CreateSqsQueueTask` using AWS SDK for Java v2.
+- Port the remaining LocalStack S3/SQS task types into their feature modules: bulk creation, bucket listing/purging/deletion, queue listing/purging, DLQ creation, and message publishing.
+- Register `listS3Buckets`, `purgeS3Buckets`, `deleteS3Buckets`, `listSqsQueues`, `purgeSqsQueues`, and `publishSqs` for the development runtime, with CLI selectors and a `--mode` override.
+- Remove S3 object versions and delete markers during purge or forced deletion, including suspended versioning; check each batch for failed deletions.
+- Support standard and FIFO DLQs and publishing UTF-8 message fixtures from files, directories, and tar.gz/tgz archives.
 - Support standard and FIFO SQS queues, queue attributes, and regional S3 bucket creation.
 - Reuse existing resources without deleting data; fail on conflicting SQS attributes.
 - Share provisioned managed resources with opted-in tests and Java execution, including configuration-cache reuse and failure cleanup.

@@ -1,6 +1,6 @@
 = S3 & SQS resources
 include::_partials/attributes.adoc[]
-:description: Create S3 buckets and standard or FIFO SQS queues with typed Gradle tasks.
+:description: Create, list, purge, and delete S3 buckets; provision SQS queues and DLQs, and publish message fixtures.
 
 Register typed Gradle tasks to prepare your application's AWS resources. Each task starts the selected emulator on demand and waits until it is ready.
 
@@ -76,13 +76,22 @@ All properties use Gradle's lazy property API.
 |===
 |Task type |Required |Optional
 |`CreateS3BucketTask` |`bucketName` |`mode`, `apiCallTimeoutSeconds`
+|`CreateS3BucketsTask` |`buckets` |`mode`, `apiCallTimeoutSeconds`
+|`ListS3BucketsTask` |None |`mode`, `apiCallTimeoutSeconds`
+|`PurgeS3BucketsTask` |`buckets` |`mode`, `apiCallTimeoutSeconds`
+|`DeleteS3BucketsTask` |`buckets` |`force` (default `false`), `mode`, `apiCallTimeoutSeconds`
 |`CreateSqsQueueTask` |`queueName` |`attributes`, `mode`, `apiCallTimeoutSeconds`
+|`CreateSqsQueuesTask` |`queueNames` |`queueAttributes`, `mode`, `apiCallTimeoutSeconds`
+|`CreateSqsQueueWithDlqTask` |`queueName` |`queueAttributes`, `deadletterQueueName`, `deadletterQueueAttributes`, `maxReceiveCount` (default `1`), `mode`, `apiCallTimeoutSeconds`
+|`ListSqsQueuesTask` |None |`prefix`, `mode`, `apiCallTimeoutSeconds`
+|`PurgeSqsQueuesTask` |`queueNames` |`mode`, `apiCallTimeoutSeconds`
+|`PublishSqsTask` |`queueNames`, `messages` |`messageGroupId` (required for FIFO), `mode`, `apiCallTimeoutSeconds`
 |===
 
 [cols="1,1,3",options="header"]
 |===
 |Shared property |Default |Meaning
-|`mode` |`EmulatorMode.MANAGED` |Select the build-owned runtime or the persistent `DEVELOPMENT` runtime.
+|`mode` |`EmulatorMode.MANAGED` for custom instances |Select the build-owned runtime or the persistent `DEVELOPMENT` runtime. The six module convenience tasks default to `DEVELOPMENT`.
 |`apiCallTimeoutSeconds` |`30` |Positive timeout for each SDK operation, including retries.
 |===
 
@@ -90,7 +99,7 @@ Provisioning tasks always execute and are never restored from the build cache be
 
 == S3 bucket behavior
 
-`CreateS3BucketTask` creates general-purpose buckets in `awsEmulator.region`. For `us-east-1`, it omits the location constraint; for other regions, it sends the configured region.
+`CreateS3BucketTask` and `CreateS3BucketsTask` create general-purpose buckets in `awsEmulator.region`. For `us-east-1`, it omits the location constraint; for other regions, it sends the configured region.
 
 If an accessible bucket already exists, the task reuses it without another `CreateBucket` call. Its objects and configuration remain intact. A region mismatch reported by `HeadBucket` fails the task.
 
@@ -100,7 +109,7 @@ API: link:api/io/github/gregwhitaker/awsemulator/aws/s3/CreateS3BucketTask.html[
 
 == SQS queue behavior
 
-`CreateSqsQueueTask` supports standard and FIFO queues. Its `attributes` map uses AWS attribute names and string values.
+`CreateSqsQueueTask` and `CreateSqsQueuesTask` support standard and FIFO queues. The singular task uses `attributes`; the bulk task uses `queueAttributes`. Both maps use AWS attribute names and string values.
 
 An existing queue is reused when the explicitly requested attribute values match. A mismatch fails the task without changing or purging the queue. Unspecified attributes keep their existing values. Comparisons use the returned strings, including JSON-valued attributes; semantically equivalent JSON with different formatting can still differ.
 
@@ -122,6 +131,108 @@ val createFifo = tasks.register<CreateSqsQueueTask>("createTestFifo") {
 Add `createFifo` to your consumer's `dependsOn(...)` list to create the queue before it runs.
 
 API: link:api/io/github/gregwhitaker/awsemulator/aws/sqs/CreateSqsQueueTask.html[CreateSqsQueueTask].
+
+== Module convenience tasks
+
+The S3 and SQS modules register six tasks that use the persistent development emulator by default:
+
+[cols="1,2,2",options="header"]
+|===
+|Group |Task |CLI options
+|AWS Emulator - S3 |`listS3Buckets` |None required
+|AWS Emulator - S3 |`purgeS3Buckets` |`--buckets=one,two`
+|AWS Emulator - S3 |`deleteS3Buckets` |`--buckets=one,two`, optional `--force`
+|AWS Emulator - SQS |`listSqsQueues` |Optional `--prefix=application-`
+|AWS Emulator - SQS |`purgeSqsQueues` |`--queueNames=one,two`
+|AWS Emulator - SQS |`publishSqs` |`--queueNames=one,two`, `--message=path`, optional `--messageGroupId=group`
+|===
+
+Every resource task accepts `--mode=MANAGED` or `--mode=DEVELOPMENT`. Custom instances of the task types default to `MANAGED`. Ensure provisioning and consuming tasks select the same runtime.
+
+[source,shell]
+----
+./gradlew listS3Buckets
+./gradlew listSqsQueues --prefix=application-
+./gradlew publishSqs --queueNames=application-events --message=src/integration/messages
+./gradlew purgeSqsQueues --queueNames=application-events
+./gradlew purgeS3Buckets --buckets=application-data
+./gradlew deleteS3Buckets --buckets=application-data --force
+----
+
+=== Listing and cleanup
+
+S3 listing follows all response pages and prints bucket names and creation dates. Purging retains the bucket but removes objects, historical versions, and delete markers, including when versioning is suspended. The task checks individual deletion errors even when the service accepts the batch. Deletion requires an empty bucket unless `force` is `true`; an already absent bucket succeeds. Purging and deleting require explicit bucket names.
+
+SQS listing follows all response pages and prints queue names, URLs, and approximate available message counts. Purging resolves all selected names before requesting removal of their messages; it keeps the queues. The https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_PurgeQueue.html[SQS purge API] can take up to 60 seconds to remove available and in-flight messages. The task returns when the service accepts the requests and propagates service errors.
+
+API: link:api/io/github/gregwhitaker/awsemulator/aws/s3/ListS3BucketsTask.html[ListS3BucketsTask], link:api/io/github/gregwhitaker/awsemulator/aws/s3/PurgeS3BucketsTask.html[PurgeS3BucketsTask], link:api/io/github/gregwhitaker/awsemulator/aws/s3/DeleteS3BucketsTask.html[DeleteS3BucketsTask], link:api/io/github/gregwhitaker/awsemulator/aws/sqs/ListSqsQueuesTask.html[ListSqsQueuesTask], link:api/io/github/gregwhitaker/awsemulator/aws/sqs/PurgeSqsQueuesTask.html[PurgeSqsQueuesTask].
+
+== Bulk creation
+
+[source,kotlin]
+----
+import io.github.gregwhitaker.awsemulator.aws.s3.CreateS3BucketsTask
+import io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueuesTask
+
+val createBuckets = tasks.register<CreateS3BucketsTask>("createTestBuckets") {
+    buckets.set(listOf("application-data", "application-uploads"))
+}
+val createQueues = tasks.register<CreateSqsQueuesTask>("createTestQueues") {
+    queueNames.set(listOf("application-events", "application-notifications"))
+    queueAttributes.put("VisibilityTimeout", "45")
+}
+----
+
+The name collections are `ListProperty<String>`. Bulk creation uses the singular tasks' regional, FIFO, reuse, and attribute checks. All names are validated before starting the emulator. Duplicate names are processed once.
+
+API: link:api/io/github/gregwhitaker/awsemulator/aws/s3/CreateS3BucketsTask.html[CreateS3BucketsTask], link:api/io/github/gregwhitaker/awsemulator/aws/sqs/CreateSqsQueuesTask.html[CreateSqsQueuesTask].
+
+== Deadletter queues
+
+[source,kotlin]
+----
+import io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueueWithDlqTask
+
+val createOrders = tasks.register<CreateSqsQueueWithDlqTask>("createOrdersQueue") {
+    queueName.set("application-orders.fifo")
+    queueAttributes.put("FifoQueue", "true")
+    maxReceiveCount.set(3)
+}
+----
+
+`deadletterQueueName` defaults to `<queue>-dlq`, inserting `-dlq` before the `.fifo` suffix for FIFO queues. The example creates `application-orders-dlq.fifo`. A FIFO source infers `FifoQueue=true` for its DLQ. Both queues must have the same type and different names. Configure optional DLQ attributes with `deadletterQueueAttributes`.
+
+The task creates or reuses the DLQ, reads its ARN from SQS, and sets the source's redrive policy. An existing source queue receives the requested `queueAttributes` and policy without being recreated; existing messages remain subject to those attributes, such as retention. An existing DLQ must match explicitly configured DLQ attributes. This differs from ordinary queue creation, which verifies existing source attributes without changing them.
+
+`maxReceiveCount` defaults to `1` and accepts `1` through `1000`. Set `deadletterQueueName` and `maxReceiveCount` instead of providing `RedrivePolicy` in `queueAttributes`.
+
+API: link:api/io/github/gregwhitaker/awsemulator/aws/sqs/CreateSqsQueueWithDlqTask.html[CreateSqsQueueWithDlqTask].
+
+== Publish message fixtures
+
+[source,kotlin]
+----
+import io.github.gregwhitaker.awsemulator.aws.sqs.PublishSqsTask
+
+val publishOrders = tasks.register<PublishSqsTask>("publishTestOrders") {
+    dependsOn(createOrders)
+    queueNames.add("application-orders.fifo")
+    messages.from(layout.projectDirectory.dir("src/integration/messages"))
+    messageGroupId.set("integration-tests")
+}
+tasks.named<Test>("test") {
+    dependsOn(createBuckets, createQueues, publishOrders)
+}
+awsEmulator { useWith(tasks.named<Test>("test")) }
+----
+
+`messages` is a `ConfigurableFileCollection`. It accepts UTF-8 files, recursively visited directories, and `.tar.gz` or `.tgz` archives. Every nonempty line becomes one message sent to each selected queue. Whitespace is preserved; blank lines are skipped. Files are processed in path order, archive entries in archive order. Hidden directory/archive entries and symlinks encountered inside directories are skipped. Archives are read directly without extraction.
+
+The task validates input before publishing: unreadable files, corrupt archives, malformed UTF-8, invalid SQS characters, and lines exceeding the 1 MiB service limit fail the build. The queue can impose a smaller maximum. All queue URLs are resolved before the first send. An SDK failure stops publishing, but earlier successful sends remain; rerunning can send duplicates.
+
+FIFO queues require `messageGroupId`. Every FIFO delivery receives a unique deduplication ID, preserving repeated identical lines as separate fixture messages. The publisher executes again on configuration-cache reuse, just like other resource tasks.
+
+API: link:api/io/github/gregwhitaker/awsemulator/aws/sqs/PublishSqsTask.html[PublishSqsTask].
 
 == SDK connection isolation
 

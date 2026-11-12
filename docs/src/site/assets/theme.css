@@ -56,19 +56,22 @@
 .brand-mark { display: grid; place-content: center; width: 38px; height: 42px; border-radius: 8px; background: var(--brand-background); color: var(--brand-ink); font: 700 23px var(--font-mono); position: relative; }
 .brand-mark span { position: absolute; bottom: 1px; right: 4px; color: var(--brand-dot); }
 .brand-subtitle { display: block; margin-top: 5px; letter-spacing: .15em; font-size: 9px; font-weight: 600; }
-.theme-toggle { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 36px; padding: 5px 12px; box-sizing: border-box; color: var(--ink); border: 1px solid var(--line); border-radius: 5px; background: var(--paper); font: 13px/1.4 var(--font-sans); cursor: pointer; }
+.theme-toggle { --thumb-size: 28px; position: relative; display: inline-grid; grid-template-columns: 1fr 1fr; place-items: center; flex-shrink: 0; width: calc(var(--thumb-size) * 2 + 8px); height: calc(var(--thumb-size) + 8px); padding: 3px; box-sizing: border-box; color: var(--muted); border: 1px solid var(--muted); border-radius: 999px; background: var(--surface); cursor: pointer; }
+.theme-toggle::before { content: ""; position: absolute; inset: 3px auto 3px 3px; width: var(--thumb-size); border-radius: 50%; background: var(--heading); transition: transform 160ms ease; }
+.theme-toggle[aria-checked="true"]::before { transform: translateX(var(--thumb-size)); }
 .theme-toggle:hover { background: var(--hover); }
 .theme-toggle:focus-visible { outline: 3px solid #3b82f6; outline-offset: 4px; }
-.theme-toggle svg { width: 16px; height: 16px; flex-shrink: 0; }
-.theme-icon-sun, [data-theme="dark"] .theme-icon-moon { display: none; }
-[data-theme="dark"] .theme-icon-sun { display: block; }
+.theme-toggle svg { position: relative; width: 16px; height: 16px; }
+.theme-toggle[aria-checked="false"] .theme-icon-sun, .theme-toggle[aria-checked="true"] .theme-icon-moon { color: var(--paper); }
 @media (max-width: 760px) {
   .brand { font-size: 14px; gap: 8px; }
   .brand-mark { width: 32px; height: 36px; font-size: 19px; }
 }
 @media (max-width: 420px) {
-  .theme-toggle { padding: 7px 9px; }
-  .theme-toggle [data-theme-label] { display: none; }
+  .theme-toggle { --thumb-size: 24px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .theme-toggle::before { transition: none; }
 }
 @media print {
   :root, :root[data-theme] {

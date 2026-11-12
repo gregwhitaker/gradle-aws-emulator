@@ -1,6 +1,6 @@
 # AWS Emulator Gradle Plugin
 
-Gradle lifecycle tasks, S3/SQS resource provisioning, and opt-in JVM test integration for [AWS Emulator](https://github.com/aws/aws-emulator).
+Gradle lifecycle tasks, S3/SQS resource management, and opt-in JVM test integration for [AWS Emulator](https://github.com/aws/aws-emulator).
 
 Plugin ID: **`io.github.gregwhitaker.aws-emulator`**. Version **0.2.0** is implemented in this repository; it has not been published to the Gradle Plugin Portal.
 
@@ -24,7 +24,7 @@ From this repository:
 ./gradlew -p examples/basic integrationTest --configuration-cache
 ```
 
-The Kotlin DSL example includes this plugin as a composite build. It provisions an S3 bucket and standard/FIFO SQS queues, verifies object and message round trips plus a signed STS request using AWS SDK for Java v2 over HTTPS, and removes the managed container and its connection files afterwards. Run the same command again to exercise configuration-cache reuse.
+The Kotlin DSL example includes this plugin as a composite build. It provisions S3 buckets, standard/FIFO SQS queues and a FIFO DLQ, publishes message fixtures, verifies object and message round trips plus a signed STS request using AWS SDK for Java v2 over HTTPS, and removes the managed container and its connection files afterwards. Run the same command again to exercise configuration-cache reuse.
 
 To demonstrate cleanup after a failed test:
 
@@ -136,7 +136,7 @@ Remove only the specific stale container you identify. The plugin does not prune
 
 ## Provision S3 buckets and SQS queues
 
-Register typed tasks for the resources your application needs, then make your test task depend on them. Each task starts the emulator on demand and waits for readiness. All provisioning tasks default to the same managed instance used by `awsEmulator.useWith` in that project.
+Register typed tasks for the resources your application needs, then make your test task depend on them. Each task starts the emulator on demand and waits for readiness. Custom resource tasks default to the same managed instance used by `awsEmulator.useWith` in that project.
 
 Kotlin DSL:
 
@@ -197,13 +197,22 @@ The plugin declares its own AWS SDK for Java v2 dependencies for provisioning ta
 | Task type | Required properties | Optional properties |
 | --- | --- | --- |
 | `CreateS3BucketTask` | `bucketName` | `mode`, `apiCallTimeoutSeconds` |
+| `CreateS3BucketsTask` | `buckets` (list) | `mode`, `apiCallTimeoutSeconds` |
+| `ListS3BucketsTask` | — | `mode`, `apiCallTimeoutSeconds` |
+| `PurgeS3BucketsTask` | `buckets` (list) | `mode`, `apiCallTimeoutSeconds` |
+| `DeleteS3BucketsTask` | `buckets` (list) | `force` (default `false`), `mode`, `apiCallTimeoutSeconds` |
 | `CreateSqsQueueTask` | `queueName` | `attributes` (map of AWS attribute names to string values), `mode`, `apiCallTimeoutSeconds` |
+| `CreateSqsQueuesTask` | `queueNames` (list) | `queueAttributes` (map), `mode`, `apiCallTimeoutSeconds` |
+| `CreateSqsQueueWithDlqTask` | `queueName` | `queueAttributes`, `deadletterQueueName`, `deadletterQueueAttributes`, `maxReceiveCount` (default `1`), `mode`, `apiCallTimeoutSeconds` |
+| `ListSqsQueuesTask` | — | `prefix`, `mode`, `apiCallTimeoutSeconds` |
+| `PurgeSqsQueuesTask` | `queueNames` (list) | `mode`, `apiCallTimeoutSeconds` |
+| `PublishSqsTask` | `queueNames` (list), `messages` (file collection) | `messageGroupId` (required for FIFO), `mode`, `apiCallTimeoutSeconds` |
 
-All properties are lazy Gradle properties. `mode` defaults to `EmulatorMode.MANAGED`; `apiCallTimeoutSeconds` defaults to `30` per SDK operation, including retries. These tasks always execute and are never restored from the build cache because they operate on live emulator state. A managed provisioning task invoked alone creates resources that are removed when the build finishes.
+All properties are lazy Gradle properties. Custom task instances default to `EmulatorMode.MANAGED`; `apiCallTimeoutSeconds` defaults to `30` per SDK operation, including retries. These tasks always execute and are never restored from the build cache because they operate on live emulator state. A managed provisioning task invoked alone creates resources that are removed when the build finishes.
 
-S3 tasks create general-purpose buckets in `awsEmulator.region`. They omit the location constraint for `us-east-1` and set it for other regions. Existing accessible buckets are reused without another `CreateBucket` call, preserving their objects and configuration. A region mismatch reported by `HeadBucket` fails the task. Directory buckets, access points, bucket policies, and object seeding are outside 0.2's scope.
+`CreateS3BucketTask` and `CreateS3BucketsTask` create general-purpose buckets in `awsEmulator.region`. They omit the location constraint for `us-east-1` and set it for other regions. Existing accessible buckets are reused without another `CreateBucket` call, preserving their objects and configuration. A region mismatch reported by `HeadBucket` fails the task. Directory buckets, access points, bucket policies, and object seeding are outside 0.2's scope.
 
-SQS tasks support standard and FIFO queues. Existing queues are reused when explicitly requested attribute values match; a mismatch fails without changing or purging the queue. Unspecified attributes retain their existing values. Attribute comparison uses the returned string values, including JSON-valued attributes. AWS service errors remain build failures.
+`CreateSqsQueueTask` and `CreateSqsQueuesTask` support standard and FIFO queues. Existing queues are reused when explicitly requested attribute values match; a mismatch fails without changing or purging the queue. Unspecified attributes retain their existing values. Attribute comparison uses the returned string values, including JSON-valued attributes. AWS service errors remain build failures.
 
 FIFO queues need both a `.fifo` suffix and `FifoQueue = true`:
 
@@ -230,6 +239,76 @@ val developmentBucket = tasks.register<CreateS3BucketTask>("createDevelopmentBuc
 Running `createDevelopmentBucket` starts or reuses the development instance and leaves it running. `stopAwsEmulator` removes it; `restartAwsEmulator` discards its resources. Test setup must use `MANAGED` to share the runtime selected by `useWith`.
 
 Provisioning clients use explicit emulator endpoints, regions, and generated credentials, plus per-client TLS trust. They bypass inherited proxy settings and do not change the Gradle daemon's credentials or global SSL settings. No AWS CLI is required.
+
+## S3 and SQS module tasks
+
+The modules register these convenience tasks for the persistent **development** instance:
+
+| Group | Registered tasks |
+| --- | --- |
+| `AWS Emulator - S3` | `listS3Buckets`, `purgeS3Buckets`, `deleteS3Buckets` |
+| `AWS Emulator - SQS` | `listSqsQueues`, `purgeSqsQueues`, `publishSqs` |
+
+```sh
+./gradlew listS3Buckets
+./gradlew listSqsQueues --prefix=application-
+./gradlew publishSqs --queueNames=application-events --message=src/integration/messages
+./gradlew purgeSqsQueues --queueNames=application-events
+./gradlew purgeS3Buckets --buckets=application-data,application-uploads
+./gradlew deleteS3Buckets --buckets=application-data --force
+```
+
+These commands start or reuse the development emulator. Use `--mode=MANAGED` to select the managed runtime in a build that also provisions or consumes those resources. Custom instances of the same types still default to `MANAGED`.
+
+S3 listing follows all pages. Purging removes objects, historical versions, and delete markers, including when versioning is suspended, while keeping the bucket. Deletion requires an empty bucket unless `force` is `true`; deleting an absent bucket succeeds. Purge and delete require explicit bucket names.
+
+SQS listing includes queue names, URLs, and approximate available message counts. Purge requires explicit queue names and retains the queues. It requests deletion of available and in-flight messages; the service can take up to 60 seconds to complete the purge. SDK errors fail the task.
+
+### Bulk creation and deadletter queues
+
+```kotlin
+import io.github.gregwhitaker.awsemulator.aws.s3.CreateS3BucketsTask
+import io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueuesTask
+import io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueueWithDlqTask
+
+val createBuckets = tasks.register<CreateS3BucketsTask>("createTestBuckets") {
+    buckets.set(listOf("application-data", "application-uploads"))
+}
+val createQueues = tasks.register<CreateSqsQueuesTask>("createTestQueues") {
+    queueNames.set(listOf("application-events", "application-notifications"))
+    queueAttributes.put("VisibilityTimeout", "45")
+}
+val createOrders = tasks.register<CreateSqsQueueWithDlqTask>("createOrdersQueue") {
+    queueName.set("application-orders.fifo")
+    queueAttributes.put("FifoQueue", "true")
+    maxReceiveCount.set(3)
+}
+```
+
+Bulk creation uses the same reuse and attribute checks as the singular tasks. The DLQ task defaults to `<queue>-dlq`, inserting `-dlq` before `.fifo` for FIFO queues. It infers `FifoQueue=true` for a FIFO DLQ and requires matching queue types. Override `deadletterQueueName` or `deadletterQueueAttributes` as needed.
+
+The DLQ task creates or reuses the DLQ, reads its actual ARN, then creates or updates the source queue's requested attributes and redrive policy. Existing messages are retained subject to the configured queue attributes. This task deliberately updates an existing source queue; the ordinary creation tasks only verify it. Configure the redrive policy through `deadletterQueueName` and `maxReceiveCount` rather than a `RedrivePolicy` entry.
+
+### Publish message fixtures before tests
+
+```kotlin
+import io.github.gregwhitaker.awsemulator.aws.sqs.PublishSqsTask
+
+val publishOrders = tasks.register<PublishSqsTask>("publishTestOrders") {
+    dependsOn(createOrders)
+    queueNames.add("application-orders.fifo")
+    messages.from(layout.projectDirectory.dir("src/integration/messages"))
+    messageGroupId.set("integration-tests")
+}
+tasks.named<Test>("test") {
+    dependsOn(createBuckets, createQueues, publishOrders)
+}
+awsEmulator { useWith(tasks.named<Test>("test")) }
+```
+
+`messages` accepts UTF-8 files, directories traversed recursively, and `.tar.gz`/`.tgz` archives. Every nonempty line is one message sent to every selected queue; whitespace is preserved. Directory files are processed in path order, archive entries in archive order. Hidden entries and directory symlinks are skipped, and archives are read without extraction. Invalid input fails before publishing begins. Service failures stop publishing; earlier successful sends remain, so rerunning can send duplicates.
+
+FIFO targets require `messageGroupId` (or `--messageGroupId` on `publishSqs`). Each delivery gets a unique deduplication ID so identical fixture lines remain separate messages. Publishing tasks always execute, including on configuration-cache reuse.
 
 ## Configuration
 
@@ -320,8 +399,8 @@ Tasks are organized by feature, following the module pattern in `gradle-localsta
 | Module | Gradle task group | Responsibilities |
 | --- | --- | --- |
 | `EmulatorModule` | `AWS Emulator` | Runtime configuration and the six lifecycle tasks. |
-| `S3Module` | `AWS Emulator - S3` | S3 task configuration and bucket provisioning. |
-| `SqsModule` | `AWS Emulator - SQS` | SQS task configuration and queue provisioning. |
+| `S3Module` | `AWS Emulator - S3` | Bucket creation, listing, purging, and deletion. |
+| `SqsModule` | `AWS Emulator - SQS` | Queue and DLQ creation, listing, purging, and message publishing. |
 
 Register named resource tasks in your build; their service module supplies the group and default description. Imports use `io.github.gregwhitaker.awsemulator.aws.s3.CreateS3BucketTask` and `io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueueTask`.
 
@@ -334,7 +413,7 @@ Separate test source sets follow [Gradle's plugin testing guidance](https://docs
 ./gradlew :plugin:integrationTest
 ```
 
-`build` runs unit tests, Gradle TestKit tests that require no Docker, plugin validation, and documentation generation/link checks/packaging. `:plugin:integrationTest` (also available as `dockerTest`) requires a running local Docker daemon and downloads/builds the emulator image if necessary. It verifies signed HTTPS SDK requests, sharing between tasks, configuration-cache reuse, failure cleanup, all lifecycle tasks, parallel projects, S3/SQS provisioning, repeated setup without data loss, and queue attribute conflicts. Docker tests deliberately fail a nested fixture build to check cleanup; the enclosing test must pass.
+`build` runs unit tests, Gradle TestKit tests that require no Docker, plugin validation, and documentation generation/link checks/packaging. `:plugin:integrationTest` (also available as `dockerTest`) requires a running local Docker daemon and downloads/builds the emulator image if necessary. It verifies signed HTTPS SDK requests, sharing between tasks, configuration-cache reuse, failure cleanup, all lifecycle tasks, parallel projects, S3/SQS provisioning, repeated setup without data loss, queue attribute conflicts, versioned bucket cleanup, DLQ updates, and message publishing from files and archives. Docker tests deliberately fail a nested fixture build to check cleanup; the enclosing test must pass.
 
 To run TestKit consumers against another Gradle version:
 

@@ -31,7 +31,7 @@ The guide and Java API reference include the same light/dark theme toggle on des
 - Add top-level pages in `src/docs/asciidoc/`. Each page starts with a title followed by `include::_partials/attributes.adoc[]`.
 - Use `xref:page.adoc#section-id[Label]` for internal links. Top-level pages are discovered automatically at configuration time. Add each new page to the navigation in `_partials/docinfo-header.html`.
 - Keep reusable partials under `_partials/`; they are included, not rendered as standalone pages.
-- The getting-started guide includes the actual build scripts and SDK test from `examples/basic`. `prepareDocs` stages those files so source changes invalidate generation.
+- The getting-started guide includes the actual build scripts, SDK test, and message fixtures from `examples/basic`. `prepareDocs` stages those files so source changes invalidate generation.
 - Update styles and browser behavior in `src/site/assets/`. Assets are local; the guide has no CDN or web-font dependency. JavaScript enhances navigation, copy buttons, and tables; content and links remain usable without it.
 - `theme.css` and `theme.js` define the shared palette, toggle, and preference. `api.css` adapts Javadoc's tables, navigation, search results, and method filters to that palette.
 - `site` injects `src/templates/api-head.html` and `api-header.html` into copied Javadoc pages, resolving asset and guide links relative to each page's depth. The plugin's standalone Javadoc output and Javadoc JAR are unchanged. The link checker requires shared theme assets on every page and a toggle on every page with content; Javadoc's redirect pages do not need a header.

@@ -19,9 +19,8 @@
       'content', theme === 'dark' ? '#111827' : '#ffffff');
     const next = theme === 'dark' ? 'light' : 'dark';
     document.querySelectorAll('.theme-toggle').forEach(button => {
-      button.setAttribute('aria-label', `Switch to ${next} theme`);
+      button.setAttribute('aria-checked', String(theme === 'dark'));
       button.title = `Switch to ${next} theme`;
-      button.querySelector('[data-theme-label]').textContent = next === 'dark' ? 'Dark' : 'Light';
     });
   };
 

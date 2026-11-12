@@ -6,21 +6,25 @@ import io.github.gregwhitaker.awsemulator.model.EmulatorMode;
 import org.gradle.api.GradleException;
 import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
+import org.gradle.api.tasks.options.Option;
 import org.gradle.work.DisableCachingByDefault;
 
-/** Shared configuration for provisioning resources inside this project's emulator. */
-@DisableCachingByDefault(because = "Provisions live emulator resources")
+/** Shared configuration for AWS service tasks inside this project's emulator. */
+@DisableCachingByDefault(because = "Uses live emulator resources")
 public abstract class AbstractAwsResourceTask extends AbstractAwsEmulatorTask {
     public AbstractAwsResourceTask() {
         getMode().convention(EmulatorMode.MANAGED);
         getApiCallTimeoutSeconds().convention(30);
         getOutputs().upToDateWhen(ignored -> false);
-        getOutputs().doNotCacheIf("Provisions live emulator resources", ignored -> true);
+        getOutputs().doNotCacheIf("Uses live emulator resources", ignored -> true);
     }
 
-    /** Managed tests and provisioning must select the same runtime. Defaults to MANAGED. */
+    /** Selects the runtime. Custom task instances default to MANAGED; module convenience tasks use DEVELOPMENT. */
     @Input
     public abstract Property<EmulatorMode> getMode();
+
+    @Option(option = "mode", description = "Emulator runtime: MANAGED or DEVELOPMENT")
+    public void setModeOption(EmulatorMode mode) { getMode().set(mode); }
 
     /** Deadline for each SDK operation, including retries. Defaults to 30 seconds. */
     @Input

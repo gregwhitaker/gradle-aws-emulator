@@ -51,7 +51,7 @@ Applying the plugin registers tasks and configuration. Docker starts only when a
 [cols="1,2,2",options="header"]
 |===
 | |Managed instance |Development instance
-|Start with |`awsEmulator.useWith(...)` or a default resource task |`startAwsEmulator` or a resource task with `DEVELOPMENT` mode
+|Start with |`awsEmulator.useWith(...)` or a custom resource task |`startAwsEmulator`, a module convenience task, or a resource task with `DEVELOPMENT` mode
 |Lifetime |Shared by participating tasks in one project, within the build |Survives the Gradle invocation
 |Cleanup |Automatic after consumers finish, including ordinary task failures |Explicit `stopAwsEmulator`
 |Best for |Tests and Gradle-launched Java applications |Interactive local development
@@ -63,7 +63,7 @@ Both instances keep AWS resources in memory. Stop or restart discards those reso
 
 * xref:lifecycle.adoc[Prepare, start, stop, restart, inspect, and read logs] for a development instance.
 * xref:testing.adoc[Connect existing `Test` and `JavaExec` tasks] to a build-owned emulator.
-* xref:resources.adoc[Create or reuse S3 buckets and standard/FIFO SQS queues] before application code runs.
+* xref:resources.adoc[Manage S3 buckets, SQS queues and DLQs, and message fixtures] before application code runs.
 * xref:connections.adoc[Use signed HTTPS requests] with generated emulator credentials and per-JVM TLS trust.
 * link:api/index.html[Browse the Java API] for the extension, task types, and configuration model.
 
