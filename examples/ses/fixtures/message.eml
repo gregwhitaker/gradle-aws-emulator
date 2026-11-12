@@ -1,0 +1,7 @@
+From: sender@example.test
+To: success@simulator.amazonses.com
+Subject: Raw local receipt
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+
+Order 42 was received as a raw MIME message.

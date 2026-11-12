@@ -22,7 +22,8 @@ class SpringBootAutoSetupFunctionalTest {
         "ssm.PutSsmParameterTask", "ssm.PutSsmParametersTask", "secretsmanager.PutSecretTask", "secretsmanager.PutSecretsTask",
         "eventbridge.CreateEventBusTask", "eventbridge.PutEventBridgeRuleTask", "eventbridge.PutEventBridgeTargetsTask",
         "eventbridge.PutEventBridgeSqsTargetTask", "kinesis.CreateKinesisStreamTask", "kms.CreateKmsKeyTask", "kms.CreateKmsAliasTask",
-        "cloudwatchlogs.CreateLogGroupTask", "cloudwatchlogs.CreateLogStreamTask");
+        "cloudwatchlogs.CreateLogGroupTask", "cloudwatchlogs.CreateLogStreamTask",
+        "ses.CreateSesEmailIdentityTask", "ses.PutSesEmailTemplateTask", "ses.CreateSesConfigurationSetTask", "ses.PutSesSnsEventDestinationTask");
 
     @ParameterizedTest
     @CsvSource({"3.5.16, bootRunLocal, DEVELOPMENT", "4.1.2, bootRunLocalDebug, MANAGED"})
@@ -43,6 +44,7 @@ class SpringBootAutoSetupFunctionalTest {
             tasks.register('testOnlyQueue', CreateSqsQueueTask) { mode.set(EmulatorMode.MANAGED) }
             awsEmulator.springBoot.excludedSetupTasks.add(':testOnlyQueue')
             tasks.register('fixtureMessages', io.github.gregwhitaker.awsemulator.aws.sqs.PublishSqsTask)
+            tasks.register('fixtureEmail', io.github.gregwhitaker.awsemulator.aws.ses.SendSesEmailTask)
             tasks.register('unrelatedTask') { throw new GradleException('Unrelated task was realized') }
             def consumer = tasks.named('%s').get()
             def dependencies = consumer.taskDependencies.getDependencies(consumer)
@@ -68,7 +70,7 @@ class SpringBootAutoSetupFunctionalTest {
             assertTrue(output.contains(":inheritedQueue SKIPPED"), output);
             assertTrue(output.contains(":customResource SKIPPED"), output);
             assertTrue(output.indexOf(":setupCreateS3BucketTask SKIPPED") < output.indexOf(":lateQueue SKIPPED"), output);
-            for (String excluded : List.of("testOnlyQueue", "fixtureMessages", "publishSqs", "purgeSqsQueues", "deleteS3Buckets", "listS3Buckets", "bootRun")) {
+            for (String excluded : List.of("testOnlyQueue", "fixtureMessages", "fixtureEmail", "sendSesEmail", "getSesMessageInsights", "publishSqs", "purgeSqsQueues", "deleteS3Buckets", "listS3Buckets", "bootRun")) {
                 assertFalse(output.contains(":" + excluded + " SKIPPED"), output);
             }
             if (run > 0) assertTrue(output.contains("Reusing configuration cache"), output);

@@ -135,6 +135,10 @@ val functionalTest = tasks.register<Test>("functionalTest") {
 }
 
 tasks.register<Test>("integrationTest") {
+    systemProperty("ses.example", rootProject.layout.projectDirectory.dir("examples/ses").asFile.absolutePath)
+    inputs.files(rootProject.fileTree("examples/ses") {
+        include("build.gradle.kts", "src/**", "fixtures/**")
+    }).withPropertyName("sesExample").withPathSensitivity(PathSensitivity.RELATIVE)
     systemProperty("multiProject.example", rootProject.layout.projectDirectory.dir("examples/multi-project").asFile.absolutePath)
     inputs.files(rootProject.fileTree("examples/multi-project") {
         include("**/build.gradle.kts", "settings.gradle.kts", "**/src/**")
