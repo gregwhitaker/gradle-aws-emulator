@@ -225,6 +225,32 @@ class EmulatorRuntimeTest {
         assertTrue(unavailable.doctor().contains("daemon unavailable"));
     }
 
+    @Test
+    void checkingAnActiveLeaseDoesNotReleaseItsCrossProcessLock() throws Exception {
+        EmulatorWorkspace workspace = new EmulatorWorkspace(settings());
+        Path home = directory.resolve("managed-active");
+        try (var lease = workspace.tryManagedLease(home, true)) {
+            assertNotNull(lease);
+            assertNull(workspace.tryManagedLease(home, false));
+            String executable = System.getProperty("os.name").startsWith("Windows") ? "java.exe" : "java";
+            String java = Path.of(System.getProperty("java.home"), "bin", executable).toString();
+            String classes = Path.of(LeaseProbe.class.getProtectionDomain().getCodeSource().getLocation().toURI()).toString();
+            var result = new io.github.gregwhitaker.awsemulator.internal.docker.ProcessCommandRunner().run(
+                List.of(java, "-cp", classes, LeaseProbe.class.getName(), workspace.managedLock(home).toString()), Duration.ofSeconds(10));
+            assertEquals(3, result.exitCode(), "An external process must still see the active lease");
+        }
+        try (var lease = workspace.tryManagedLease(home, false)) { assertNotNull(lease); }
+    }
+
+    public static class LeaseProbe {
+        public static void main(String[] args) throws Exception {
+            try (var channel = java.nio.channels.FileChannel.open(Path.of(args[0]), java.nio.file.StandardOpenOption.WRITE);
+                    var lock = channel.tryLock()) {
+                System.exit(lock == null ? 3 : 0);
+            }
+        }
+    }
+
     private String archivedLogs() throws Exception {
         try (var files = Files.list(directory.resolve("logs"))) {
             return Files.readString(files.findFirst().orElseThrow());

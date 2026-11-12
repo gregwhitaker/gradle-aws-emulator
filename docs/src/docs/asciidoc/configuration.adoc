@@ -27,7 +27,7 @@ toc::[]
 |`scenarios` |Empty container |Named development scenarios with resource provisioning and ordered fixture tasks. See xref:scenarios.adoc[Data fixtures & development scenarios].
 |===
 
-The `useWith(taskProvider)` method accepts an existing `Test` or `JavaExec` task provider. See xref:testing.adoc[tests and Java execution] for lifecycle and caching behavior.
+The `useWith(taskProvider)` method accepts an existing `Test`, `JavaExec`, or `Exec` task provider. See xref:testing.adoc[tests and process execution] for lifecycle and caching behavior.
 
 The `useSharedRuntime(ownerProject, resourceSets...)` method selects an absolute project path in this build and optional resource-set names from that owner. Its runtime settings and working directory replace the consumer's runtime settings. See xref:shared-runtimes.adoc[sharing across projects] for ownership rules and examples.
 

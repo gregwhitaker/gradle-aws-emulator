@@ -10,11 +10,14 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.LinkOption;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Supplier;
 
 /** Owns the filesystem layout, inter-build locks, and guarded deletion of runtime homes. */
 public final class EmulatorWorkspace {
     private static final String OWNER_FILE = ".gradle-aws-emulator-owner";
+    private static final Map<Path, Lease> MANAGED_LEASES = new HashMap<>();
     private final EmulatorSettings settings;
 
     public EmulatorWorkspace(EmulatorSettings settings) { this.settings = settings; }
@@ -36,29 +39,42 @@ public final class EmulatorWorkspace {
             if (Files.isSymbolicLink(path.getParent()) || Files.isSymbolicLink(path)) {
                 throw new GradleException("Refusing to use a symlink for an emulator lease: " + path);
             }
-            FileChannel channel = create
-                ? FileChannel.open(path, StandardOpenOption.CREATE, StandardOpenOption.WRITE, LinkOption.NOFOLLOW_LINKS)
-                : FileChannel.open(path, StandardOpenOption.WRITE, LinkOption.NOFOLLOW_LINKS);
-            try {
-                FileLock lock;
-                try { lock = channel.tryLock(); }
-                catch (OverlappingFileLockException e) { lock = null; }
-                if (lock != null) return new Lease(channel, lock);
-                channel.close();
-                return null;
-            } catch (Exception e) {
-                channel.close();
-                throw e;
+            path = path.getParent().toRealPath().resolve(path.getFileName());
+            synchronized (MANAGED_LEASES) {
+                // On POSIX, closing another descriptor can release this JVM's existing file lock.
+                // Avoid opening a second channel when this classloader already holds the lease.
+                if (MANAGED_LEASES.containsKey(path)) return null;
+                FileChannel channel = create
+                    ? FileChannel.open(path, StandardOpenOption.CREATE, StandardOpenOption.WRITE, LinkOption.NOFOLLOW_LINKS)
+                    : FileChannel.open(path, StandardOpenOption.WRITE, LinkOption.NOFOLLOW_LINKS);
+                try {
+                    FileLock lock;
+                    try { lock = channel.tryLock(); }
+                    catch (OverlappingFileLockException e) { lock = null; }
+                    if (lock != null) {
+                        Lease lease = new Lease(path, channel, lock);
+                        MANAGED_LEASES.put(path, lease);
+                        return lease;
+                    }
+                    channel.close();
+                    return null;
+                } catch (Exception e) {
+                    channel.close();
+                    throw e;
+                }
             }
         } catch (IOException e) {
             throw new GradleException("Cannot lock AWS Emulator managed instance at " + home, e);
         }
     }
 
-    public record Lease(FileChannel channel, FileLock lock) implements AutoCloseable {
+    public record Lease(Path path, FileChannel channel, FileLock lock) implements AutoCloseable {
         @Override public void close() {
-            try { channel.close(); }
-            catch (IOException e) { throw new GradleException("Cannot release AWS Emulator lease.", e); }
+            synchronized (MANAGED_LEASES) {
+                try { channel.close(); }
+                catch (IOException e) { throw new GradleException("Cannot release AWS Emulator lease.", e); }
+                finally { MANAGED_LEASES.remove(path, this); }
+            }
         }
     }
 
