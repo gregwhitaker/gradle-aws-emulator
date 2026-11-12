@@ -110,9 +110,71 @@ Imports replace the entire existing item when its primary key matches; other ite
 
 Both item task types accept `tableName`, `mode`, `apiCallTimeoutSeconds`, `maxRetries`, and `retryDelayMillis`. `PutDynamoDbItemsTask` additionally requires `itemsFile`. Custom instances use `MANAGED`; the registered purge command uses `DEVELOPMENT`.
 
+[[resource-sets]]
+== Reuse resources across tests and development
+
+Declare task configurations in `awsEmulator.resourceSets` to use the same resource and fixture definitions with managed tests, local Boot runs, and development scenarios:
+
+[source,kotlin]
+----
+import io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueueTask
+import io.github.gregwhitaker.awsemulator.aws.sqs.PublishSqsTask
+import io.github.gregwhitaker.awsemulator.model.EmulatorMode
+
+val applicationResources = awsEmulator.resourceSets.register("application") {
+    provision("queue", CreateSqsQueueTask::class.java) {
+        queueName.set("application-events")
+    }
+    seed("messages", PublishSqsTask::class.java) {
+        queueNames.add("application-events")
+        messages.from(layout.projectDirectory.file("fixtures/messages.txt"))
+    }
+}
+awsEmulator {
+    useWith(tasks.named<Test>("test"), EmulatorMode.MANAGED, applicationResources)
+    scenarios { register("default") { resources(applicationResources) } }
+    // With the Spring Boot companion applied:
+    springBoot { resourceSets.add(applicationResources) }
+}
+----
+
+The equivalent definition and attachments in Groovy:
+
+[source,groovy]
+----
+def applicationResources = awsEmulator.resourceSets.register('application') {
+    provision('queue', CreateSqsQueueTask) { queueName.set('application-events') }
+    seed('messages', PublishSqsTask) {
+        queueNames.add('application-events')
+        messages.from(layout.projectDirectory.file('fixtures/messages.txt'))
+    }
+}
+awsEmulator {
+    useWith(tasks.named('test'), EmulatorMode.MANAGED, applicationResources)
+    scenarios { register('default') { resources(applicationResources) } }
+    springBoot { resourceSets.add(applicationResources) }
+}
+----
+
+Definitions use the existing typed tasks and their lazy properties. The attachment selects and locks `mode`; do not set it inside a definition. All provisioning steps run in declaration order, followed by all fixture steps in declaration order, even if a fixture was declared first. Failure skips dependent steps, including with `--continue`. Names start with a lowercase letter and contain letters, numbers, or single hyphens; step names must be unique within a set.
+
+Compose shared prerequisites with `include(otherSetProvider)`. Included sets complete, including their fixtures, before this set's steps. Separate included sets have no implicit order between them; express dependencies with nested includes. Cycles are rejected. Multiple sets attached to a consumer are independent; use includes for dependencies instead of references to generated task names or tasks in another mode. Sets must belong to the consumer's project.
+
+Only selected sets are materialized. A set creates one task graph per project and runtime mode, reused by every attachment in that mode. Managed and development graphs can execute in the same invocation without changing each other's modes. Consumers in the same mode share resources and fixture execution; use separate resource names for concurrent tests. Resource operations always rerun on subsequent builds, including configuration-cache reuse. Set declarations become immutable once their task dependencies are resolved.
+
+The xref:spring-boot.adoc[Boot companion] excludes generated resource-set tasks from automatic discovery. Attach sets explicitly with `springBoot.resourceSets`; these attachments also run when `autoCreateResources` is false. Ordinary resource task discovery is unchanged.
+
+The scenario example uses includes to share its bucket, table, and S3 fixtures across datasets. Run managed verification and a development reset together:
+
+[source,shell]
+----
+./gradlew -p examples/scenarios resetAwsEmulator verifyFixtures --configuration-cache
+./gradlew -p examples/scenarios stopAwsEmulator
+----
+
 == Define development scenarios
 
-Reuse typed task providers rather than copying their configuration into a separate fixture format:
+Prefer `resources(setProvider)` for definitions shared with managed tests or Boot runs. Existing task-based scenarios remain supported:
 
 [source,kotlin]
 ----
@@ -148,7 +210,7 @@ awsEmulator {
 
 Provisioning follows the tasks' `dependsOn` relationships; unrelated provisioning tasks can run in parallel. Every seed waits for all provisioning, and seeds run in declaration order. A provisioning or seed failure skips dependent seeds, including with `--continue`.
 
-Only the selected scenario's resource tasks are added to the command's dependency graph. Its resource tasks and resource prerequisites are bound to `DEVELOPMENT` for that invocation and leave the emulator running. They must belong to the same Gradle project. Do not use those same task instances for managed consumers in the same invocation; register separate tasks or run managed verification separately. Existing scenarios can share task providers across separate invocations.
+Only the selected scenario's resource tasks are added to the command's dependency graph. Its explicit resource tasks and resource prerequisites are bound to `DEVELOPMENT` for that invocation and leave the emulator running. They must belong to the same Gradle project. Do not use those same explicit task instances for managed consumers in the same invocation; use reusable resource sets for separate mode-specific instances. Existing scenarios can share task providers across separate invocations. If a scenario combines resource sets and explicit tasks, its sets complete before its explicit provisioning and seeding.
 
 Choose one scenario per project per Gradle invocation. Names start with a lowercase letter and contain letters, numbers, or single hyphens. Names must produce distinct generated task names: `failed-orders` becomes `FailedOrders`.
 
@@ -180,4 +242,4 @@ awsEmulator {
 }
 ----
 
-You can also reference a generated scenario task directly, such as `seedAwsEmulatorDemo`. For managed tests, pass the individual provisioning and fixture tasks to `useWith` in `MANAGED` mode instead. The example's `verifyFixtures` task demonstrates that separate workflow.
+You can also reference a generated scenario task directly, such as `seedAwsEmulatorDemo`. For managed tests, pass a resource-set provider to `useWith` in `MANAGED` mode. The example's `verifyFixtures` task demonstrates reusing the `demo` definitions in a separate managed instance.

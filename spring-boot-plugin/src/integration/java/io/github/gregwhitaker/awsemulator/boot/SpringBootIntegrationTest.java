@@ -1,11 +1,13 @@
 package io.github.gregwhitaker.awsemulator.boot;
 
+import io.github.gregwhitaker.awsemulator.testsupport.TlsFixtures;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import java.net.ServerSocket;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.security.MessageDigest;
 import java.util.HexFormat;
 import java.util.concurrent.TimeUnit;
@@ -51,13 +53,24 @@ class SpringBootIntegrationTest {
         fixture("4.1.2");
         int port;
         try (ServerSocket socket = new ServerSocket(0)) { port = socket.getLocalPort(); }
-        for (int run = 0; run < 3; run++) {
-            String output = runner(project, "bootRunLocalDebug", "-Pmanaged=true", "-PdebugPort=" + port).build().getOutput();
-            assertTrue(output.contains("BOOT_EMULATOR_VERIFIED"), output);
-            assertTrue(output.contains("Listening for transport dt_socket at address:"), output);
-            if (run > 1) assertTrue(output.contains("Reusing configuration cache"), output);
-            assertCredentialsRemoved();
-            assertEquals("", containers());
+        var identity = TlsFixtures.identity(project, "custom-https");
+        TlsFixtures.trustStore(project.resolve("custom trust.p12"), "PKCS12", TlsFixtures.PASSWORD, identity);
+        try (var https = TlsFixtures.server(identity)) {
+            Files.writeString(project.resolve("build.gradle"), """
+                awsEmulator.springBoot.jvmArgs.addAll([
+                    '-Djavax.net.ssl.trustStore=custom trust.p12',
+                    '-Djavax.net.ssl.trustStorePassword=test-password',
+                    '-Dfixture.https=%s'
+                ])
+                """.formatted(https.url()), StandardOpenOption.APPEND);
+            for (int run = 0; run < 3; run++) {
+                String output = runner(project, "bootRunLocalDebug", "-Pmanaged=true", "-PdebugPort=" + port).build().getOutput();
+                assertTrue(output.contains("BOOT_EMULATOR_VERIFIED"), output);
+                assertTrue(output.contains("Listening for transport dt_socket at address:"), output);
+                if (run > 1) assertTrue(output.contains("Reusing configuration cache"), output);
+                assertCredentialsRemoved();
+                assertEquals("", containers());
+            }
         }
     }
 
@@ -126,6 +139,11 @@ class SpringBootIntegrationTest {
                     try (var sqs = SqsClient.builder().httpClientBuilder(UrlConnectionHttpClient.builder()).build()) {
                         String url = sqs.getQueueUrl(r -> r.queueName("boot-fixture-events")).queueUrl();
                         if (!url.contains("boot-fixture-events")) throw new AssertionError("setup queue");
+                    }
+                    if (System.getProperty("fixture.https") != null) {
+                        var response = java.net.http.HttpClient.newHttpClient().send(java.net.http.HttpRequest.newBuilder(
+                            java.net.URI.create(System.getProperty("fixture.https"))).build(), java.net.http.HttpResponse.BodyHandlers.ofString());
+                        if (!response.body().equals("trusted")) throw new AssertionError("custom TLS");
                     }
                     System.out.println("BOOT_EMULATOR_VERIFIED");
                     if (Arrays.asList(args).contains("fail")) throw new IllegalStateException("Intentional application failure");

@@ -75,6 +75,21 @@ class DataScenariosIntegrationTest {
         }
     }
 
+    @Test void sameDefinitionsCanSeedDevelopmentAndManagedTestsInOneInvocation() throws Exception {
+        fixture();
+        try {
+            for (int run = 0; run < 2; run++) {
+                String output = runner(project, "resetAwsEmulator", "verifyFixtures", "--parallel").build().getOutput();
+                if (run > 0) assertTrue(output.contains("Reusing configuration cache"), output);
+                assertDemo();
+                try (var homes = Files.list(project.resolve(".aws-emulator"))) {
+                    assertFalse(homes.anyMatch(path -> path.getFileName().toString().startsWith("managed-")));
+                }
+            }
+        } finally { runner(project, "stopAwsEmulator").build(); }
+        assertNoContainers();
+    }
+
     private void assertDemo() throws Exception {
         var clients = new AwsClientFactory(connection(), 30);
         try (var s3 = clients.s3(); var dynamo = clients.dynamoDb()) {

@@ -44,6 +44,7 @@ After a successful deployment, the site is available at <https://gregwhitaker.gi
 - Use `xref:page.adoc#section-id[Label]` for internal links. Top-level pages are discovered automatically at configuration time. Add each new page to the navigation in `_partials/docinfo-header.html`.
 - Keep reusable partials under `_partials/`; they are included, not rendered as standalone pages.
 - The getting-started guide includes the actual build scripts, SDK test, and message fixtures from `examples/basic`. `prepareDocs` stages those files so source changes invalidate generation.
+- The Micronaut and Ktor guide includes build scripts and application code from `examples/micronaut` and `examples/ktor`; `prepareDocs` stages these examples too.
 - Update styles and browser behavior in `src/site/assets/`. Assets are local; the guide has no CDN or web-font dependency. JavaScript enhances navigation, copy buttons, and tables; content and links remain usable without it.
 - `theme.css` and `theme.js` define the shared palette, toggle, and preference. `api.css` adapts Javadoc's tables, navigation, search results, and method filters to that palette.
 - `site` injects `src/templates/api-head.html` and `api-header.html` into copied Javadoc pages, resolving asset and guide links relative to each page's depth. The plugin's standalone Javadoc output and Javadoc JAR are unchanged. The link checker requires shared theme assets on every page and a toggle on every page with content; Javadoc's redirect pages do not need a header.

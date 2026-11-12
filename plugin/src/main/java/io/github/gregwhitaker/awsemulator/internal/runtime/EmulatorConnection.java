@@ -53,7 +53,7 @@ public record EmulatorConnection(int port, String region, Path directory) {
         return env;
     }
 
-    public Map<String, Object> systemProperties(Map<String, ?> inherited) {
+    public Map<String, Object> systemProperties(Map<String, ?> inherited, Path consumerTrustStore) {
         Map<String, Object> props = new LinkedHashMap<>(inherited);
         props.keySet().removeIf(key -> key.startsWith("aws.endpointUrl") || Set.of("aws.accessKeyId",
             "aws.secretAccessKey", "aws.secretKey", "aws.sessionToken", "aws.profile", "aws.roleArn",
@@ -68,8 +68,11 @@ public record EmulatorConnection(int port, String region, Path directory) {
         props.put("aws.disableEc2Metadata", "true");
         props.put("aws.ignoreConfiguredEndpointUrls", "false");
         props.put("aws.endpointDiscoveryEnabled", "false");
-        props.put("javax.net.ssl.trustStore", trustStore().toString());
+        props.put("javax.net.ssl.trustStore", consumerTrustStore.toString());
         props.put("javax.net.ssl.trustStoreType", "PKCS12");
+        // Gradle retains some SSL properties separately from getSystemProperties(); explicitly replace old values.
+        props.put("javax.net.ssl.trustStorePassword", ConsumerTrustStore.PASSWORD);
+        props.put("javax.net.ssl.trustStoreProvider", "");
         return props;
     }
 }

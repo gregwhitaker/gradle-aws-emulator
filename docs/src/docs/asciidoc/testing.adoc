@@ -44,6 +44,8 @@ awsEmulator {
 
 The managed emulator stays available while that task consumes it. The optional xref:spring-boot.adoc[Spring Boot companion] adds local run and debug tasks.
 
+xref:frameworks.adoc[Micronaut and Ktor] use this same core integration for their existing `run` and `test` tasks. Runnable examples and compatibility tests cover framework consumers, resource setup, and both emulator lifetimes.
+
 To select a persistent development instance and declare setup dependencies through the same core API:
 
 [source,kotlin]

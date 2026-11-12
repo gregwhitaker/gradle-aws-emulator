@@ -16,6 +16,14 @@ Run the same command again to exercise configuration-cache reuse. Each run provi
 
 The plugin starts a managed emulator on an automatically selected port and supplies the test JVM with the endpoint, region, credentials, and TLS trust. It removes the managed container and connection files after its consumers finish, including after an ordinary test failure.
 
+TLS trust includes the selected JDK's default roots and the emulator certificate. To add a custom JKS or PKCS12 store, set `EXAMPLE_TRUST_STORE_PASSWORD` when the store needs a password and run:
+
+```sh
+./gradlew -p examples/basic integrationTest --configuration-cache -PexampleTrustStore=/absolute/path/company.jks -PexampleTrustStoreType=JKS
+```
+
+The source store is read at execution time and remains unchanged. Its certificates are added to the consumer's trust; private keys are not copied. The generated combined store is removed with the managed instance.
+
 ## What it demonstrates
 
 The [build script](build.gradle.kts) wires these provisioning tasks into `integrationTest`:

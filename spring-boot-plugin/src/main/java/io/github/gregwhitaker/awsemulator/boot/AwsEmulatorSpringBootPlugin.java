@@ -23,6 +23,7 @@ public final class AwsEmulatorSpringBootPlugin implements Plugin<Project> {
         extension.getProfiles().convention(List.of("local"));
         extension.getJvmArgs().convention(List.of());
         extension.getSetupTasks().convention(List.of());
+        extension.getResourceSets().convention(List.of());
         extension.getAutoCreateResources().convention(true);
         extension.getExcludedSetupTasks().convention(List.of());
         extension.getDebugPort().convention(5005);

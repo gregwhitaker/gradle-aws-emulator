@@ -60,6 +60,14 @@ val integrationTest = tasks.register<Test>("integrationTest") {
     systemProperty("aws.accessKeyId", "not-a-real-access-key")
     systemProperty("aws.secretAccessKey", "not-a-real-secret")
     systemProperty("example.fail", providers.gradleProperty("failExample").getOrElse("false"))
+    // Optional custom HTTPS trust is merged with this task's JDK roots and the emulator certificate.
+    providers.gradleProperty("exampleTrustStore").orNull?.let {
+        systemProperty("javax.net.ssl.trustStore", file(it).absolutePath)
+    }
+    providers.gradleProperty("exampleTrustStoreType").orNull?.let { systemProperty("javax.net.ssl.trustStoreType", it) }
+    providers.environmentVariable("EXAMPLE_TRUST_STORE_PASSWORD").orNull?.let {
+        systemProperty("javax.net.ssl.trustStorePassword", it)
+    }
 }
 
 awsEmulator {

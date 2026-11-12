@@ -61,7 +61,7 @@ For FIFO queues, use both a `.fifo` suffix and the `FifoQueue` attribute set to 
 
 Use a compatible SDK and its normal endpoint and credential providers. Explicit client settings can override the plugin. For host-prefix operations in Java, configure `SdkAdvancedClientOption.DISABLE_HOST_PREFIX_INJECTION`.
 
-If the same JVM calls other HTTPS services, its emulator-only trust store needs additional trust roots. See xref:connections.adoc[credentials and TLS]. Check that host clients use `host-config`, not the emulator's config with container paths.
+The plugin merges the selected JVM's default roots, any configured custom trust store, and the emulator certificate. For a private HTTPS service, configure its CA in the consuming task's custom trust store. If trust preparation fails, check the source path (relative to the task's working directory), type, provider, and password. See xref:connections.adoc[credentials and TLS]. Check that host clients use `host-config`, not the emulator's config with container paths.
 
 == A container remains after interruption
 

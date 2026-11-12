@@ -132,6 +132,41 @@ class SpringBootAutoSetupFunctionalTest {
         assertFalse(output.contains(":unrelatedFixture SKIPPED"), output);
     }
 
+    @ParameterizedTest @org.junit.jupiter.params.provider.ValueSource(booleans = {false, true})
+    void resourceSetsKeepManagedTestsSeparateFromBootAndScenarioSetup(boolean automatic) throws Exception {
+        fixture("3.5.16", """
+            def shared = awsEmulator.resourceSets.register('application') {
+                provision('queue', CreateSqsQueueTask) { queueName.set('shared-events') }
+                seed('messages', io.github.gregwhitaker.awsemulator.aws.sqs.PublishSqsTask) {
+                    queueNames.add('shared-events')
+                    messages.from('messages.txt')
+                }
+            }
+            awsEmulator.resourceSets.register('unused') { throw new GradleException('Unused resource set realized') }
+            awsEmulator {
+                useWith(tasks.named('test'), EmulatorMode.MANAGED, shared)
+                springBoot {
+                    autoCreateResources.set(%s)
+                    resourceSets.add(shared)
+                }
+                scenarios { register('default') { resources(shared) } }
+            }
+            """.formatted(automatic));
+        for (int run = 0; run < 2; run++) {
+            String output = runner(project, "test", "bootRunLocal", "bootRunLocalDebug", "seedAwsEmulator", "--dry-run")
+                .build().getOutput();
+            for (String mode : List.of("MANAGED", "DEVELOPMENT")) {
+                String queue = ":awsEmulatorResources_application_" + mode + "_queue SKIPPED";
+                String messages = ":awsEmulatorResources_application_" + mode + "_messages SKIPPED";
+                assertTrue(output.contains(queue), output);
+                assertTrue(output.indexOf(queue) < output.indexOf(messages), output);
+                assertEquals(1, output.split(java.util.regex.Pattern.quote(queue), -1).length - 1, output);
+            }
+            if (run > 0) assertTrue(output.contains("Reusing configuration cache"), output);
+        }
+        assertFalse(Files.exists(project.resolve(".aws-emulator")));
+    }
+
     private void fixture(String version, String body) throws Exception {
         Files.writeString(project.resolve("settings.gradle"), "rootProject.name = 'boot-setup-fixture'\n");
         Files.writeString(project.resolve("build.gradle"), """

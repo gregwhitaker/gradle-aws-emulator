@@ -1,5 +1,6 @@
 package io.github.gregwhitaker.awsemulator.boot;
 
+import io.github.gregwhitaker.awsemulator.emulator.EmulatorResourceSet;
 import io.github.gregwhitaker.awsemulator.model.EmulatorMode;
 import org.gradle.api.provider.ListProperty;
 import org.gradle.api.provider.Property;
@@ -17,6 +18,8 @@ public abstract class SpringBootEmulatorExtension {
     public abstract ListProperty<String> getJvmArgs();
     /** Additional task names or paths to execute before either local task. */
     public abstract ListProperty<String> getSetupTasks();
+    /** Reusable definitions to provision and seed in the local application's selected mode. */
+    public abstract ListProperty<EmulatorResourceSet> getResourceSets();
     /** Automatically run resource provisioning tasks before the application; defaults to true. */
     public abstract Property<Boolean> getAutoCreateResources();
     /** Local task names or paths to omit from automatic discovery. Explicit dependencies still apply. */

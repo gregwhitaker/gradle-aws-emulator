@@ -33,6 +33,16 @@ jobs:
         with:
           gradle-version: ${{ matrix.gradle }}
       - run: gradle build :plugin:publishToMavenLocal :spring-boot-plugin:publishToMavenLocal "-Dmaven.repo.local=${{ runner.temp }}/plugin-publication" --no-daemon
+      - name: Smoke-test published plugins
+        shell: bash
+        run: |
+          version="$(sed -n 's/^pluginVersion=//p' gradle.properties | tr -d '\r')"
+          for consumer in core spring-boot; do
+            gradle -p "smoke-tests/$consumer" build \
+              "-PpluginVersion=$version" \
+              "-PpluginRepository=${{ runner.temp }}/plugin-publication" \
+              --configuration-cache --configuration-cache-problems=fail --no-daemon
+          done
 
   docker:
     strategy:

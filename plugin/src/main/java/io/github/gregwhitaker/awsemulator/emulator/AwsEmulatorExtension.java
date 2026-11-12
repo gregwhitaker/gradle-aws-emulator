@@ -5,6 +5,7 @@ import io.github.gregwhitaker.awsemulator.model.EmulatorMode;
 import org.gradle.api.GradleException;
 import org.gradle.api.Action;
 import org.gradle.api.NamedDomainObjectContainer;
+import org.gradle.api.Project;
 import org.gradle.api.Task;
 import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.model.ObjectFactory;
@@ -18,9 +19,13 @@ import javax.inject.Inject;
 /** Configuration for the AWS Emulator runtime and its opted-in consumers. */
 public abstract class AwsEmulatorExtension {
     private Provider<AwsEmulatorService> service;
+    private Project project;
+    private ResourceSetModule resourceSetModule;
     private static final String MODE_EXTENSION = "awsEmulatorMode";
     private final NamedDomainObjectContainer<EmulatorScenario> scenarios = getObjects().domainObjectContainer(
         EmulatorScenario.class, name -> getObjects().newInstance(EmulatorScenario.class, name));
+    private final NamedDomainObjectContainer<EmulatorResourceSet> resourceSets = getObjects().domainObjectContainer(
+        EmulatorResourceSet.class, name -> getObjects().newInstance(EmulatorResourceSet.class, name));
 
     @Inject protected abstract ObjectFactory getObjects();
 
@@ -43,10 +48,17 @@ public abstract class AwsEmulatorExtension {
     public abstract Property<String> getDefaultScenario();
     public NamedDomainObjectContainer<EmulatorScenario> getScenarios() { return scenarios; }
     public void scenarios(Action<? super NamedDomainObjectContainer<EmulatorScenario>> action) { action.execute(scenarios); }
+    /** Named definitions that can be attached to consumers or development scenarios. */
+    public NamedDomainObjectContainer<EmulatorResourceSet> getResourceSets() { return resourceSets; }
+    public void resourceSets(Action<? super NamedDomainObjectContainer<EmulatorResourceSet>> action) { action.execute(resourceSets); }
 
-    void attach(Provider<AwsEmulatorService> service) {
+    void attach(Project project, Provider<AwsEmulatorService> service) {
+        this.project = project;
         this.service = service;
+        this.resourceSetModule = new ResourceSetModule(project, this);
     }
+
+    Object resolveSetup(Object setup, EmulatorMode mode) { return resourceSetModule.resolve(setup, mode); }
 
     /** Starts a build-owned emulator for this Test or JavaExec task, and configures its forked JVM. */
     public void useWith(TaskProvider<? extends Task> taskProvider) {
@@ -55,7 +67,8 @@ public abstract class AwsEmulatorExtension {
 
     /**
      * Connects a consumer to the selected runtime after its setup tasks complete.
-     * Setup tasks accept Gradle dependency notation (including task providers and names).
+     * Setup accepts resource sets (including providers) and Gradle dependency notation.
+     * Resource sets create separate task instances for each mode and run their fixtures in order.
      * Resource setup tasks must use the same mode as the consumer.
      */
     public void useWith(TaskProvider<? extends Task> taskProvider, EmulatorMode mode, Object... setupTasks) {
@@ -73,15 +86,16 @@ public abstract class AwsEmulatorExtension {
             if (!(task instanceof Test) && !(task instanceof JavaExec)) {
                 throw new GradleException("awsEmulator.useWith requires a Test or JavaExec task: " + task.getPath());
             }
-            task.dependsOn(setupTasks);
             if (task.getExtensions().getExtraProperties().has(MODE_EXTENSION)) {
                 @SuppressWarnings("unchecked")
                 Property<EmulatorMode> selected = (Property<EmulatorMode>) task.getExtensions()
                     .getExtraProperties().get(MODE_EXTENSION);
                 selected.set(mode);
+                task.dependsOn(project.provider(() -> resolveSetup(setupTasks, selected.get())));
                 return;
             }
             Property<EmulatorMode> selected = objects.property(EmulatorMode.class).value(mode);
+            task.dependsOn(project.provider(() -> resolveSetup(setupTasks, selected.get())));
             task.getExtensions().getExtraProperties().set(MODE_EXTENSION, selected);
             task.usesService(runtime);
             task.doFirst(new ConfigureEmulatorAction(runtime, selected));

@@ -24,4 +24,11 @@ To check the data tasks in an isolated managed runtime that is cleaned up automa
 ./gradlew -p examples/scenarios verifyFixtures --configuration-cache
 ```
 
-Run managed verification separately from development scenario commands. A selected scenario binds its resource tasks and their resource prerequisites to DEVELOPMENT mode for that invocation.
+The `infrastructure`, `assets`, `demo`, and `failed-orders` resource sets declare each resource and fixture once. Sets include shared prerequisites; scenarios attach their development instances, while `verifyFixtures` attaches the managed `demo` instance. Both modes can run in the same invocation:
+
+```shell
+./gradlew -p examples/scenarios resetAwsEmulator verifyFixtures --configuration-cache
+./gradlew -p examples/scenarios stopAwsEmulator
+```
+
+The managed instance is removed after verification. The development instance remains available with the selected scenario. Repeat the combined command to verify configuration-cache reuse.

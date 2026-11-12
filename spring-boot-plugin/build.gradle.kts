@@ -100,6 +100,10 @@ val functionalTest = tasks.register<Test>("functionalTest") {
     shouldRunAfter(tasks.named("test"))
 }
 tasks.register<Test>("integrationTest") {
+    systemProperty("springCloudAws.example", rootProject.layout.projectDirectory.dir("examples/spring-cloud-aws").asFile.absolutePath)
+    inputs.files(rootProject.fileTree("examples/spring-cloud-aws") {
+        include("build.gradle.kts", "src/**", "fixtures/**")
+    }).withPropertyName("springCloudAwsExample").withPathSensitivity(PathSensitivity.RELATIVE)
     group = "verification"
     description = "Runs Spring Boot consumers against a real AWS Emulator."
     testClassesDirs = integrationSourceSet.output.classesDirs

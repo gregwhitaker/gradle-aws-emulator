@@ -81,6 +81,8 @@ Exclusions affect automatic discovery; explicit dependencies still run. To selec
 
 == Run and debug
 
+For resources shared with managed tests and scenarios, declare xref:scenarios.adoc#resource-sets[reusable resource sets] and attach them using `awsEmulator.springBoot.resourceSets.add(setProvider)`. The plugin creates separate tasks for each mode and runs provisioning and fixtures before either local Boot task. Generated resource-set tasks are excluded from automatic discovery, so test attachments do not leak into Boot setup. Explicit resource sets run even when `autoCreateResources` is false.
+
 [source,shell]
 ----
 ./gradlew bootRunLocal
@@ -110,11 +112,12 @@ Configure the companion in `awsEmulator { springBoot { ... } }`. The previous to
 |`autoCreateResources` |`true` |Automatically discovers resource-provisioning tasks and runs them before either local task.
 |`excludedSetupTasks` |`[]` |Task names or paths to omit from automatic discovery.
 |`setupTasks` |`[]` |Additional Gradle task names or paths that both local tasks depend on.
+|`resourceSets` |`[]` |Reusable definitions to provision and seed in the application's selected mode.
 |`debugPort` |`5005` |Debugger port, from 1 to 65535.
 |`debugSuspend` |`true` |Whether the debug task waits for a debugger before starting the application.
 |===
 
-Resource setup tasks use the same runtime as the application. Use separate setup tasks for consumers that need different modes within one build, and exclude test-only resources from automatic discovery.
+Resource setup tasks use the same runtime as the application. Reusable sets create separate tasks for consumers in different modes within one build. When using ordinary task instances instead, register separate tasks and exclude test-only resources from automatic discovery.
 
 Development instances retain their resources across Gradle invocations until `stopAwsEmulator` or `restartAwsEmulator`. For automatic cleanup after the application finishes, including ordinary application failures:
 
@@ -143,3 +146,29 @@ The link:{repo-url}/tree/main/examples/spring-boot[Spring Boot example] sends an
 ----
 
 Use `-Pmanaged=true` for automatic cleanup, or `bootRunLocalDebug` to attach a debugger. Browse the link:spring-boot-api/index.html[companion Java API] for the extension reference.
+
+== Spring Cloud AWS
+
+The link:{repo-url}/tree/main/examples/spring-cloud-aws[Spring Cloud AWS example] pins Spring Cloud AWS 3.4.0 with Boot 3.5.16, following the https://github.com/awspring/spring-cloud-aws#compatibility-with-spring-project-versions[framework compatibility matrix]. It declares an `application` resource set once and attaches it to managed Spring tests, local Boot runs, and a development scenario.
+
+[source,shell]
+----
+./gradlew -p examples/spring-cloud-aws test bootRunLocal --configuration-cache
+./gradlew -p examples/spring-cloud-aws test bootRunLocal --configuration-cache
+./gradlew -p examples/spring-cloud-aws stopAwsEmulator
+----
+
+The local profile imports required configuration before the application context starts:
+
+[source,properties]
+----
+spring.config.import=aws-parameterstore:/spring-cloud-example/,aws-secretsmanager:/spring-cloud-example/credentials
+spring.cloud.aws.endpoint=${aws.endpointUrl}
+spring.cloud.aws.region.static=${aws.region}
+spring.cloud.aws.parameterstore.endpoint=${aws.endpointUrl}
+spring.cloud.aws.secretsmanager.endpoint=${aws.endpointUrl}
+----
+
+Gradle provisions the parameter and JSON secret before launch. Spring injects their values through `@Value`, including in `@SpringBootTest`. The application uses the auto-configured `SqsAsyncClient` and `SqsTemplate` to send messages, and `@SqsListener` consumes both seeded and newly sent messages. It waits for successful manual acknowledgements with bounded timeouts. The SDK reads generated credentials through its normal provider chain, and all clients use HTTPS with certificate and hostname validation enabled; no custom client beans or trust managers are needed.
+
+The Docker suite verifies this framework path with configuration-cache reuse, separate managed and development instances in one build, and managed cleanup after test failures, application failures, and missing required imports. Spring Cloud AWS 4.x is outside this example's compatibility coverage; the direct SDK example separately covers Boot 4. See the https://docs.awspring.io/spring-cloud-aws/docs/3.4.0/reference/html/index.html[Spring Cloud AWS reference] for import and listener configuration.

@@ -9,6 +9,9 @@ Standalone Kotlin DSL builds demonstrating the AWS Emulator Gradle plugin with A
 | [Additional services](services/README.md) | SSM Parameter Store, Secrets Manager, EventBridge delivery to SQS, Kinesis, KMS, and CloudWatch Logs. |
 | [Data fixtures and scenarios](scenarios/README.md) | S3 file uploads and downloads, DynamoDB JSON seeding and clearing, and named development scenarios with reset/reseed. |
 | [Spring Boot](spring-boot/README.md) | Companion plugin, local run/debug tasks, Spring profiles, SQS provisioning, and managed or persistent emulator connections. |
+| [Micronaut](micronaut/README.md) | Micronaut-managed SQS client injection, `@MicronautTest`, and managed tests or persistent application runs through the core plugin. |
+| [Ktor](ktor/README.md) | Kotlin HTTP/SQS route, Ktor `testApplication`, and managed tests or persistent application runs through the core plugin. |
+| [Spring Cloud AWS](spring-cloud-aws/README.md) | Reusable resources for tests, Boot runs, and scenarios; `@SqsListener`, async clients, `SqsTemplate`, and SSM/Secrets Manager configuration imports. |
 
 Each project README includes run commands, source links, and instructions for managed tests and persistent development instances. Start with the basic example to see the plugin's provisioning and test integration.
 

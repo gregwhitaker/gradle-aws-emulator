@@ -2,6 +2,9 @@
 
 ## 0.2.0 — Unreleased
 
+- Add Micronaut and Ktor examples using the core plugin, with framework-managed/HTTP SQS consumers, version compatibility checks, and real-emulator lifecycle and configuration-cache tests.
+- Preserve selected-JDK and custom TLS trust roots alongside the emulator certificate in isolated consumer trust stores, including lazy JVM and environment options.
+
 - Nest Spring Boot settings under `awsEmulator { springBoot { ... } }`, retaining `springBootEmulator` as a compatibility alias.
 - Automatically provision registered AWS resource-creation tasks before Spring Boot local run/debug tasks, with inherited setup markers, matching runtime defaults, and optional exclusions.
 - Add the separate `io.github.gregwhitaker.aws-emulator.spring-boot` companion plugin with local run/debug tasks, profile and JVM settings, explicit setup dependencies, and application-selected Spring Boot versions.

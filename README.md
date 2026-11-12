@@ -38,6 +38,28 @@ That command is expected to fail its test; its managed container is still remove
 
 ## Data fixtures and development scenarios
 
+Declare reusable resources and fixtures in `awsEmulator.resourceSets`. Each set creates separate tasks for managed and development instances, so tests, local Boot runs, and scenarios can share definitions in the same build:
+
+```kotlin
+val applicationResources = awsEmulator.resourceSets.register("application") {
+    provision("queue", CreateSqsQueueTask::class.java) {
+        queueName.set("application-events")
+    }
+    seed("messages", PublishSqsTask::class.java) {
+        queueNames.add("application-events")
+        messages.from(layout.projectDirectory.file("fixtures/messages.txt"))
+    }
+}
+awsEmulator {
+    useWith(tasks.named<Test>("test"), EmulatorMode.MANAGED, applicationResources)
+    scenarios { register("default") { resources(applicationResources) } }
+    // With the Spring Boot companion applied:
+    springBoot { resourceSets.add(applicationResources) }
+}
+```
+
+Import `CreateSqsQueueTask` and `PublishSqsTask` from `io.github.gregwhitaker.awsemulator.aws.sqs`, and `EmulatorMode` from `io.github.gregwhitaker.awsemulator.model`. Within each set, provisioning and fixture steps run in declaration order, with all provisioning before fixtures. `include(otherSet)` shares prerequisites. Definitions configure task inputs; attachments select the mode. A set executes once per project and mode in each invocation, and consumers in that mode share its resources.
+
 Load files or directories into S3 with content types and metadata, download or list objects, and seed DynamoDB tables from JSON attribute maps. `PurgeDynamoDbTableTask` clears items while preserving the table and indexes. Named scenarios combine resource provisioning with ordered fixture tasks:
 
 ```shell
@@ -190,7 +212,24 @@ Both local tasks automatically discover and run registered resource-creation tas
 
 Run `./gradlew -p examples/spring-boot bootRunLocal --configuration-cache` for a working SQS round trip. See the [companion plugin README](spring-boot-plugin/README.md) for setup and configuration, the [Spring Boot guide](docs/src/docs/asciidoc/spring-boot.adoc) for more detail, or the [example README](examples/spring-boot/README.md). Compatibility is tested with Spring Boot 3.5.16 and 4.1.2.
 
-The core API also supports explicit runtime selection and setup dependencies for any `Test` or `JavaExec` consumer: `awsEmulator.useWith(taskProvider, EmulatorMode.DEVELOPMENT, setupTaskProvider)`. The mode may be a `Provider<EmulatorMode>`. Existing one-argument calls continue to use managed instances.
+The [Spring Cloud AWS example](examples/spring-cloud-aws/README.md) uses Spring Cloud AWS 3.4.0 with Boot 3.5.16. It verifies `@SqsListener` acknowledgements, auto-configured async clients, `SqsTemplate`, and required SSM/Secrets Manager configuration imports over HTTPS. Run `./gradlew -p examples/spring-cloud-aws test bootRunLocal --configuration-cache` to exercise the same definitions in managed tests and a persistent Boot run. Its Docker integration tests also check configuration-cache reuse and cleanup after test, application, and configuration-import failures.
+
+The core API also supports explicit runtime selection and setup dependencies for any `Test` or `JavaExec` consumer: `awsEmulator.useWith(taskProvider, EmulatorMode.DEVELOPMENT, setupTaskProvider)`. Setup accepts reusable resource sets as well as ordinary tasks. The mode may be a `Provider<EmulatorMode>`. Existing one-argument calls continue to use managed instances.
+
+## Micronaut and Ktor
+
+Micronaut and Ktor applications use the core plugin's `awsEmulator.useWith(...)` integration with their existing `run` (`JavaExec`) and `test` tasks. Runnable examples provision SQS before startup, use normal AWS SDK for Java v2 clients over signed HTTPS, and remove managed emulators after success or failure:
+
+```sh
+./gradlew -p examples/micronaut test run --configuration-cache
+./gradlew -p examples/ktor test run --configuration-cache
+```
+
+Repeat either command to verify configuration-cache reuse. Micronaut supplies its SQS client through dependency injection; Ktor exercises an HTTP route with both a Netty server and `testApplication`. Each example chooses its framework versions and uses the core emulator plugin directly.
+
+Use `run -Pdevelopment=true` for a persistent emulator, `run --debug-jvm` for debugging, and `stopAwsEmulator` for development cleanup. Tests always use managed instances. `-PfailExample=true` deliberately fails after the SDK round trip to demonstrate cleanup.
+
+Docker-free compatibility fixtures compile Micronaut platforms 4.9.4/4.10.24 with Micronaut Gradle plugin 4.6.2 and Ktor 3.5.2/3.6.1 with Kotlin 2.4.21. Real-emulator tests cover the default examples (Micronaut platform 4.10.24 and Ktor 3.6.1), including runtime isolation and failures. This support covers JVM execution with AWS SDK for Java v2. See the [framework guide](docs/src/docs/asciidoc/frameworks.adoc), [Micronaut example](examples/micronaut/README.md), and [Ktor example](examples/ktor/README.md) for configuration and scope.
 
 ## Provision S3 buckets and SQS queues
 
@@ -473,7 +512,9 @@ For each opted-in JVM, the plugin sets the endpoint, region, emulator credential
 
 Connection files are generated at execution time, after readiness, and are not stored as configuration-cache values. The plugin writes a separate `host-config` with host paths because the emulator's own `config` contains container paths. Authentication remains enabled. Readiness checks validate both the generated certificate and the endpoint hostname.
 
-The supplied Java trust store contains the emulator certificate only. A consuming JVM that must also reach other HTTPS servers needs a combined trust store; this release does not automatically merge trust roots. Configure that separately in your application if needed. Explicit SDK client endpoint/credential configuration, JVM argument providers, and JVM options injected through the environment can override the plugin's supplied settings; use the normal SDK providers as demonstrated by the example.
+Each opted-in JVM receives a combined trust store containing the emulator certificate, the selected Java launcher's default trust roots (`jssecacerts`, or `cacerts`), and certificates from its configured custom trust store. Configure custom trust with the standard `javax.net.ssl.trustStore`, `trustStoreType`, `trustStorePassword`, and `trustStoreProvider` JVM properties. Relative paths resolve against the consuming task's working directory. JVM argument providers and trust properties in `JAVA_TOOL_OPTIONS`, `JDK_JAVA_OPTIONS`, and `_JAVA_OPTIONS` are resolved at execution time. Source stores and the Gradle daemon's TLS settings are unchanged; private keys are never copied. Invalid trust settings fail the task before the application starts.
+
+Combined stores live under the runtime's `consumer-truststores/` directory and are removed with that runtime. Different certificate sets use separate files, so consumers do not acquire each other's custom trust roots. Explicit SDK client endpoint/credential configuration and application-created SSL contexts can still override the plugin's supplied settings; use the normal SDK providers as demonstrated by the example. See [Credentials and TLS](docs/src/docs/asciidoc/connections.adoc) for custom trust configuration.
 
 Use an AWS SDK version that supports external endpoint configuration. The included example verifies AWS SDK for Java v2 `2.39.6`. An SDK client that hardcodes an endpoint will continue to use it. For operations using host prefixes, Java SDK clients also need `SdkAdvancedClientOption.DISABLE_HOST_PREFIX_INJECTION` in their client override configuration; the environment variable alone does not control this in Java. The endpoint uses `127.0.0.1` to support S3 path-style routing.
 
@@ -536,6 +577,8 @@ spring-boot-plugin/                  optional Spring Boot companion and its publ
 examples/basic/                      runnable Kotlin DSL consumer
 examples/scenarios/                  S3/DynamoDB fixtures and named development scenarios
 examples/spring-boot/                runnable Spring Boot and SQS consumer
+examples/micronaut/                  Micronaut-managed SQS client and framework tests
+examples/ktor/                       Ktor HTTP/SQS route and framework tests
 ```
 
 Tasks are organized by feature, following the module pattern in `gradle-localstack`. `AwsEmulatorPlugin` loads `EmulatorModule` and `AwsModule`; `AwsModule` loads the AWS service modules. Each service package keeps its module, task types, and provisioning helpers together. Modules register or configure tasks lazily when the plugin is applied. The build service owns the runtime lifetime, and everything under `internal` is an implementation detail.
@@ -570,7 +613,7 @@ To run TestKit consumers against another Gradle version:
 
 `-PtestGradleInstallation=/path/to/gradle` can instead use an existing installation. The CI matrix is configured for Gradle 8.14.3 and 9.6.1, Java 17 and 21, and real Docker execution on Linux AMD64 and ARM64. Windows runs the Docker-free suite; Docker integration on Windows has not been verified.
 
-`java-gradle-plugin`, `maven-publish`, and `com.gradle.plugin-publish` generate an implementation artifact and marker publication for each plugin. Build artifacts are in each plugin subproject's `build/libs/`; reports are in `build/reports/tests/`. The core coordinate is `io.github.gregwhitaker:gradle-aws-emulator:0.2.0`; the companion is `io.github.gregwhitaker:gradle-aws-emulator-spring-boot:0.2.0` and depends on the core. Use the composite build above for local development. CI builds all publications in a temporary Maven repository; the release workflow publishes version tags.
+`java-gradle-plugin`, `maven-publish`, and `com.gradle.plugin-publish` generate an implementation artifact and marker publication for each plugin. Build artifacts are in each plugin subproject's `build/libs/`; reports are in `build/reports/tests/`. The core coordinate is `io.github.gregwhitaker:gradle-aws-emulator:0.2.0`; the companion is `io.github.gregwhitaker:gradle-aws-emulator-spring-boot:0.2.0` and depends on the core. Use the composite build above for local development. CI publishes all artifacts to a temporary Maven repository, then builds the independent consumers in `smoke-tests/core` and `smoke-tests/spring-boot` on each Java/Gradle/OS combination. These resolve each plugin ID through its marker and published dependencies without a composite build or TestKit's injected classpath. The release workflow publishes version tags.
 
 ## Publish to the Gradle Plugin Portal
 
@@ -580,10 +623,16 @@ Build and verify the release locally without credentials or uploading artifacts:
 
 ```sh
 ./gradlew build :plugin:publishToMavenLocal :spring-boot-plugin:publishToMavenLocal -Dmaven.repo.local="$PWD/build/publication-check"
+version="$(sed -n 's/^pluginVersion=//p' gradle.properties | tr -d '\r')"
+for consumer in core spring-boot; do
+    ./gradlew -p "smoke-tests/$consumer" build \
+        "-PpluginVersion=$version" "-PpluginRepository=$PWD/build/publication-check" \
+        --configuration-cache --configuration-cache-problems=fail
+done
 ./gradlew dockerTest
 ```
 
-The first command writes the implementation and marker publications to `build/publication-check/` without changing your usual Maven local repository. Portal validation with `--validate-only` also requires publishing credentials and contacts the Portal, but does not upload the release.
+The first command writes the implementation and marker publications to `build/publication-check/` without changing your usual Maven local repository. The smoke consumers restrict emulator artifacts to that repository, verify public task types and transitive dependencies, and package a minimal application with Spring Boot without starting Docker. The companion consumer applies only the companion ID, checking its dependency on the core artifact. Portal validation with `--validate-only` also requires publishing credentials and contacts the Portal, but does not upload the release.
 
 Create a [Plugin Portal account and API key](https://plugins.gradle.org/docs/publish-plugin), linked to the `gregwhitaker` GitHub account so the Portal can verify the plugin namespace. Add the key and secret to this repository's GitHub Actions secrets as `GRADLE_PUBLISH_KEY` and `GRADLE_PUBLISH_SECRET`.
 

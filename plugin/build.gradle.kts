@@ -150,6 +150,17 @@ tasks.register<Test>("integrationTest") {
     shouldRunAfter(tasks.named("test"), functionalTest)
 }
 
+for (testTask in listOf(functionalTest, tasks.named<Test>("integrationTest"))) {
+    testTask.configure {
+        systemProperty("framework.examples", rootProject.layout.projectDirectory.dir("examples").asFile.absolutePath)
+        inputs.files(rootProject.fileTree("examples") {
+            for (framework in listOf("micronaut", "ktor")) {
+                include("$framework/build.gradle.kts", "$framework/settings.gradle.kts", "$framework/src/**")
+            }
+        }).withPropertyName("frameworkExamples").withPathSensitivity(PathSensitivity.RELATIVE)
+    }
+}
+
 tasks.named("check") { dependsOn(functionalTest) }
 tasks.named("publishPlugins") { dependsOn(tasks.named("check")) }
 

@@ -166,9 +166,11 @@ tasks.named<CreateSqsQueueTask>("createApplicationQueue") {
 }
 ```
 
-Use separate setup tasks for consumers that need different modes in the same build. See the [Spring Boot guide](../docs/src/docs/asciidoc/spring-boot.adoc) for more setup details.
+Use reusable resource sets for consumers that need different modes in the same build, or register separate ordinary setup tasks. See the [Spring Boot guide](../docs/src/docs/asciidoc/spring-boot.adoc) for more setup details.
 
 ## Configuration
+
+Use `awsEmulator.springBoot.resourceSets.add(applicationResources)` to attach a reusable set declared in `awsEmulator.resourceSets`. The local tasks provision and seed it in their selected mode. Attach the same definition to managed tests with `awsEmulator.useWith(test, EmulatorMode.MANAGED, applicationResources)` or to a scenario with `resources(applicationResources)`. Each mode gets separate tasks; generated resource-set tasks are excluded from automatic discovery, and explicit sets still run when `autoCreateResources` is false. See the [resource-set guide](../docs/src/docs/asciidoc/scenarios.adoc) for composition and ordering.
 
 Configure these properties in `awsEmulator { springBoot { ... } }`:
 
@@ -180,6 +182,7 @@ Configure these properties in `awsEmulator { springBoot { ... } }`:
 | `autoCreateResources` | `true` | Discover resource-provisioning tasks and run them before the application. |
 | `excludedSetupTasks` | `[]` | Task names or paths to omit from automatic discovery. |
 | `setupTasks` | `[]` | Additional task names or paths that both local tasks depend on. |
+| `resourceSets` | `[]` | Reusable definitions to provision and seed in the application's mode. |
 | `debugPort` | `5005` | Loopback debugger port, from 1 to 65535. |
 | `debugSuspend` | `true` | Wait for a debugger before starting the application in `bootRunLocalDebug`. |
 
@@ -200,6 +203,8 @@ From the repository root, run the Spring Boot console application that sends and
 ```
 
 The second invocation reuses the development emulator. Add `-Pmanaged=true` to select automatic cleanup in this example, or run `bootRunLocalDebug` to attach a debugger. See the [example README](../examples/spring-boot/README.md) for failure-cleanup commands and application source.
+
+For Spring framework integration, run the [Spring Cloud AWS example](../examples/spring-cloud-aws/README.md). Its pinned Boot 3.5.16 / Spring Cloud AWS 3.4.0 pairing covers `@SqsListener`, async clients, `SqsTemplate`, and required SSM/Secrets Manager imports, including managed cleanup and configuration-cache reuse. It uses the same resource definitions for tests, local runs, and scenarios.
 
 ## License
 

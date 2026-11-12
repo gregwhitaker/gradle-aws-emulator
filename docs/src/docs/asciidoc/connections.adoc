@@ -15,7 +15,7 @@ toc::[]
 |Region |The configured `awsEmulator.region`
 |Credentials |The generated `emulator_credentials` file
 |AWS config |A separate `host-config` file with host-side paths
-|TLS trust |The generated `ca.pem` and per-JVM PKCS12 trust store
+|TLS trust |The generated `ca.pem` and a consumer PKCS12 trust store combining default, custom, and emulator certificates
 |Metadata/discovery |EC2 metadata lookup and endpoint discovery disabled
 |Kinesis wire format |JSON through `aws.cborEnabled=false` and `CBOR_ENABLED=false` in opted-in JVMs
 |===
@@ -45,13 +45,34 @@ try (var sts = StsClient.builder()
 
 The environment setting alone does not control host-prefix injection in Java. The endpoint uses `127.0.0.1` to support S3 path-style routing.
 
-Explicit SDK credentials/endpoints, JVM argument providers, and JVM options injected through the environment can override the plugin's values. Use normal SDK providers as shown in the xref:getting-started.adoc#the-complete-example[example application].
+Explicit SDK credentials/endpoints and application-created SSL contexts can override the plugin's values. Use normal SDK providers as shown in the xref:getting-started.adoc#the-complete-example[example application].
 
 == Trusting other HTTPS services
 
-IMPORTANT: The supplied Java trust store contains only the emulator certificate. A consuming JVM that must also reach other HTTPS servers needs a combined trust store. This release does not merge trust roots automatically.
+Each opted-in `Test` or `JavaExec` task, including the companion's local Spring Boot tasks, receives a combined trust store. It contains:
 
-Configure that trust separately in your application. Do not disable certificate verification to work around a trust error.
+* The selected Java launcher's default certificates from `lib/security/jssecacerts`, if present, otherwise `lib/security/cacerts`.
+* Certificates from the consuming task's custom trust store, when configured.
+* The current emulator's CA certificate.
+
+Custom certificates are added to the default roots. Configure a JKS or PKCS12 source store using standard JVM properties on the consuming task:
+
+[source,kotlin]
+----
+tasks.named<Test>("integrationTest") {
+    systemProperty("javax.net.ssl.trustStore", layout.projectDirectory.file("tls/company.jks").asFile.absolutePath)
+    systemProperty("javax.net.ssl.trustStoreType", "JKS")
+    systemProperty("javax.net.ssl.trustStorePassword", providers.environmentVariable("COMPANY_TRUST_STORE_PASSWORD").get())
+}
+----
+
+For Spring Boot, configure these properties on `bootRunLocal` and `bootRunLocalDebug`, or supply `-Djavax.net.ssl...` options through `awsEmulator.springBoot.jvmArgs`. The xref:getting-started.adoc#the-complete-example[basic example] also accepts `-PexampleTrustStore=/path/to/store` and `EXAMPLE_TRUST_STORE_PASSWORD`.
+
+Trust properties supplied through `jvmArgs`, JVM argument providers, `JAVA_TOOL_OPTIONS`, `JDK_JAVA_OPTIONS`, and `_JAVA_OPTIONS` are resolved immediately before launch. Command-line options take precedence over `JAVA_TOOL_OPTIONS` and `JDK_JAVA_OPTIONS`; `_JAVA_OPTIONS` takes precedence over them. Other environment options are retained. Relative trust-store paths resolve against the consuming task's working directory. `trustStoreType` and `trustStoreProvider` are honored when supplied; providers must be available in the Gradle JVM to load the source store. A provider-backed store can use `trustStore=NONE`.
+
+Unreadable stores, incorrect passwords, and unavailable providers fail before the application starts. The plugin does not modify source stores, disable certificate or hostname verification, or copy private keys. Applications configuring their own SSL context must supply their own appropriate trust managers.
+
+The combined certificate-only PKCS12 files use a fixed integrity password supplied to the child JVM; they contain no source-store passwords or private keys. Files are generated under `consumer-truststores/` in the runtime directory and are removed when that runtime stops. Distinct certificate sets have distinct file names, preventing consumers from overwriting each other's trust. The source certificates are read again on every execution, including configuration-cache reuse.
 
 The plugin's own provisioning tasks use per-client trust and explicit emulator connections. Their TLS settings are separate from the consuming application's JVM trust store.
 

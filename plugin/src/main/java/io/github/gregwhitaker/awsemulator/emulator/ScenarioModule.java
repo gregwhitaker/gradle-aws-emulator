@@ -5,6 +5,7 @@ import io.github.gregwhitaker.awsemulator.model.EmulatorMode;
 import org.gradle.api.GradleException;
 import org.gradle.api.Project;
 import org.gradle.api.Task;
+import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.TaskProvider;
 import java.util.*;
 
@@ -65,6 +66,8 @@ final class ScenarioModule {
         List<Object> dependencies = new ArrayList<>();
         var start = project.getTasks().named("startAwsEmulator");
         dependencies.add(start);
+        Object resources = extension.resolveSetup(scenario.resources(), EmulatorMode.DEVELOPMENT);
+        dependencies.add(resources);
         dependencies.addAll(scenario.provisioning());
         dependencies.addAll(scenario.seeding());
         if (activeScenario != null) {
@@ -78,7 +81,9 @@ final class ScenarioModule {
             Task task = provider.get();
             if (!direct.add(task)) throw new GradleException("A task may appear only once in a scenario: " + task.getPath());
             configureResources(task, start, visited);
+            task.dependsOn(resources);
         }
+        configureDefinitions(resources, start, visited);
         TaskProvider<? extends AbstractAwsResourceTask> previous = null;
         for (var provider : scenario.seeding()) {
             var task = provider.get();
@@ -95,13 +100,23 @@ final class ScenarioModule {
         return tasks;
     }
 
+    private void configureDefinitions(Object definitions, TaskProvider<Task> start, Set<Task> visited) {
+        if (definitions instanceof Iterable<?> values) {
+            for (Object value : values) configureDefinitions(value, start, visited);
+        } else if (definitions instanceof Provider<?> provider) {
+            configureDefinitions(provider.get(), start, visited);
+        } else if (definitions instanceof Task task) {
+            configureResources(task, start, visited);
+        }
+    }
+
     private void configureResources(Task task, TaskProvider<Task> start, Set<Task> visited) {
         if (!visited.add(task)) return;
         // Include resource prerequisites so a pre-existing dependsOn chain uses the same runtime.
         for (Task dependency : task.getTaskDependencies().getDependencies(task)) configureResources(dependency, start, visited);
         if (task instanceof AbstractAwsResourceTask resource) {
             if (task.getProject() != project) throw new GradleException("Scenario resource tasks must belong to the same project: " + task.getPath());
-            resource.getMode().set(EmulatorMode.DEVELOPMENT);
+            if (resource.getMode().get() != EmulatorMode.DEVELOPMENT) resource.getMode().set(EmulatorMode.DEVELOPMENT);
             resource.getMode().disallowChanges();
             resource.dependsOn(start);
         }

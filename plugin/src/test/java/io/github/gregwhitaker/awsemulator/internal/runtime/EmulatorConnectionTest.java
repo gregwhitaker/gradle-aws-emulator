@@ -39,13 +39,15 @@ class EmulatorConnectionTest {
         String parentTrustStore = System.getProperty("javax.net.ssl.trustStore");
         String parentCbor = System.getProperty("aws.cborEnabled");
         var props = connection.systemProperties(Map.of("aws.accessKeyId", "real-key", "aws.secretAccessKey", "secret",
-            "aws.endpointUrl.s3", "https://aws.example", "javax.net.ssl.trustStorePassword", "old-password", "custom", "kept"));
+            "aws.endpointUrl.s3", "https://aws.example", "javax.net.ssl.trustStorePassword", "old-password", "custom", "kept"),
+            directory.resolve("consumer.p12"));
         assertFalse(props.containsKey("aws.accessKeyId"));
         assertFalse(props.containsKey("aws.secretAccessKey"));
         assertFalse(props.containsKey("aws.endpointUrl.s3"));
-        assertFalse(props.containsKey("javax.net.ssl.trustStorePassword"));
+        assertEquals(ConsumerTrustStore.PASSWORD, props.get("javax.net.ssl.trustStorePassword"));
+        assertEquals("", props.get("javax.net.ssl.trustStoreProvider"));
         assertEquals("kept", props.get("custom"));
-        assertEquals(directory.resolve("truststore.p12").toString(), props.get("javax.net.ssl.trustStore"));
+        assertEquals(directory.resolve("consumer.p12").toString(), props.get("javax.net.ssl.trustStore"));
         assertEquals(parentTrustStore, System.getProperty("javax.net.ssl.trustStore"));
         assertEquals("false", props.get("aws.cborEnabled"));
         assertEquals(parentCbor, System.getProperty("aws.cborEnabled"));

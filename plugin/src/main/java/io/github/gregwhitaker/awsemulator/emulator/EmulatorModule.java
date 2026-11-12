@@ -20,7 +20,7 @@ public final class EmulatorModule {
     public static void load(Project project) {
         AwsEmulatorExtension extension = registerExtension(project);
         Provider<AwsEmulatorService> service = registerService(project, extension);
-        extension.attach(service);
+        extension.attach(project, service);
         project.getTasks().withType(AbstractAwsEmulatorTask.class).configureEach(task -> {
             task.getRuntime().convention(service);
             task.usesService(service);

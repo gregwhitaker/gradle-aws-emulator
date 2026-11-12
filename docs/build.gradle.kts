@@ -32,6 +32,12 @@ val prepareDocs = tasks.register<Sync>("prepareDocs") {
             "buildSrc/src/main/java/**/*.java")
         into("examples/dynamodb")
     }
+    for (framework in listOf("micronaut", "ktor")) {
+        from(rootProject.layout.projectDirectory.dir("examples/$framework")) {
+            include("settings.gradle.kts", "build.gradle.kts", "src/**")
+            into("examples/$framework")
+        }
+    }
     into(preparedSources)
 }
 

@@ -1,0 +1,160 @@
+= Micronaut & Ktor
+include::_partials/attributes.adoc[]
+:description: Run and test Micronaut and Ktor applications against AWS Emulator using the core Gradle plugin.
+
+Micronaut and Ktor use the core `io.github.gregwhitaker.aws-emulator` plugin. Attach their existing Gradle `run` and `test` tasks with `awsEmulator.useWith(...)`; no additional emulator companion is required. Each application chooses its framework and AWS SDK versions.
+
+The examples use Java 17+, Gradle 8.14+, a local Docker engine with Linux containers, and AWS SDK for Java v2. They perform signed HTTPS requests with normal certificate and hostname validation. No AWS account or AWS CLI is required.
+
+toc::[]
+
+== Run the examples
+
+From the repository root:
+
+[source,shell]
+----
+./gradlew -p examples/micronaut test run --configuration-cache
+./gradlew -p examples/micronaut test run --configuration-cache
+./gradlew -p examples/ktor test run --configuration-cache
+./gradlew -p examples/ktor test run --configuration-cache
+----
+
+Each build provisions an SQS queue before the framework consumers start. Tests and application execution share a fresh managed instance within that project and build. The repeated command reuses the configuration cache while provisioning and consumers execute again. The managed container, generated credentials, and trust stores are removed after the consumers finish, including ordinary failures.
+
+The examples are independent composite builds. `classes testClasses` compiles either example without Docker; `test`, `run`, and `build` require Docker. Applying the plugin or running `help` does not start an emulator.
+
+== Attach an existing application
+
+First xref:getting-started.adoc#apply-from-a-checkout[include this checkout in plugin management] and apply `io.github.gregwhitaker.aws-emulator` alongside your chosen framework plugins. Both integrations use Gradle `JavaExec` and `Test` tasks:
+
+.Kotlin DSL
+[source,kotlin]
+----
+import io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueueTask
+import io.github.gregwhitaker.awsemulator.model.EmulatorMode
+
+val createQueue = tasks.register<CreateSqsQueueTask>("createApplicationQueue") {
+    queueName.set("application-events")
+}
+awsEmulator {
+    port.set(0)
+    useWith(tasks.named<JavaExec>("run"), EmulatorMode.MANAGED, createQueue)
+    useWith(tasks.named<Test>("test"), EmulatorMode.MANAGED, createQueue)
+}
+----
+
+.Groovy DSL
+[source,groovy]
+----
+import io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueueTask
+import io.github.gregwhitaker.awsemulator.model.EmulatorMode
+
+def createQueue = tasks.register('createApplicationQueue', CreateSqsQueueTask) {
+    queueName.set('application-events')
+}
+awsEmulator {
+    port.set(0)
+    useWith(tasks.named('run'), EmulatorMode.MANAGED, createQueue)
+    useWith(tasks.named('test'), EmulatorMode.MANAGED, createQueue)
+}
+----
+
+Task names above refer to tasks supplied by the application's existing plugins. Only explicitly selected consumers receive the emulator connection. Setup task modes must match their consumers. See xref:testing.adoc[Tests & Java execution] for source sets and additional consumer configuration.
+
+== Micronaut
+
+The Java example uses the Micronaut application plugin and `micronaut-aws-sdk-v2`. Micronaut creates the injected `SqsClient`, and both the main application and `@MicronautTest` call the same `Messages` bean. The console application sends and receives a message, then closes its application context.
+
+The SDK reads the execution-time connection supplied by Gradle. Keep emulator consumers on the normal SDK providers. Micronaut-specific endpoint overrides or custom credential beans can take precedence; scope production settings to other environments. The example uses the URLConnection HTTP client and leaves TLS verification enabled. See the https://micronaut-projects.github.io/micronaut-aws/4.11.0/guide/[Micronaut AWS guide] for its client configuration.
+
+The example does not apply Micronaut Test Resources. If an existing application uses that plugin to provision AWS/LocalStack, disable that competing AWS provider for emulator consumers. Other services may still use their own test resources.
+
+.View the Micronaut build
+[%collapsible]
+====
+[source,kotlin]
+----
+include::examples/micronaut/build.gradle.kts[]
+----
+====
+
+.View the framework-managed SQS consumer
+[%collapsible]
+====
+[source,java]
+----
+include::examples/micronaut/src/main/java/example/Messages.java[]
+----
+====
+
+== Ktor
+
+The Kotlin example applies the Kotlin JVM and Ktor Gradle plugins. Its main function starts a Netty server on a loopback port, requests `/message`, verifies the SQS round trip, and stops the server. Its JUnit 5 test uses https://ktor.io/docs/server-testing.html[Ktor's `testApplication` engine] to exercise the same route against the emulator.
+
+The application creates an AWS SDK for Java v2 client using the normal endpoint, region, credential, and TLS settings. Blocking SDK calls run on `Dispatchers.IO`; the client closes when the application stops. Ktor does not need an AWS-specific configuration adapter for this setup.
+
+.View the Ktor build
+[%collapsible]
+====
+[source,kotlin]
+----
+include::examples/ktor/build.gradle.kts[]
+----
+====
+
+.View the HTTP application and SQS route
+[%collapsible]
+====
+[source,kotlin]
+----
+include::examples/ktor/src/main/kotlin/example/Application.kt[]
+----
+====
+
+== Development, debugging, and failures
+
+Both example builds accept `-Pdevelopment=true` for application runs. Use either example path:
+
+[source,shell]
+----
+./gradlew -p examples/micronaut run -Pdevelopment=true --configuration-cache
+./gradlew -p examples/micronaut run -Pdevelopment=true --configuration-cache
+./gradlew -p examples/micronaut listSqsQueues
+./gradlew -p examples/micronaut stopAwsEmulator
+----
+
+The application still exits after its round trip. Its development emulator survives success or failure and is reused until explicitly stopped. `test` always uses a managed instance, even with `-Pdevelopment=true`. The examples register separate setup tasks so managed tests and development runs cannot accidentally target the same runtime.
+
+To debug either example, run `run --debug-jvm` and attach to port 5005. Gradle suspends the JVM until a debugger connects. The emulator and queue are ready before the application JVM starts.
+
+To exercise managed cleanup after application or test failure:
+
+[source,shell]
+----
+./gradlew -p examples/ktor run -PfailExample=true
+./gradlew -p examples/ktor test -PfailExample=true
+----
+
+These commands intentionally fail after completing their SDK round trip. The same commands work with `examples/micronaut`.
+
+== Compatibility and verification
+
+[cols="1,2,2",options="header"]
+|===
+|Framework |Docker-free compatibility fixtures |Real-emulator fixtures
+|Micronaut |Platform 4.9.4 and 4.10.24; Micronaut Gradle plugin 4.6.2 |Platform 4.10.24
+|Ktor |3.5.2 and 3.6.1; Kotlin 2.4.21 |Ktor 3.6.1
+|===
+
+The Docker-free suite compiles both applications and their tests, verifies setup ordering and runtime selection, and checks configuration-cache reuse without invoking Docker. It runs under the repository's JDK/Gradle CI matrix. Override the example framework version with `-PmicronautVersion=4.9.4` or `-PktorVersion=3.5.2` to reproduce the alternate fixture.
+
+The real-emulator suite checks framework consumers, signed HTTPS, inherited credential/endpoint replacement, managed runtime sharing and failure cleanup, development reuse, and isolation between development runs and managed tests. Both suites copy the runnable examples, so the documented sources are the compatibility fixtures.
+
+[source,shell]
+----
+./gradlew :plugin:functionalTest --tests '*FrameworkCompatibilityFunctionalTest'
+./gradlew :plugin:integrationTest --tests '*FrameworkIntegrationTest'
+----
+
+Verified support covers JVM `run` and `Test` consumers using AWS SDK for Java v2. Native images, Kotlin multiplatform or AWS SDK for Kotlin, and continuous restart or automatic reload workflows are outside this compatibility scope. IDE launches must delegate to the opted-in Gradle task to receive the generated connection. See xref:connections.adoc[Credentials & TLS] for client-level overrides and trust configuration.

@@ -19,52 +19,53 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
-val createAssets = tasks.register<CreateS3BucketTask>("createAssets") {
-    bucketName.set("scenario-assets")
+val infrastructure = awsEmulator.resourceSets.register("infrastructure") {
+    provision("assets", CreateS3BucketTask::class.java) {
+        bucketName.set("scenario-assets")
+    }
+    provision("products", CreateDynamoDbTableTask::class.java) {
+        tableName.set("scenario-products")
+        keySchema.add(KeySchemaElement.builder().attributeName("id").keyType(KeyType.HASH).build())
+        attributeDefinitions.add(AttributeDefinition.builder().attributeName("id").attributeType(ScalarAttributeType.S).build())
+    }
 }
-val createProducts = tasks.register<CreateDynamoDbTableTask>("createProducts") {
-    tableName.set("scenario-products")
-    keySchema.add(KeySchemaElement.builder().attributeName("id").keyType(KeyType.HASH).build())
-    attributeDefinitions.add(AttributeDefinition.builder().attributeName("id").attributeType(ScalarAttributeType.S).build())
+val assets = awsEmulator.resourceSets.register("assets") {
+    include(infrastructure)
+    seed("files", UploadS3DirectoryTask::class.java) {
+        bucketName.set("scenario-assets")
+        sourceDirectory.set(layout.projectDirectory.dir("fixtures/assets"))
+        prefix.set("assets")
+        metadata.put("fixture", "scenario-example")
+    }
+    seed("config", UploadS3ObjectTask::class.java) {
+        bucketName.set("scenario-assets")
+        objectKey.set("settings/app.json")
+        sourceFile.set(layout.projectDirectory.file("fixtures/app.json"))
+        contentType.set("application/json")
+    }
 }
-val uploadAssets = tasks.register<UploadS3DirectoryTask>("uploadAssets") {
-    dependsOn(createAssets)
-    bucketName.set(createAssets.flatMap { it.bucketName })
-    sourceDirectory.set(layout.projectDirectory.dir("fixtures/assets"))
-    prefix.set("assets")
-    metadata.put("fixture", "scenario-example")
+val demo = awsEmulator.resourceSets.register("demo") {
+    include(assets)
+    seed("products", PutDynamoDbItemsTask::class.java) {
+        tableName.set("scenario-products")
+        itemsFile.set(layout.projectDirectory.file("fixtures/products.json"))
+    }
 }
-val uploadConfig = tasks.register<UploadS3ObjectTask>("uploadConfig") {
-    dependsOn(createAssets)
-    bucketName.set(createAssets.flatMap { it.bucketName })
-    objectKey.set("settings/app.json")
-    sourceFile.set(layout.projectDirectory.file("fixtures/app.json"))
-    contentType.set("application/json")
-}
-val seedProducts = tasks.register<PutDynamoDbItemsTask>("seedProducts") {
-    dependsOn(createProducts)
-    tableName.set(createProducts.flatMap { it.tableName })
-    itemsFile.set(layout.projectDirectory.file("fixtures/products.json"))
-}
-val seedFailedOrders = tasks.register<PutDynamoDbItemsTask>("seedFailedOrders") {
-    dependsOn(createProducts)
-    tableName.set(createProducts.flatMap { it.tableName })
-    itemsFile.set(layout.projectDirectory.file("fixtures/failed-orders.json"))
+val failedOrders = awsEmulator.resourceSets.register("failed-orders") {
+    include(assets)
+    seed("products", PutDynamoDbItemsTask::class.java) {
+        tableName.set("scenario-products")
+        itemsFile.set(layout.projectDirectory.file("fixtures/failed-orders.json"))
+    }
 }
 
 awsEmulator {
     port.set(0)
     defaultScenario.set("demo")
     scenarios {
-        register("demo") {
-            provision(createAssets, createProducts)
-            seed(uploadAssets, uploadConfig, seedProducts)
-        }
-        register("empty") { provision(createAssets, createProducts) }
-        register("failed-orders") {
-            provision(createAssets, createProducts)
-            seed(uploadAssets, uploadConfig, seedFailedOrders)
-        }
+        register("demo") { resources(demo) }
+        register("empty") { resources(infrastructure) }
+        register("failed-orders") { resources(failedOrders) }
     }
 }
 
@@ -93,5 +94,5 @@ val verifyFixtures = tasks.register<Test>("verifyFixtures") {
 }
 awsEmulator {
     useWith(verifyScenario, EmulatorMode.DEVELOPMENT, "seedAwsEmulator")
-    useWith(verifyFixtures, EmulatorMode.MANAGED, uploadAssets, uploadConfig, seedProducts)
+    useWith(verifyFixtures, EmulatorMode.MANAGED, demo)
 }

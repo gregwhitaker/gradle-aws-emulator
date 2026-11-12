@@ -21,7 +21,8 @@ final class SpringBootResourceSetup {
         Set<String> excluded = new HashSet<>(extension.getExcludedSetupTasks().get());
         List<Task> setup = new ArrayList<>();
         for (Task task : project.getTasks().withType(AbstractAwsResourceTask.class).matching(candidate ->
-                candidate.getClass().isAnnotationPresent(AwsEmulatorSetupTask.class))) {
+                candidate.getClass().isAnnotationPresent(AwsEmulatorSetupTask.class)
+                    && !candidate.getExtensions().getExtraProperties().has("awsEmulatorResourceSet"))) {
             if (!excluded.contains(task.getName()) && !excluded.contains(task.getPath())) setup.add(task);
         }
         Set<Task> visited = new HashSet<>();
