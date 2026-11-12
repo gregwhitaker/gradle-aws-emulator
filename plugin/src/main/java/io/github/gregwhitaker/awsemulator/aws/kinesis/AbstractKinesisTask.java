@@ -2,10 +2,12 @@ package io.github.gregwhitaker.awsemulator.aws.kinesis;
 
 import io.github.gregwhitaker.awsemulator.aws.AbstractAwsResourceTask;
 import org.gradle.workers.WorkerExecutor;
+import org.gradle.work.DisableCachingByDefault;
 import javax.inject.Inject;
 import java.util.List;
 
 /** Runs Kinesis SDK operations in a worker JVM so its JSON setting cannot affect other build clients. */
+@DisableCachingByDefault(because = "Uses live emulator resources")
 public abstract class AbstractKinesisTask extends AbstractAwsResourceTask {
     @Inject protected abstract WorkerExecutor getWorkerExecutor();
 
