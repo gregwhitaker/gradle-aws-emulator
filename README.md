@@ -109,9 +109,7 @@ Micronaut and Ktor use the core plugin with their existing `run` and `test` task
 
 ## Examples
 
-See the [examples README](examples/README.md) for runnable examples and instructions.
-
-The [SES example](examples/ses/README.md) provisions email identities and templates, sends simple/raw messages, and verifies simulated SNS/SQS notifications. See the [SES guide](docs/src/docs/asciidoc/ses.adoc) for task configuration and the pinned emulator's limitations, including the absence of SMTP forwarding to MailHog or Mailpit.
+Browse the [examples](examples/README.md) and follow the included instructions to run them locally.
 
 ## Documentation
 
