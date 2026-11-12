@@ -75,6 +75,45 @@ class EmulatorRuntimeTest {
     }
 
     @Test
+    void interruptedStartupStillCleansUpAndRestoresInterrupt() throws Exception {
+        FakeDocker docker = new FakeDocker();
+        EmulatorRuntime runtime = new EmulatorRuntime(settings(), docker, (port, store) -> {
+            Thread.currentThread().interrupt();
+            return false;
+        });
+        try {
+            GradleException failure = assertThrows(GradleException.class, runtime::managedConnection);
+            assertTrue(failure.getMessage().contains("Interrupted waiting"));
+            assertTrue(Thread.currentThread().isInterrupted(), "Cleanup must restore cancellation");
+        } finally {
+            Thread.interrupted();
+        }
+        assertTrue(docker.containers.isEmpty());
+        assertEquals("fake emulator log", archivedLogs());
+        try (var files = Files.list(directory)) {
+            assertFalse(files.anyMatch(file -> file.getFileName().toString().startsWith("managed-")));
+        }
+    }
+
+    @Test
+    void interruptedCloseStillCleansUpAndRestoresInterrupt() throws Exception {
+        FakeDocker docker = new FakeDocker();
+        EmulatorRuntime runtime = new EmulatorRuntime(settings(), docker, (port, store) -> true);
+        var connection = runtime.managedConnection();
+        try {
+            Thread.currentThread().interrupt();
+            runtime.close();
+            assertTrue(Thread.currentThread().isInterrupted(), "Cleanup must restore cancellation");
+        } finally {
+            Thread.interrupted();
+        }
+        assertTrue(docker.containers.isEmpty());
+        assertFalse(Files.exists(connection.directory()));
+        assertEquals("fake emulator log", archivedLogs());
+        runtime.close();
+    }
+
+    @Test
     void refusesToStopForeignContainerWithTheSameName() {
         FakeDocker docker = new FakeDocker();
         docker.containers.put(settings().developmentName(), new FakeContainer("other", "foreign", "config", "9297", directory));
@@ -232,14 +271,43 @@ class EmulatorRuntimeTest {
         try (var lease = workspace.tryManagedLease(home, true)) {
             assertNotNull(lease);
             assertNull(workspace.tryManagedLease(home, false));
-            String executable = System.getProperty("os.name").startsWith("Windows") ? "java.exe" : "java";
-            String java = Path.of(System.getProperty("java.home"), "bin", executable).toString();
-            String classes = Path.of(LeaseProbe.class.getProtectionDomain().getCodeSource().getLocation().toURI()).toString();
-            var result = new io.github.gregwhitaker.awsemulator.internal.docker.ProcessCommandRunner().run(
-                List.of(java, "-cp", classes, LeaseProbe.class.getName(), workspace.managedLock(home).toString()), Duration.ofSeconds(10));
-            assertEquals(3, result.exitCode(), "An external process must still see the active lease");
+            assertExternallyLocked(workspace.managedLock(home));
         }
         try (var lease = workspace.tryManagedLease(home, false)) { assertNotNull(lease); }
+    }
+
+    @Test
+    void competingDevelopmentOperationDoesNotReleaseItsCrossProcessLock() throws Exception {
+        EmulatorWorkspace workspace = new EmulatorWorkspace(settings());
+        workspace.withLock("development.lock", () -> {
+            assertThrows(GradleException.class,
+                () -> workspace.withLock("development.lock", () -> "must not execute"));
+            try {
+                assertExternallyLocked(directory.resolve("development.lock"));
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+            return null;
+        });
+        assertEquals("released", workspace.withLock("development.lock", () -> "released"));
+    }
+
+    @Test
+    void developmentLockIsReleasedWhenOperationFails() {
+        EmulatorWorkspace workspace = new EmulatorWorkspace(settings());
+        IllegalStateException failure = new IllegalStateException("fixture failure");
+        assertSame(failure, assertThrows(IllegalStateException.class,
+            () -> workspace.withLock("development.lock", () -> { throw failure; })));
+        assertEquals("released", workspace.withLock("development.lock", () -> "released"));
+    }
+
+    private static void assertExternallyLocked(Path lock) throws Exception {
+        String executable = System.getProperty("os.name").startsWith("Windows") ? "java.exe" : "java";
+        String java = Path.of(System.getProperty("java.home"), "bin", executable).toString();
+        String classes = Path.of(LeaseProbe.class.getProtectionDomain().getCodeSource().getLocation().toURI()).toString();
+        var result = new io.github.gregwhitaker.awsemulator.internal.docker.ProcessCommandRunner().run(
+            List.of(java, "-cp", classes, LeaseProbe.class.getName(), lock.toString()), Duration.ofSeconds(10));
+        assertEquals(3, result.exitCode(), "An external process must still see the active lease");
     }
 
     public static class LeaseProbe {
@@ -280,6 +348,7 @@ class EmulatorRuntimeTest {
 
         @Override
         public Result run(List<String> command, Duration timeout) {
+            if (Thread.currentThread().isInterrupted()) throw new GradleException("Interrupted Docker command");
             calls.add(List.copyOf(command));
             if (command.get(0).equals("id")) return new Result(0, "1000");
             List<String> args = command.subList(1, command.size());

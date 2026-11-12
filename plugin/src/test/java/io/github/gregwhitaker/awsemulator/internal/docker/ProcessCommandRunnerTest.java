@@ -17,7 +17,9 @@ class ProcessCommandRunnerTest {
         Path output = directory.resolve("container.log");
         var result = new ProcessCommandRunner().runToFile(command("flood"), Duration.ofSeconds(10), output);
         assertEquals(7, result.exitCode());
-        assertEquals("A".repeat(131072) + "complete", Files.readString(output));
+        // The JVM can prepend launcher diagnostics (for example, when JAVA_TOOL_OPTIONS is set).
+        assertTrue(Files.readString(output).endsWith("A".repeat(131072) + "complete"),
+            "The full child output must be archived without truncation");
         assertThrows(GradleException.class, () -> new ProcessCommandRunner().runToFile(command("pause"), Duration.ofMillis(300), output));
     }
 
