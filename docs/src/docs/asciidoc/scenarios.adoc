@@ -1,0 +1,183 @@
+= Data fixtures & development scenarios
+include::_partials/attributes.adoc[]
+:description: Load S3 files and DynamoDB JSON items, select named development datasets, and reset and reseed the emulator.
+
+Use typed data tasks on their own, or combine provisioning and fixtures into a named development scenario. The plugin creates an ordinary Gradle dependency graph, so failures propagate and configuration-cache reuse still runs the live resource operations.
+
+toc::[]
+
+== Try the example
+
+From the repository root, with Docker running:
+
+[source,shell]
+----
+./gradlew -p examples/scenarios seedAwsEmulator --configuration-cache
+./gradlew -p examples/scenarios verifyScenario --configuration-cache
+./gradlew -p examples/scenarios resetAwsEmulator -PawsEmulator.scenario=empty
+./gradlew -p examples/scenarios resetAwsEmulatorFailedOrders
+./gradlew -p examples/scenarios stopAwsEmulator
+----
+
+The link:{repo-url}/tree/main/examples/scenarios[runnable example] defines `demo`, `empty`, and `failed-orders`. `demo` loads files and products; `empty` creates resources without data; `failed-orders` loads a failed payment record.
+
+== Upload and inspect S3 objects
+
+[source,kotlin]
+----
+import io.github.gregwhitaker.awsemulator.aws.s3.*
+
+val createAssets = tasks.register<CreateS3BucketTask>("createAssets") {
+    bucketName.set("application-assets")
+}
+val uploadAssets = tasks.register<UploadS3DirectoryTask>("uploadAssets") {
+    dependsOn(createAssets)
+    bucketName.set(createAssets.flatMap { it.bucketName })
+    sourceDirectory.set(layout.projectDirectory.dir("fixtures/assets"))
+    prefix.set("assets")
+    contentTypes.put("json", "application/json")
+    metadata.put("fixture", "local-development")
+}
+----
+
+`fixtures/assets/nested/example.json` becomes `assets/nested/example.json`. Relative paths are preserved, directory traversal is deterministic, and a missing trailing slash is added to a nonempty prefix. Symbolic links in fixture directories are rejected. An empty directory uploads nothing.
+
+Common extensions have fixed MIME mappings: JSON, plain text, CSV, HTML, CSS, JavaScript, XML, PDF, SVG, PNG, JPEG, GIF, and WebP. Unknown extensions use `application/octet-stream`. `contentTypes` overrides use lowercase extensions without a dot. `UploadS3ObjectTask.contentType` overrides inference for one file. User metadata is passed to S3 alongside the content type.
+
+Uploads replace objects at matching keys and preserve other objects. They do not synchronize deletions. Use `PurgeS3BucketsTask` or a scenario reset for a clean bucket.
+
+[cols="2,2,3",options="header"]
+|===
+|Task type |Required properties |Optional properties
+|`UploadS3ObjectTask` |`bucketName`, `objectKey`, `sourceFile` |`contentType`, `metadata` (empty)
+|`UploadS3DirectoryTask` |`bucketName`, `sourceDirectory` |`prefix` (empty), `contentTypes` (empty), `metadata` (empty)
+|`ListS3ObjectsTask` |`bucketName` |`prefix` (empty)
+|`DownloadS3ObjectTask` |`bucketName`, `objectKey`, `outputFile` |None
+|===
+
+All four types also accept `mode` and `apiCallTimeoutSeconds`. Custom instances default to `MANAGED`. Buckets must exist before object tasks execute; declare `dependsOn` on their creation tasks.
+
+The registered `listS3Objects` command defaults to `DEVELOPMENT`, follows all response pages, and prints keys and sizes:
+
+[source,shell]
+----
+./gradlew listS3Objects --bucketName=application-assets --prefix=assets/
+----
+
+Register downloads with an explicit local output file. Object keys are never interpreted as filesystem paths. The destination is replaced only after the full download succeeds. Downloads rerun even when the local file already exists.
+
+== Seed and clear DynamoDB items
+
+`PutDynamoDbItemsTask` reads a nonempty JSON array of DynamoDB attribute maps. Use explicit https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_AttributeValue.html[AttributeValue type tags] to preserve number precision, binary data, sets, lists, and maps:
+
+.fixtures/products.json
+[source,json]
+----
+[
+  {
+    "id": {"S": "book"},
+    "price": {"N": "12.50"},
+    "available": {"BOOL": true},
+    "tags": {"SS": ["demo", "books"]},
+    "details": {"M": {"ratings": {"L": [{"N": "5"}, {"N": "4"}]}}},
+    "attachment": {"B": "AAH/"}
+  }
+]
+----
+
+[source,kotlin]
+----
+import io.github.gregwhitaker.awsemulator.aws.dynamodb.PutDynamoDbItemsTask
+
+// createProducts is a CreateDynamoDbTableTask; see the DynamoDB table guide.
+val seedProducts = tasks.register<PutDynamoDbItemsTask>("seedProducts") {
+    dependsOn(createProducts)
+    tableName.set(createProducts.flatMap { it.tableName })
+    itemsFile.set(layout.projectDirectory.file("fixtures/products.json"))
+}
+----
+
+The parser validates the whole fixture before sending any writes, rejects duplicate JSON fields and invalid type values, and limits fixture files to 16 MiB. Each entry needs the table's complete primary key. Duplicate primary keys are rejected before any writes. Fixture parsing errors omit values.
+
+Imports replace the entire existing item when its primary key matches; other items remain. The task sends batches of up to 25 writes and retries only unprocessed items with exponential backoff capped at 2 seconds. `maxRetries` defaults to `8`; `retryDelayMillis` defaults to `100`. These retries supplement the SDK's request retries. Batch imports are not transactional: a failure can leave earlier writes applied. DynamoDB's per-item limits still apply. See https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html[BatchWriteItem behavior].
+
+`PurgeDynamoDbTableTask` scans primary keys across every page, then deletes those items in batches. It preserves the table and indexes and uses the same retry properties. Stop writers while clearing a table; items written after the scan are not included. The registered development command requires an explicit table name:
+
+[source,shell]
+----
+./gradlew purgeDynamoDbTable --tableName=application-products
+----
+
+Both item task types accept `tableName`, `mode`, `apiCallTimeoutSeconds`, `maxRetries`, and `retryDelayMillis`. `PutDynamoDbItemsTask` additionally requires `itemsFile`. Custom instances use `MANAGED`; the registered purge command uses `DEVELOPMENT`.
+
+== Define development scenarios
+
+Reuse typed task providers rather than copying their configuration into a separate fixture format:
+
+[source,kotlin]
+----
+awsEmulator {
+    defaultScenario.set("demo")
+    scenarios {
+        register("demo") {
+            provision(createAssets, createProducts)
+            seed(uploadAssets, seedProducts)
+        }
+        register("empty") {
+            provision(createAssets, createProducts)
+        }
+    }
+}
+----
+
+The same methods work in Groovy:
+
+[source,groovy]
+----
+awsEmulator {
+    defaultScenario.set('demo')
+    scenarios {
+        register('demo') {
+            provision(createAssets, createProducts)
+            seed(uploadAssets, seedProducts)
+        }
+        register('empty') { provision(createAssets, createProducts) }
+    }
+}
+----
+
+Provisioning follows the tasks' `dependsOn` relationships; unrelated provisioning tasks can run in parallel. Every seed waits for all provisioning, and seeds run in declaration order. A provisioning or seed failure skips dependent seeds, including with `--continue`.
+
+Only the selected scenario's resource tasks are added to the command's dependency graph. Its resource tasks and resource prerequisites are bound to `DEVELOPMENT` for that invocation and leave the emulator running. They must belong to the same Gradle project. Do not use those same task instances for managed consumers in the same invocation; register separate tasks or run managed verification separately. Existing scenarios can share task providers across separate invocations.
+
+Choose one scenario per project per Gradle invocation. Names start with a lowercase letter and contain letters, numbers, or single hyphens. Names must produce distinct generated task names: `failed-orders` becomes `FailedOrders`.
+
+[cols="2,3",options="header"]
+|===
+|Command |Behavior
+|`seedAwsEmulator` |Start or reuse the development instance, provision resources, and seed the selected scenario. Preserve unrelated state.
+|`resetAwsEmulator` |Restart the development instance first, then provision and seed the selected scenario.
+|`seedAwsEmulatorDemo` |Seed `demo` regardless of the default or selection property.
+|`resetAwsEmulatorDemo` |Restart and seed `demo` explicitly.
+|===
+
+`-PawsEmulator.scenario=<name>` selects a scenario for the generic commands and takes precedence over `awsEmulator.defaultScenario`. The default name is `default`; it must be registered, or set `defaultScenario` to a registered name. Unknown names fail before lifecycle tasks execute. Listing tasks and requesting help do not start Docker.
+
+IMPORTANT: Reset removes *all resources* in this project's development emulator, including resources outside the selected scenario and in other services. It then reloads only the chosen scenario. It does not affect the separate managed instance or another project's emulator. Use reset when switching from a populated scenario to `empty`; seed alone does not remove old data.
+
+`restartAwsEmulator` retains its existing behavior: restart with empty state, without provisioning or fixtures. Reset builds on that lifecycle operation; it is not a persisted snapshot.
+
+== Start application tasks after seeding
+
+Add the scenario command as setup for a development consumer:
+
+[source,kotlin]
+----
+import io.github.gregwhitaker.awsemulator.model.EmulatorMode
+
+awsEmulator {
+    useWith(tasks.named<JavaExec>("run"), EmulatorMode.DEVELOPMENT, "seedAwsEmulator")
+}
+----
+
+You can also reference a generated scenario task directly, such as `seedAwsEmulatorDemo`. For managed tests, pass the individual provisioning and fixture tasks to `useWith` in `MANAGED` mode instead. The example's `verifyFixtures` task demonstrates that separate workflow.

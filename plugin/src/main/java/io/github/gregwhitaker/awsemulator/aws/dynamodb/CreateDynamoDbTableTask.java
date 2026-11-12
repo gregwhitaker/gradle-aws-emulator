@@ -1,5 +1,6 @@
 package io.github.gregwhitaker.awsemulator.aws.dynamodb;
 
+import io.github.gregwhitaker.awsemulator.core.annotation.AwsEmulatorSetupTask;
 import io.github.gregwhitaker.awsemulator.aws.internal.AwsClientFactory;
 import org.gradle.api.provider.ListProperty;
 import org.gradle.api.provider.Property;
@@ -12,6 +13,7 @@ import java.util.List;
 
 /** Creates a table, waits for ACTIVE, and optionally initializes a newly created table. */
 @DisableCachingByDefault(because = "Provisions live emulator resources")
+@AwsEmulatorSetupTask
 public abstract class CreateDynamoDbTableTask extends AbstractDynamoDbTableTask {
     public CreateDynamoDbTableTask() {
         getGlobalSecondaryIndexes().convention(List.of());

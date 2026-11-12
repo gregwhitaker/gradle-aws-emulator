@@ -1,5 +1,6 @@
 package io.github.gregwhitaker.awsemulator.aws.ssm;
 
+import io.github.gregwhitaker.awsemulator.core.annotation.AwsEmulatorSetupTask;
 import io.github.gregwhitaker.awsemulator.aws.AbstractAwsResourceTask;
 import io.github.gregwhitaker.awsemulator.aws.internal.*;
 import org.gradle.api.GradleException;
@@ -13,6 +14,7 @@ import java.util.Map;
 
 /** Creates or reuses a Parameter Store value; changing an existing value requires overwrite=true. */
 @DisableCachingByDefault(because = "Uses live emulator resources")
+@AwsEmulatorSetupTask
 public abstract class PutSsmParameterTask extends AbstractAwsResourceTask {
     public PutSsmParameterTask() { getOverwrite().convention(false); getType().convention("String"); }
     @Input public abstract Property<String> getParameterName();

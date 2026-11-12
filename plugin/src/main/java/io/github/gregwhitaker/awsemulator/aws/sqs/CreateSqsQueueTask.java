@@ -1,5 +1,6 @@
 package io.github.gregwhitaker.awsemulator.aws.sqs;
 
+import io.github.gregwhitaker.awsemulator.core.annotation.AwsEmulatorSetupTask;
 import io.github.gregwhitaker.awsemulator.aws.internal.AwsClientFactory;
 import io.github.gregwhitaker.awsemulator.aws.AbstractAwsResourceTask;
 import org.gradle.api.provider.MapProperty;
@@ -12,6 +13,7 @@ import java.util.Map;
 
 /** Creates or reuses a standard or FIFO queue in AWS Emulator. */
 @DisableCachingByDefault(because = "Provisions live emulator resources")
+@AwsEmulatorSetupTask
 public abstract class CreateSqsQueueTask extends AbstractAwsResourceTask {
     public CreateSqsQueueTask() { getAttributes().convention(Map.of()); }
 

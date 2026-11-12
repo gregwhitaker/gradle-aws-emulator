@@ -1,5 +1,6 @@
 package io.github.gregwhitaker.awsemulator.aws.sqs;
 
+import io.github.gregwhitaker.awsemulator.core.annotation.AwsEmulatorSetupTask;
 import io.github.gregwhitaker.awsemulator.aws.internal.AwsClientFactory;
 import org.gradle.api.provider.MapProperty;
 import org.gradle.api.tasks.Input;
@@ -9,6 +10,7 @@ import java.util.Map;
 
 /** Creates or reuses multiple queues with common attributes. */
 @DisableCachingByDefault(because = "Provisions live emulator resources")
+@AwsEmulatorSetupTask
 public abstract class CreateSqsQueuesTask extends AbstractSqsQueuesTask {
     public CreateSqsQueuesTask() { getQueueAttributes().convention(Map.of()); }
 

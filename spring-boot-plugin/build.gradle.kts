@@ -38,6 +38,7 @@ dependencies {
     // The consuming application supplies Spring Boot. Its classes are resolved from that plugin's loader.
     testImplementation(platform("org.junit:junit-bom:5.11.4"))
     testImplementation("org.junit.jupiter:junit-jupiter")
+    testImplementation(project(":plugin"))
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     for (testSourceSet in listOf(functionalSourceSet, integrationSourceSet)) {
         add(testSourceSet.implementationConfigurationName, project(":spring-boot-plugin"))

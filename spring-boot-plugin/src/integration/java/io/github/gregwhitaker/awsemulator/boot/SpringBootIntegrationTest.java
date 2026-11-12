@@ -24,6 +24,9 @@ class SpringBootIntegrationTest {
             String development = containers();
             assertFalse(development.isBlank());
             String connection = Files.readString(project.resolve("connection.txt"));
+            // Boot's automatic main-class discovery observes class directories before the first compilation.
+            // Their creation can invalidate its first cache entry; subsequent builds must reuse it.
+            runner(project, "bootRunLocal").build();
             String repeat = runner(project, "bootRunLocal").build().getOutput();
             assertTrue(repeat.contains("Reusing configuration cache"), repeat);
             assertTrue(repeat.contains("BOOT_EMULATOR_VERIFIED"), repeat);
@@ -48,11 +51,11 @@ class SpringBootIntegrationTest {
         fixture("4.1.2");
         int port;
         try (ServerSocket socket = new ServerSocket(0)) { port = socket.getLocalPort(); }
-        for (int run = 0; run < 2; run++) {
+        for (int run = 0; run < 3; run++) {
             String output = runner(project, "bootRunLocalDebug", "-Pmanaged=true", "-PdebugPort=" + port).build().getOutput();
             assertTrue(output.contains("BOOT_EMULATOR_VERIFIED"), output);
             assertTrue(output.contains("Listening for transport dt_socket at address:"), output);
-            if (run > 0) assertTrue(output.contains("Reusing configuration cache"), output);
+            if (run > 1) assertTrue(output.contains("Reusing configuration cache"), output);
             assertCredentialsRemoved();
             assertEquals("", containers());
         }
@@ -78,14 +81,12 @@ class SpringBootIntegrationTest {
             }
             awsEmulator { port.set(0) }
             springBootEmulator {
-                mode.set(providers.gradleProperty('managed').map { EmulatorMode.MANAGED }.orElse(EmulatorMode.DEVELOPMENT))
+                mode.set(providers.gradleProperty('managed').isPresent() ? EmulatorMode.MANAGED : EmulatorMode.DEVELOPMENT)
                 jvmArgs.add('-Dfixture.additional=true')
                 debugSuspend.set(false)
                 debugPort.set(providers.gradleProperty('debugPort').map { it.toInteger() }.orElse(5005))
-                setupTasks.add('createApplicationQueue')
             }
             tasks.register('createApplicationQueue', CreateSqsQueueTask) {
-                mode.set(springBootEmulator.mode)
                 queueName.set('boot-fixture-events')
             }
             tasks.named('bootRun') {

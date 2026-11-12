@@ -19,10 +19,8 @@ dependencies {
 awsEmulator { port.set(0) }
 springBootEmulator {
     profiles.set(listOf("local"))
-    mode.set(providers.gradleProperty("managed").map { EmulatorMode.MANAGED }.orElse(EmulatorMode.DEVELOPMENT))
-    setupTasks.add("createApplicationQueue")
+    mode.set(if (providers.gradleProperty("managed").isPresent) EmulatorMode.MANAGED else EmulatorMode.DEVELOPMENT)
 }
 tasks.register<CreateSqsQueueTask>("createApplicationQueue") {
-    mode.set(springBootEmulator.mode)
     queueName.set("spring-boot-example-events")
 }

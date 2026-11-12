@@ -14,6 +14,11 @@ public final class DynamoDbModule {
         configure(project, CreateDynamoDbTableTask.class, "Creates or reuses a DynamoDB table in AWS Emulator.");
         configure(project, DeleteDynamoDbTableTask.class, "Deletes a DynamoDB table from AWS Emulator.");
         configure(project, ListDynamoDBTablesTask.class, "Lists DynamoDB tables in AWS Emulator.");
+        configure(project, PutDynamoDbItemsTask.class, "Loads JSON item fixtures into a DynamoDB table in AWS Emulator.");
+        configure(project, PurgeDynamoDbTableTask.class, "Removes all items while preserving a DynamoDB table in AWS Emulator.");
+
+        project.getTasks().register("purgeDynamoDbTable", PurgeDynamoDbTableTask.class,
+            task -> task.getMode().convention(EmulatorMode.DEVELOPMENT));
 
         project.getTasks().register("deleteDynamoDbTable", DeleteDynamoDbTableTask.class,
             task -> task.getMode().convention(EmulatorMode.DEVELOPMENT));

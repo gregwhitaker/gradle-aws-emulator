@@ -1,6 +1,6 @@
 # Spring Boot example
 
-This console application starts Spring Boot, sends and receives an SQS message over signed HTTPS, and exits. The companion plugin applies the base emulator plugin, provisions the queue before the application, activates the `local` profile, and configures credentials and TLS.
+This console application starts Spring Boot, sends and receives an SQS message over signed HTTPS, and exits. The companion plugin applies the base emulator plugin, automatically discovers and runs the registered queue-creation task, activates the `local` profile, and configures credentials and TLS. The queue needs only its name; the companion supplies setup wiring and the matching runtime mode.
 
 From the repository root, with Java 17+ and Docker available:
 

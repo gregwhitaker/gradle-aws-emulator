@@ -4,6 +4,8 @@ include::_partials/attributes.adoc[]
 
 `DynamoDbModule` groups the DynamoDB tasks under *AWS Emulator - DynamoDB*. It follows the same module structure and runtime selection as the S3 and SQS tasks.
 
+For declarative JSON item imports and clearing items while preserving a table, see xref:scenarios.adoc#seed-and-clear-dynamodb-items[DynamoDB data fixtures]. These tasks complement the Java initializer described here.
+
 toc::[]
 
 == Tasks and runtime selection

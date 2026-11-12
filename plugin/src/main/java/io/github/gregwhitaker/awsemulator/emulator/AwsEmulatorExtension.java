@@ -3,6 +3,8 @@ package io.github.gregwhitaker.awsemulator.emulator;
 import io.github.gregwhitaker.awsemulator.internal.ConfigureEmulatorAction;
 import io.github.gregwhitaker.awsemulator.model.EmulatorMode;
 import org.gradle.api.GradleException;
+import org.gradle.api.Action;
+import org.gradle.api.NamedDomainObjectContainer;
 import org.gradle.api.Task;
 import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.model.ObjectFactory;
@@ -17,6 +19,8 @@ import javax.inject.Inject;
 public abstract class AwsEmulatorExtension {
     private Provider<AwsEmulatorService> service;
     private static final String MODE_EXTENSION = "awsEmulatorMode";
+    private final NamedDomainObjectContainer<EmulatorScenario> scenarios = getObjects().domainObjectContainer(
+        EmulatorScenario.class, name -> getObjects().newInstance(EmulatorScenario.class, name));
 
     @Inject protected abstract ObjectFactory getObjects();
 
@@ -35,6 +39,10 @@ public abstract class AwsEmulatorExtension {
     public abstract Property<Integer> getCommandTimeoutSeconds();
     public abstract Property<Integer> getBuildTimeoutSeconds();
     public abstract DirectoryProperty getWorkingDirectory();
+    /** Scenario used by seedAwsEmulator and resetAwsEmulator unless -PawsEmulator.scenario is set. */
+    public abstract Property<String> getDefaultScenario();
+    public NamedDomainObjectContainer<EmulatorScenario> getScenarios() { return scenarios; }
+    public void scenarios(Action<? super NamedDomainObjectContainer<EmulatorScenario>> action) { action.execute(scenarios); }
 
     void attach(Provider<AwsEmulatorService> service) {
         this.service = service;

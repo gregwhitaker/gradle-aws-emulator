@@ -25,10 +25,8 @@ plugins {
 awsEmulator { port.set(0) }
 springBootEmulator {
     profiles.set(listOf("local"))
-    setupTasks.add("createApplicationQueue")
 }
 tasks.register<CreateSqsQueueTask>("createApplicationQueue") {
-    mode.set(springBootEmulator.mode)
     queueName.set("application-events")
 }
 ----
@@ -46,15 +44,34 @@ plugins {
 awsEmulator { port.set(0) }
 springBootEmulator {
     profiles.set(['local'])
-    setupTasks.add('createApplicationQueue')
 }
 tasks.register('createApplicationQueue', CreateSqsQueueTask) {
-    mode.set(springBootEmulator.mode)
     queueName.set('application-events')
 }
 ----
 
 Plugin application order does not matter. Until both Spring Boot and Java are present, the companion exposes its settings and the base emulator tasks, without registering the Boot tasks or starting Docker.
+
+== Automatic resource creation
+
+Register resource-creation tasks with their required properties, as above. `bootRunLocal` and `bootRunLocalDebug` automatically discover those tasks in the application's project and run them before starting the application. The queue in this example needs no `setupTasks`, `dependsOn`, or mode configuration.
+
+Automatic setup covers S3 buckets; SQS queues and DLQs; SNS topics and SQS subscriptions; DynamoDB tables and their initializers; SSM parameters; Secrets Manager secrets; EventBridge buses, rules, and targets; Kinesis streams; KMS keys and aliases; and CloudWatch log groups and streams.
+
+Discovery uses the core `@AwsEmulatorSetupTask` annotation on resource task types. Subclasses inherit it. Annotate your own `AbstractAwsResourceTask` subclasses to opt them into discovery. Registration remains lazy, so tasks declared after the companion is applied are included.
+
+The companion selects its runtime as the default for discovered resource tasks and their resource prerequisites when a local Boot task is selected. Explicit task dependencies determine ordering between resources; for example, a log-stream task should depend on its log-group task. Use additional `setupTasks` or `dependsOn` dependencies for message publishing, data fixtures, and custom preparation.
+
+Explicit resource modes are respected. A conflicting mode fails with a configuration error before startup. For separate test-only resources, exclude those task names or paths:
+
+[source,kotlin]
+----
+springBootEmulator {
+    excludedSetupTasks.add("createTestQueue")
+}
+----
+
+Exclusions affect automatic discovery; explicit dependencies still run. To select all setup tasks manually, set `autoCreateResources` to `false` and use `setupTasks`. In that case, configure resource tasks to use `springBootEmulator.mode` yourself. Ordinary `bootRun`, test tasks, and standalone resource invocations retain their existing behavior.
 
 == Run and debug
 
@@ -70,6 +87,8 @@ The debug task listens on `127.0.0.1:5005` and waits for a debugger. The ordinar
 
 Both local tasks use `BootRun`. They inherit `bootRun`'s main-class provider (including Spring Boot's automatic discovery), classpath, Java launcher, optimized-launch setting, working directory, environment, system properties, application arguments, JVM arguments, and argument providers when configured. Custom actions on `bootRun` are not copied. Configure the local task directly when it needs additional task behavior. Command-line `--args` overrides the copied application arguments.
 
+The tasks support configuration-cache reuse. With automatic main-class discovery, Spring Boot can invalidate the first cache entry when a clean compilation creates class directories; subsequent unchanged runs reuse the cache.
+
 The base plugin supplies endpoint, region, generated credentials, and TLS trust just before the JVM starts. Your application still declares its own AWS SDK dependencies. See xref:connections.adoc[Credentials and TLS] for connection details.
 
 == Configuration
@@ -80,12 +99,14 @@ The base plugin supplies endpoint, region, generated credentials, and TLS trust 
 |`mode` |`EmulatorMode.DEVELOPMENT` |Selects the persistent development instance or a build-owned `MANAGED` instance.
 |`profiles` |`["local"]` |Adds `spring.profiles.active`; an empty list adds no profile argument.
 |`jvmArgs` |`[]` |Additional JVM arguments for both local tasks.
-|`setupTasks` |`[]` |Gradle task names or paths that both local tasks depend on.
+|`autoCreateResources` |`true` |Automatically discovers resource-provisioning tasks and runs them before either local task.
+|`excludedSetupTasks` |`[]` |Task names or paths to omit from automatic discovery.
+|`setupTasks` |`[]` |Additional Gradle task names or paths that both local tasks depend on.
 |`debugPort` |`5005` |Debugger port, from 1 to 65535.
 |`debugSuspend` |`true` |Whether the debug task waits for a debugger before starting the application.
 |===
 
-Resource setup tasks must select the same mode as the application. Wiring their `mode` to `springBootEmulator.mode`, as above, keeps them aligned. Use separate setup tasks for consumers that need different modes within one build. Applying the companion does not discover or run every resource task automatically.
+Resource setup tasks use the same runtime as the application. Use separate setup tasks for consumers that need different modes within one build, and exclude test-only resources from automatic discovery.
 
 Development instances retain their resources across Gradle invocations until `stopAwsEmulator` or `restartAwsEmulator`. For automatic cleanup after the application finishes, including ordinary application failures:
 

@@ -1,5 +1,6 @@
 package io.github.gregwhitaker.awsemulator.aws.secretsmanager;
 
+import io.github.gregwhitaker.awsemulator.core.annotation.AwsEmulatorSetupTask;
 import io.github.gregwhitaker.awsemulator.aws.AbstractAwsResourceTask;
 import io.github.gregwhitaker.awsemulator.aws.internal.*;
 import org.gradle.api.GradleException;
@@ -13,6 +14,7 @@ import java.util.Map;
 
 /** Loads Secrets Manager fixtures from a JSON array; validates every entry before provisioning. */
 @DisableCachingByDefault(because = "Uses live emulator resources")
+@AwsEmulatorSetupTask
 public abstract class PutSecretsTask extends AbstractAwsResourceTask {
     public PutSecretsTask() { getOverwrite().convention(false); }
     @InputFile @PathSensitive(PathSensitivity.RELATIVE) public abstract RegularFileProperty getFixtures();

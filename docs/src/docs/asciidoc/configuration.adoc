@@ -2,7 +2,7 @@
 include::_partials/attributes.adoc[]
 :description: Complete configuration reference and defaults for the awsEmulator Gradle extension.
 
-Configure the `awsEmulator` extension using Gradle's lazy properties. Settings apply to the project's managed and development runtimes; restart an existing development instance after changing them.
+Configure the `awsEmulator` extension using Gradle's lazy properties. Runtime settings apply to the project's managed and development instances; restart an existing development instance after changing runtime settings.
 
 toc::[]
 
@@ -23,6 +23,8 @@ toc::[]
 |`commandTimeoutSeconds` |`60` |Timeout for each normal Docker command.
 |`buildTimeoutSeconds` |`600` |Timeout for an image build or pull.
 |`workingDirectory` |`.aws-emulator` in the project |Generated Dockerfiles, locks, and isolated runtime homes.
+|`defaultScenario` |`default` |Registered scenario selected by `seedAwsEmulator` and `resetAwsEmulator`. Override with `-PawsEmulator.scenario=<name>`.
+|`scenarios` |Empty container |Named development scenarios with resource provisioning and ordered fixture tasks. See xref:scenarios.adoc[Data fixtures & development scenarios].
 |===
 
 The `useWith(taskProvider)` method accepts an existing `Test` or `JavaExec` task provider. See xref:testing.adoc[tests and Java execution] for lifecycle and caching behavior.

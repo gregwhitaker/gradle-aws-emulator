@@ -1,5 +1,6 @@
 package io.github.gregwhitaker.awsemulator.aws.kms;
 
+import io.github.gregwhitaker.awsemulator.core.annotation.AwsEmulatorSetupTask;
 import io.github.gregwhitaker.awsemulator.aws.AbstractAwsResourceTask;
 import io.github.gregwhitaker.awsemulator.aws.internal.*;
 import org.gradle.api.GradleException;
@@ -13,6 +14,7 @@ import java.util.Map;
 
 /** Creates or reuses an enabled symmetric encryption key identified by an alias. */
 @DisableCachingByDefault(because = "Uses live emulator resources")
+@AwsEmulatorSetupTask
 public abstract class CreateKmsKeyTask extends AbstractAwsResourceTask {
 
     @Input public abstract Property<String> getAliasName();

@@ -1,5 +1,6 @@
 package io.github.gregwhitaker.awsemulator.aws.eventbridge;
 
+import io.github.gregwhitaker.awsemulator.core.annotation.AwsEmulatorSetupTask;
 import io.github.gregwhitaker.awsemulator.aws.AbstractAwsResourceTask;
 import io.github.gregwhitaker.awsemulator.aws.internal.*;
 import org.gradle.api.GradleException;
@@ -13,6 +14,7 @@ import java.util.Map;
 
 /** Creates an enabled event-pattern rule; conflicting rules require overwrite=true. */
 @DisableCachingByDefault(because = "Uses live emulator resources")
+@AwsEmulatorSetupTask
 public abstract class PutEventBridgeRuleTask extends AbstractAwsResourceTask {
     public PutEventBridgeRuleTask() { getOverwrite().convention(false); }
     @Input public abstract Property<String> getEventBusName();

@@ -18,6 +18,9 @@ public final class JsonFixtures {
         .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
     private JsonFixtures() {}
 
+    /** Reads objects with application-defined field names, such as DynamoDB items. */
+    public static List<JsonNode> readObjects(Path path) { return read(path, null); }
+
     public static List<JsonNode> read(Path path, Set<String> fields) {
         try {
             if (Files.size(path) > 16 * 1024 * 1024) throw new GradleException("Fixture exceeds the 16 MiB limit.");
@@ -27,7 +30,10 @@ public final class JsonFixtures {
             for (JsonNode entry : root) {
                 if (!entry.isObject()) throw new GradleException("Each fixture entry must be a JSON object.");
                 var keys = entry.fieldNames();
-                while (keys.hasNext()) if (!fields.contains(keys.next())) throw new GradleException("Fixture entry contains an unsupported field.");
+                while (keys.hasNext()) {
+                    String key = keys.next();
+                    if (fields != null && !fields.contains(key)) throw new GradleException("Fixture entry contains an unsupported field.");
+                }
                 entries.add(entry);
             }
             return entries;

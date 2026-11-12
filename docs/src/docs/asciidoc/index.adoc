@@ -62,6 +62,7 @@ Both instances keep AWS resources in memory. Stop or restart discards those reso
 == What you can do
 
 * xref:lifecycle.adoc[Prepare, start, stop, restart, inspect, and read logs] for a development instance.
+* xref:scenarios.adoc[Load S3 files and DynamoDB items, select named scenarios, and reset and reseed] a development environment.
 * xref:testing.adoc[Connect existing `Test` and `JavaExec` tasks] to a build-owned emulator.
 * xref:spring-boot.adoc[Run and debug Spring Boot applications] with the optional companion plugin.
 * xref:resources.adoc[Manage S3 buckets, SQS queues and DLQs, and message fixtures] before application code runs.

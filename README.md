@@ -36,6 +36,19 @@ To demonstrate cleanup after a failed test:
 
 That command is expected to fail its test; its managed container is still removed.
 
+## Data fixtures and development scenarios
+
+Load files or directories into S3 with content types and metadata, download or list objects, and seed DynamoDB tables from JSON attribute maps. `PurgeDynamoDbTableTask` clears items while preserving the table and indexes. Named scenarios combine resource provisioning with ordered fixture tasks:
+
+```shell
+./gradlew -p examples/scenarios seedAwsEmulator --configuration-cache
+./gradlew -p examples/scenarios resetAwsEmulator -PawsEmulator.scenario=empty
+./gradlew -p examples/scenarios resetAwsEmulatorFailedOrders
+./gradlew -p examples/scenarios stopAwsEmulator
+```
+
+Seed preserves unrelated data. Reset discards all resources in the project's development emulator and recreates only the selected scenario. See the [data fixtures and scenarios guide](docs/src/docs/asciidoc/scenarios.adoc) for task properties and Kotlin/Groovy configuration, or run the [scenario example](examples/scenarios/README.md).
+
 ## Additional AWS services
 
 Typed resource tasks now cover **SSM Parameter Store, Secrets Manager, EventBridge, Kinesis Data Streams, KMS, and CloudWatch Logs**. They support managed tests and persistent development instances using the same local SDK connection as the existing S3/SQS tasks.
@@ -169,7 +182,9 @@ springBootEmulator {
 }
 ```
 
-The default development instance survives application exit. `bootRunLocalDebug` waits for a debugger on `localhost:5005`; `stopAwsEmulator` removes the development instance. Set `springBootEmulator.mode` to `EmulatorMode.MANAGED` for automatic cleanup. Register resource dependencies through `springBootEmulator.setupTasks` and configure those resources with the same mode. Ordinary `bootRun` remains independently configured.
+The default development instance survives application exit. `bootRunLocalDebug` waits for a debugger on `localhost:5005`; `stopAwsEmulator` removes the development instance. Set `springBootEmulator.mode` to `EmulatorMode.MANAGED` for automatic cleanup.
+
+Both local tasks automatically discover and run registered resource-creation tasks before starting the application, using the same emulator instance. For example, registering a `CreateSqsQueueTask` with its `queueName` is enough; no setup-task list or mode wiring is needed. Use `excludedSetupTasks` for test-only resources, or `autoCreateResources.set(false)` with explicit `setupTasks` for manual selection. Explicitly configured resource modes must match the application. Ordinary `bootRun` remains independently configured.
 
 Run `./gradlew -p examples/spring-boot bootRunLocal --configuration-cache` for a working SQS round trip. See the [Spring Boot guide](docs/src/docs/asciidoc/spring-boot.adoc) for Kotlin/Groovy DSL, setup tasks, and all settings, or the [example README](examples/spring-boot/README.md). Compatibility is tested with Spring Boot 3.5.16 and 4.1.2.
 
@@ -517,6 +532,7 @@ spring-boot-plugin/                  optional Spring Boot companion and its publ
   src/functional/                    Boot version, DSL, and configuration-cache tests
   src/integration/                   real Boot applications and emulator cleanup tests
 examples/basic/                      runnable Kotlin DSL consumer
+examples/scenarios/                  S3/DynamoDB fixtures and named development scenarios
 examples/spring-boot/                runnable Spring Boot and SQS consumer
 ```
 
@@ -525,10 +541,11 @@ Tasks are organized by feature, following the module pattern in `gradle-localsta
 | Module | Gradle task group | Responsibilities |
 | --- | --- | --- |
 | `EmulatorModule` | `AWS Emulator` | Runtime configuration and the six lifecycle tasks. |
-| `S3Module` | `AWS Emulator - S3` | Bucket creation, listing, purging, and deletion. |
+| `ScenarioModule` | `AWS Emulator - Scenarios` | Named development datasets, seeding, and reset/reseed. |
+| `S3Module` | `AWS Emulator - S3` | Bucket lifecycle, object uploads, listing, and downloads. |
 | `SqsModule` | `AWS Emulator - SQS` | Queue and DLQ creation, listing, purging, and message publishing. |
 | `SnsModule` | `AWS Emulator - SNS` | Topic creation, listing, deletion, SQS subscriptions, and message publishing. |
-| `DynamoDbModule` | `AWS Emulator - DynamoDB` | Table creation, initialization, listing, and deletion. |
+| `DynamoDbModule` | `AWS Emulator - DynamoDB` | Table lifecycle, Java initializers, JSON item imports, and item clearing. |
 
 Register named resource tasks in your build; their service module supplies the group and default description. Imports use `io.github.gregwhitaker.awsemulator.aws.s3.CreateS3BucketTask` and `io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueueTask`.
 

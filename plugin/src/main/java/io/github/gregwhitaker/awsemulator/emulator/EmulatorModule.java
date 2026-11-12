@@ -31,6 +31,7 @@ public final class EmulatorModule {
         register(project, RESTART_TASK_NAME, RestartAwsEmulatorTask.class, "Restarts the development emulator with empty state.");
         register(project, STATUS_TASK_NAME, StatusAwsEmulatorTask.class, "Reports the development emulator's status and endpoint.");
         register(project, LOGS_TASK_NAME, LogsAwsEmulatorTask.class, "Displays recent development emulator logs.");
+        ScenarioModule.load(project, extension);
     }
 
     private static AwsEmulatorExtension registerExtension(Project project) {
@@ -46,6 +47,7 @@ public final class EmulatorModule {
         extension.getCommandTimeoutSeconds().convention(60);
         extension.getBuildTimeoutSeconds().convention(600);
         extension.getWorkingDirectory().convention(project.getLayout().getProjectDirectory().dir(".aws-emulator"));
+        extension.getDefaultScenario().convention("default");
         return extension;
     }
 

@@ -1,5 +1,6 @@
 package io.github.gregwhitaker.awsemulator.aws.sqs;
 
+import io.github.gregwhitaker.awsemulator.core.annotation.AwsEmulatorSetupTask;
 import io.github.gregwhitaker.awsemulator.aws.AbstractAwsResourceTask;
 import io.github.gregwhitaker.awsemulator.aws.internal.AwsClientFactory;
 import org.gradle.api.provider.MapProperty;
@@ -11,6 +12,7 @@ import java.util.Map;
 
 /** Creates a queue and its DLQ, applying the source queue's requested attributes and redrive policy. */
 @DisableCachingByDefault(because = "Provisions live emulator resources")
+@AwsEmulatorSetupTask
 public abstract class CreateSqsQueueWithDlqTask extends AbstractAwsResourceTask {
     public CreateSqsQueueWithDlqTask() {
         getQueueAttributes().convention(Map.of());

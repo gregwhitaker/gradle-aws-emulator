@@ -1,5 +1,6 @@
 package io.github.gregwhitaker.awsemulator.aws.kms;
 
+import io.github.gregwhitaker.awsemulator.core.annotation.AwsEmulatorSetupTask;
 import io.github.gregwhitaker.awsemulator.aws.AbstractAwsResourceTask;
 import io.github.gregwhitaker.awsemulator.aws.internal.*;
 import org.gradle.api.GradleException;
@@ -13,6 +14,7 @@ import java.util.Map;
 
 /** Operates on resources in the selected AWS Emulator instance. */
 @DisableCachingByDefault(because = "Uses live emulator resources")
+@AwsEmulatorSetupTask
 public abstract class CreateKmsAliasTask extends AbstractAwsResourceTask {
     public CreateKmsAliasTask() { getOverwrite().convention(false); }
     @Input public abstract Property<String> getAliasName();

@@ -1,5 +1,6 @@
 package io.github.gregwhitaker.awsemulator.aws.eventbridge;
 
+import io.github.gregwhitaker.awsemulator.core.annotation.AwsEmulatorSetupTask;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.github.gregwhitaker.awsemulator.aws.AbstractAwsResourceTask;
@@ -15,6 +16,7 @@ import java.util.Map;
 
 /** Resolves a standard SQS queue, grants the selected rule permission, and registers a stable target ID. */
 @DisableCachingByDefault(because = "Configures live emulator resources")
+@AwsEmulatorSetupTask
 public abstract class PutEventBridgeSqsTargetTask extends AbstractAwsResourceTask {
     public PutEventBridgeSqsTargetTask() { getOverwrite().convention(false); }
     @Input public abstract Property<String> getEventBusName();

@@ -4,6 +4,8 @@ include::_partials/attributes.adoc[]
 
 Register typed Gradle tasks to prepare your application's AWS resources. Each task starts the selected emulator on demand and waits until it is ready.
 
+For uploading files or directories, listing and downloading objects, and reproducible development datasets, see xref:scenarios.adoc[Data fixtures & development scenarios].
+
 toc::[]
 
 == Register resource tasks

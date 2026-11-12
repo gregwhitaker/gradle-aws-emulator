@@ -2,6 +2,7 @@
 
 ## 0.2.0 — Unreleased
 
+- Automatically provision registered AWS resource-creation tasks before Spring Boot local run/debug tasks, with inherited setup markers, matching runtime defaults, and optional exclusions.
 - Add the separate `io.github.gregwhitaker.aws-emulator.spring-boot` companion plugin with local run/debug tasks, profile and JVM settings, explicit setup dependencies, and application-selected Spring Boot versions.
 - Extend `awsEmulator.useWith` with lazy runtime selection and setup dependencies while preserving managed defaults for existing consumers.
 - Include Spring Boot 3.5/4.1 compatibility tests, real-emulator lifecycle verification, a runnable example, and companion API documentation.

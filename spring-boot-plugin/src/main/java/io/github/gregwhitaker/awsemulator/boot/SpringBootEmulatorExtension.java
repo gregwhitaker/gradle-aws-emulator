@@ -12,8 +12,12 @@ public abstract class SpringBootEmulatorExtension {
     public abstract ListProperty<String> getProfiles();
     /** Additional JVM arguments for both local tasks. */
     public abstract ListProperty<String> getJvmArgs();
-    /** Gradle task names or paths to execute before either local task; resources must use the same mode. */
+    /** Additional task names or paths to execute before either local task. */
     public abstract ListProperty<String> getSetupTasks();
+    /** Automatically run resource provisioning tasks before the application; defaults to true. */
+    public abstract Property<Boolean> getAutoCreateResources();
+    /** Local task names or paths to omit from automatic discovery. Explicit dependencies still apply. */
+    public abstract ListProperty<String> getExcludedSetupTasks();
     /** Loopback debugger port, defaulting to 5005. */
     public abstract Property<Integer> getDebugPort();
     /** Whether bootRunLocalDebug waits for a debugger; defaults to true. */

@@ -1,5 +1,6 @@
 package io.github.gregwhitaker.awsemulator.aws.secretsmanager;
 
+import io.github.gregwhitaker.awsemulator.core.annotation.AwsEmulatorSetupTask;
 import io.github.gregwhitaker.awsemulator.aws.AbstractAwsResourceTask;
 import io.github.gregwhitaker.awsemulator.aws.internal.*;
 import org.gradle.api.GradleException;
@@ -13,6 +14,7 @@ import java.util.Map;
 
 /** Creates or reuses a Secrets Manager value; changing an existing value requires overwrite=true. */
 @DisableCachingByDefault(because = "Uses live emulator resources")
+@AwsEmulatorSetupTask
 public abstract class PutSecretTask extends AbstractAwsResourceTask {
     public PutSecretTask() { getOverwrite().convention(false); }
     @Input public abstract Property<String> getSecretName();

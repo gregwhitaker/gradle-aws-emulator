@@ -1,5 +1,6 @@
 package io.github.gregwhitaker.awsemulator.aws.s3;
 
+import io.github.gregwhitaker.awsemulator.core.annotation.AwsEmulatorSetupTask;
 import io.github.gregwhitaker.awsemulator.aws.internal.AwsClientFactory;
 import io.github.gregwhitaker.awsemulator.aws.AbstractAwsResourceTask;
 import org.gradle.api.provider.Property;
@@ -9,6 +10,7 @@ import org.gradle.work.DisableCachingByDefault;
 
 /** Creates or reuses a general-purpose bucket in AWS Emulator. */
 @DisableCachingByDefault(because = "Provisions live emulator resources")
+@AwsEmulatorSetupTask
 public abstract class CreateS3BucketTask extends AbstractAwsResourceTask {
     @Input
     public abstract Property<String> getBucketName();

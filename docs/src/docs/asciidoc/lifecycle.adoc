@@ -48,6 +48,8 @@ WARNING: The emulator keeps resources in memory. Stop and restart discard bucket
 
 The Docker image remains cached after an instance stops. `prepareAwsEmulator` can build or pull it ahead of a development session without starting a runtime.
 
+To recreate resources and load a dataset after restarting, define a xref:scenarios.adoc[development scenario] and run `resetAwsEmulator`. Use `seedAwsEmulator` to load its fixtures without discarding other state.
+
 == Provision development resources
 
 Set the mode on each typed provisioning task:

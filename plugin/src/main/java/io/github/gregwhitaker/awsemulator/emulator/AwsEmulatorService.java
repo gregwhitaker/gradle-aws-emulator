@@ -4,6 +4,7 @@ import io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorConnection;
 import io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorRuntime;
 import io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorSettings;
 import org.gradle.api.file.DirectoryProperty;
+import org.gradle.api.GradleException;
 import org.gradle.api.provider.Property;
 import org.gradle.api.services.BuildService;
 import org.gradle.api.services.BuildServiceParameters;
@@ -27,6 +28,7 @@ public abstract class AwsEmulatorService implements BuildService<AwsEmulatorServ
     }
 
     private EmulatorRuntime runtime;
+    private RuntimeException restartFailure;
 
     private synchronized EmulatorRuntime runtime() {
         if (runtime == null) {
@@ -41,14 +43,20 @@ public abstract class AwsEmulatorService implements BuildService<AwsEmulatorServ
     }
 
     public EmulatorConnection managedConnection() { return runtime().managedConnection(); }
-    public EmulatorConnection developmentConnection() { return runtime().developmentConnection(); }
+    public synchronized EmulatorConnection developmentConnection() {
+        if (restartFailure != null) throw new GradleException("Cannot seed the development emulator after its restart failed in this build.", restartFailure);
+        return runtime().developmentConnection();
+    }
     public String prepare() { return "AWS Emulator image ready: " + runtime().prepare(); }
     public String start() { return describe(developmentConnection()); }
     public String stop() {
         runtime().stopDevelopment();
         return "AWS Emulator development instance stopped.";
     }
-    public String restart() { return describe(runtime().restartDevelopment()); }
+    public synchronized String restart() {
+        try { return describe(runtime().restartDevelopment()); }
+        catch (RuntimeException e) { restartFailure = e; throw e; }
+    }
     public String status() { return runtime().developmentStatus(); }
     public String logs() { return runtime().developmentLogs(); }
 

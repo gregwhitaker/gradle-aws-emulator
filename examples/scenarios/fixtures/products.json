@@ -1,0 +1,11 @@
+[
+  {
+    "id": {"S": "book"},
+    "price": {"N": "12.50"},
+    "available": {"BOOL": true},
+    "tags": {"SS": ["demo", "books"]},
+    "details": {"M": {"ratings": {"L": [{"N": "5"}, {"N": "4"}]}}},
+    "attachment": {"B": "AAH/"}
+  },
+  {"id": {"S": "notebook"}, "price": {"N": "3.25"}, "available": {"BOOL": false}}
+]
