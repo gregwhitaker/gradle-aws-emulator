@@ -91,4 +91,7 @@ val retrieved = tasks.register<GetLogEventsTask>("getFixtureLogs") {
     outputFile.set(layout.buildDirectory.file("logs/events.json"))
 }
 tasks.register("verifyServices") { dependsOn(filtered, retrieved); group = "verification" }
+// Configuration-cache execution may run independent tasks concurrently, even in one project.
+tasks.named("deleteEventBus") { mustRunAfter("deleteEventBridgeRule") }
+tasks.named("deleteLogGroup") { mustRunAfter("deleteLogStream") }
 awsEmulator { port.set(0); useWith(integrationTest) }

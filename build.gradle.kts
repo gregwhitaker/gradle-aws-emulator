@@ -2,15 +2,15 @@ plugins { base }
 
 description = "Build, verification, and documentation for the AWS Emulator Gradle plugin"
 
-tasks.named("assemble") { dependsOn(":plugin:assemble", ":docs:assemble") }
-tasks.named("check") { dependsOn(":plugin:check", ":docs:check") }
-tasks.named("clean") { dependsOn(":plugin:clean", ":docs:clean") }
+tasks.named("assemble") { dependsOn(":plugin:assemble", ":spring-boot-plugin:assemble", ":docs:assemble") }
+tasks.named("check") { dependsOn(":plugin:check", ":spring-boot-plugin:check", ":docs:check") }
+tasks.named("clean") { dependsOn(":plugin:clean", ":spring-boot-plugin:clean", ":docs:clean") }
 
 // Preserve the 0.1 command while keeping real-emulator tests in their own source set.
 tasks.register("dockerTest") {
     group = "verification"
     description = "Runs the plugin integration suite against a real Docker daemon."
-    dependsOn(":plugin:integrationTest")
+    dependsOn(":plugin:integrationTest", ":spring-boot-plugin:integrationTest")
 }
 
 tasks.named<Wrapper>("wrapper") {

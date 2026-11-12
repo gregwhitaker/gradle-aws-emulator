@@ -1,18 +1,24 @@
 package io.github.gregwhitaker.awsemulator.emulator;
 
 import io.github.gregwhitaker.awsemulator.internal.ConfigureEmulatorAction;
+import io.github.gregwhitaker.awsemulator.model.EmulatorMode;
 import org.gradle.api.GradleException;
 import org.gradle.api.Task;
 import org.gradle.api.file.DirectoryProperty;
+import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.provider.Property;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.JavaExec;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.api.tasks.testing.Test;
+import javax.inject.Inject;
 
 /** Configuration for the AWS Emulator runtime and its opted-in consumers. */
 public abstract class AwsEmulatorExtension {
     private Provider<AwsEmulatorService> service;
+    private static final String MODE_EXTENSION = "awsEmulatorMode";
+
+    @Inject protected abstract ObjectFactory getObjects();
 
     public abstract Property<String> getEmulatorVersion();
     /** Optional existing Docker image; bypasses the generated Dockerfile. */
@@ -36,18 +42,42 @@ public abstract class AwsEmulatorExtension {
 
     /** Starts a build-owned emulator for this Test or JavaExec task, and configures its forked JVM. */
     public void useWith(TaskProvider<? extends Task> taskProvider) {
+        useWith(taskProvider, EmulatorMode.MANAGED);
+    }
+
+    /**
+     * Connects a consumer to the selected runtime after its setup tasks complete.
+     * Setup tasks accept Gradle dependency notation (including task providers and names).
+     * Resource setup tasks must use the same mode as the consumer.
+     */
+    public void useWith(TaskProvider<? extends Task> taskProvider, EmulatorMode mode, Object... setupTasks) {
+        useWith(taskProvider, getObjects().property(EmulatorMode.class).value(mode), setupTasks);
+    }
+
+    /**
+     * Lazily selects a runtime, allowing framework integrations to supply their own mode property.
+     * Repeated calls update the mode and add setup dependencies without installing another startup action.
+     */
+    public void useWith(TaskProvider<? extends Task> taskProvider, Provider<EmulatorMode> mode, Object... setupTasks) {
         Provider<AwsEmulatorService> runtime = service;
+        ObjectFactory objects = getObjects();
         taskProvider.configure(task -> {
             if (!(task instanceof Test) && !(task instanceof JavaExec)) {
                 throw new GradleException("awsEmulator.useWith requires a Test or JavaExec task: " + task.getPath());
             }
-            if (task.getExtensions().getExtraProperties().has("awsEmulatorConfigured")) {
+            task.dependsOn(setupTasks);
+            if (task.getExtensions().getExtraProperties().has(MODE_EXTENSION)) {
+                @SuppressWarnings("unchecked")
+                Property<EmulatorMode> selected = (Property<EmulatorMode>) task.getExtensions()
+                    .getExtraProperties().get(MODE_EXTENSION);
+                selected.set(mode);
                 return;
             }
-            task.getExtensions().getExtraProperties().set("awsEmulatorConfigured", true);
+            Property<EmulatorMode> selected = objects.property(EmulatorMode.class).value(mode);
+            task.getExtensions().getExtraProperties().set(MODE_EXTENSION, selected);
             task.usesService(runtime);
-            task.doFirst(new ConfigureEmulatorAction(runtime));
-            // Emulator state is external and starts empty on every managed run.
+            task.doFirst(new ConfigureEmulatorAction(runtime, selected));
+            // Both runtimes have external state that Gradle cannot track.
             task.getOutputs().upToDateWhen(ignored -> false);
             task.getOutputs().doNotCacheIf("Uses a live AWS Emulator", ignored -> true);
         });

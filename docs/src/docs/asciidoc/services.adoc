@@ -136,6 +136,8 @@ Package: `io.github.gregwhitaker.awsemulator.aws.eventbridge`.
 
 Target IDs make repeated setup stable. Existing conflicting targets/rules require `overwrite=true`; unrelated target IDs are preserved. The SQS convenience task preserves unrelated queue-policy statements and adds one rule-scoped grant. Deleting a rule leaves that grant in the queue policy; it does not delete the queue. FIFO targets, schedules, SNS targets, input transformations, and replay/archive management are not part of this initial task scope.
 
+Declare cleanup ordering explicitly when deleting dependent resources in one build. Configuration-cache execution can run independent tasks concurrently: use `deleteEventBus.mustRunAfter(deleteEventBridgeRule)` when both commands are selected, and similarly order log-stream deletion before log-group deletion. The runnable example configures these ordering constraints.
+
 Predefined commands: `listEventBuses`, `listEventBridgeRules`, `deleteEventBridgeRule`, and `deleteEventBus`. Rule commands accept `--eventBusName` and `--ruleName` as applicable. The default event bus cannot be deleted.
 
 == Kinesis Data Streams

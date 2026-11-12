@@ -1,2 +1,2 @@
 rootProject.name = "gradle-aws-emulator"
-include("plugin", "docs")
+include("plugin", "spring-boot-plugin", "docs")

@@ -522,18 +522,20 @@ To run TestKit consumers against another Gradle version:
 
 `-PtestGradleInstallation=/path/to/gradle` can instead use an existing installation. The CI matrix is configured for Gradle 8.14.3 and 9.6.1, Java 17 and 21, and real Docker execution on Linux AMD64 and ARM64. Windows runs the Docker-free suite; Docker integration on Windows has not been verified.
 
-`java-gradle-plugin`, `maven-publish`, and `com.gradle.plugin-publish` generate the plugin artifact and marker publication. Build artifacts are in `plugin/build/libs/`; reports are in `plugin/build/reports/tests/`. The implementation coordinate remains `io.github.gregwhitaker:gradle-aws-emulator:0.2.0` and the plugin ID remains `io.github.gregwhitaker.aws-emulator`. Use the composite build above for local development. CI validates the publication without uploading it; the release workflow publishes version tags.
+`java-gradle-plugin`, `maven-publish`, and `com.gradle.plugin-publish` generate the plugin artifact and marker publication. Build artifacts are in `plugin/build/libs/`; reports are in `plugin/build/reports/tests/`. The implementation coordinate remains `io.github.gregwhitaker:gradle-aws-emulator:0.2.0` and the plugin ID remains `io.github.gregwhitaker.aws-emulator`. Use the composite build above for local development. CI builds both publications in a temporary Maven repository; the release workflow publishes version tags.
 
 ## Publish to the Gradle Plugin Portal
 
 The release version comes from `pluginVersion` in the root `gradle.properties`. Publishing includes the implementation JAR, sources, Javadoc, dependency metadata, and the plugin marker; test fixtures and the documentation subproject are not published. `publishPlugins` runs the plugin's unit tests, functional tests, and plugin validation before publishing.
 
-Validate the release locally without credentials or uploading artifacts:
+Build and verify the release locally without credentials or uploading artifacts:
 
 ```sh
-./gradlew build :plugin:publishPlugins --validate-only
+./gradlew build :plugin:publishToMavenLocal -Dmaven.repo.local="$PWD/build/publication-check"
 ./gradlew :plugin:integrationTest
 ```
+
+The first command writes the implementation and marker publications to `build/publication-check/` without changing your usual Maven local repository. Portal validation with `--validate-only` also requires publishing credentials and contacts the Portal, but does not upload the release.
 
 Create a [Plugin Portal account and API key](https://plugins.gradle.org/docs/publish-plugin), linked to the `gregwhitaker` GitHub account so the Portal can verify the plugin namespace. Add the key and secret to this repository's GitHub Actions secrets as `GRADLE_PUBLISH_KEY` and `GRADLE_PUBLISH_SECRET`.
 
@@ -553,6 +555,7 @@ git push origin v0.2.0
 To publish locally, provide `GRADLE_PUBLISH_KEY` and `GRADLE_PUBLISH_SECRET` in your environment, or put `gradle.publish.key` and `gradle.publish.secret` in your user-level `~/.gradle/gradle.properties`. Keep credentials out of this repository. After running the validation commands above:
 
 ```sh
+./gradlew :plugin:publishPlugins --validate-only
 ./gradlew :plugin:publishPlugins
 ```
 
