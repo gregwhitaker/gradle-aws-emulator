@@ -27,6 +27,7 @@ import software.amazon.awssdk.services.kms.KmsClient;
 
 import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient;
 import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
+import software.amazon.awssdk.services.sesv2.SesV2Client;
 
 import java.net.URI;
 import java.time.Duration;
@@ -122,8 +123,18 @@ public final class AwsClientFactory {
             .overrideConfiguration(overrides()).build();
     }
 
+    /** Creates a User Pools client using this runtime's local endpoint, credentials, and TLS trust. */
     public CognitoIdentityProviderClient cognitoIdentityProvider() {
         return CognitoIdentityProviderClient.builder()
+            .endpointOverride(URI.create(connection.endpoint())).region(Region.of(connection.region()))
+            .credentialsProvider(credentials()).httpClientBuilder(http())
+            .fipsEnabled(false).dualstackEnabled(false)
+            .overrideConfiguration(overrides()).build();
+    }
+
+    /** Creates an SES API v2 client using this runtime's credentials and TLS trust. */
+    public SesV2Client sesV2() {
+        return SesV2Client.builder()
             .endpointOverride(URI.create(connection.endpoint())).region(Region.of(connection.region()))
             .credentialsProvider(credentials()).httpClientBuilder(http())
             .fipsEnabled(false).dualstackEnabled(false)

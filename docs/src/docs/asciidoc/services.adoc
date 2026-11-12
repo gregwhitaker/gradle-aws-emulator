@@ -3,6 +3,8 @@ include::_partials/attributes.adoc[]
 
 Provision Parameter Store, Secrets Manager, EventBridge, Kinesis Data Streams, KMS, and CloudWatch Logs resources before application tests. These task types share the xref:resources.adoc[S3/SQS resource task] lifecycle, connection settings, and timeout behavior.
 
+For authentication resources and signed JWT application tests, see xref:cognito.adoc[Cognito User Pools].
+
 toc::[]
 
 == Run the complete example

@@ -1,99 +1,33 @@
 # AWS Emulator Gradle Plugin
 
 [![Build](https://github.com/gregwhitaker/gradle-aws-emulator/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/gregwhitaker/gradle-aws-emulator/actions/workflows/ci.yml)
-[![Gradle Plugin Portal](https://img.shields.io/gradle-plugin-portal/v/io.github.gregwhitaker.aws-emulator?label=Gradle%20Plugin%20Portal)](https://plugins.gradle.org/plugin/io.github.gregwhitaker.aws-emulator)
 
-Gradle lifecycle tasks, AWS resource management, and opt-in JVM and external-process integration for [AWS Emulator](https://github.com/aws/aws-emulator).
+Run [AWS Emulator](https://github.com/aws/aws-emulator) from Gradle, provision local AWS resources, and connect your tests and applications over HTTPS. The plugin manages the container, credentials, and TLS configuration for participating tasks.
 
-Plugin ID: **`io.github.gregwhitaker.aws-emulator`**. Version **0.2.0** is implemented in this repository; it has not been published to the Gradle Plugin Portal.
+[User guide](docs/src/docs/asciidoc/index.adoc) · [Examples](examples/README.md) · [Contributing](CONTRIBUTING.md) · [Changelog](CHANGELOG.md)
 
-Requires Java 17+, Gradle 8.14+, and a local Docker engine running Linux containers. The plugin builds an image from AWS's pinned `1.0.322` Linux package on first use. AMD64 and ARM64 are supported; subsequent runs reuse the image. No AWS account or AWS CLI is needed.
+## Requirements
 
-## Documentation site
+- Java 17+ and Gradle 8.14+.
+- The `docker` CLI and a running local Docker engine using Linux containers. AMD64 and ARM64 are supported.
 
-Generate the user guide and Java API reference locally:
+No AWS account or AWS CLI is required. On first use, the plugin builds an image from the pinned AWS Emulator package; later runs reuse it. Applying the plugin alone does not start Docker or change existing test tasks.
 
-```sh
-./gradlew :docs:site
-```
+## Quick start
 
-Open `docs/build/site/index.html` in a browser. `./gradlew :docs:check` checks local links and assets; `./gradlew :docs:siteZip` creates a verified static-site archive in `docs/build/distributions/`. Site generation requires Java and Gradle, with no Docker or separate frontend toolchain. See [docs/README.md](docs/README.md) for authoring and hosting instructions.
+### Try the included example
 
-The [GitHub Pages workflow](.github/workflows/pages.yml) deploys the verified guide and API reference on pushes to `main` or a manual run from `main`. Enable **GitHub Actions** as the repository's Pages source using the [deployment setup instructions](docs/README.md#github-pages).
-
-## Try the included example
-
-From this repository:
+From this repository's root:
 
 ```sh
 ./gradlew -p examples/basic integrationTest --configuration-cache
 ```
 
-The Kotlin DSL example includes this plugin as a composite build. It provisions S3 buckets, standard/FIFO SQS queues and a FIFO DLQ, publishes message fixtures, verifies object and message round trips plus a signed STS request using AWS SDK for Java v2 over HTTPS, and removes the managed container and its connection files afterwards. Run the same command again to exercise configuration-cache reuse.
+The example provisions S3 buckets and SQS queues, loads message fixtures, verifies signed AWS SDK requests, and removes its managed container. Run it again to check configuration-cache reuse. See the [basic example](examples/basic/README.md) for the complete build and failure-cleanup demonstration.
 
-To demonstrate cleanup after a failed test:
+### Apply from a checkout
 
-```sh
-./gradlew -p examples/basic integrationTest -PfailExample=true
-```
-
-That command is expected to fail its test; its managed container is still removed.
-
-## Data fixtures and development scenarios
-
-Declare reusable resources and fixtures in `awsEmulator.resourceSets`. Each set creates separate tasks for managed and development instances, so tests, local Boot runs, and scenarios can share definitions in the same build:
-
-```kotlin
-val applicationResources = awsEmulator.resourceSets.register("application") {
-    provision("queue", CreateSqsQueueTask::class.java) {
-        queueName.set("application-events")
-    }
-    seed("messages", PublishSqsTask::class.java) {
-        queueNames.add("application-events")
-        messages.from(layout.projectDirectory.file("fixtures/messages.txt"))
-    }
-}
-awsEmulator {
-    useWith(tasks.named<Test>("test"), EmulatorMode.MANAGED, applicationResources)
-    scenarios { register("default") { resources(applicationResources) } }
-    // With the Spring Boot companion applied:
-    springBoot { resourceSets.add(applicationResources) }
-}
-```
-
-Import `CreateSqsQueueTask` and `PublishSqsTask` from `io.github.gregwhitaker.awsemulator.aws.sqs`, and `EmulatorMode` from `io.github.gregwhitaker.awsemulator.model`. Within each set, provisioning and fixture steps run in declaration order, with all provisioning before fixtures. `include(otherSet)` shares prerequisites. Definitions configure task inputs; attachments select the mode. A set executes once per project and mode in each invocation, and consumers in that mode share its resources.
-
-Load files or directories into S3 with content types and metadata, download or list objects, and seed DynamoDB tables from JSON attribute maps. `PurgeDynamoDbTableTask` clears items while preserving the table and indexes. Named scenarios combine resource provisioning with ordered fixture tasks:
-
-```shell
-./gradlew -p examples/scenarios seedAwsEmulator --configuration-cache
-./gradlew -p examples/scenarios resetAwsEmulator -PawsEmulator.scenario=empty
-./gradlew -p examples/scenarios resetAwsEmulatorFailedOrders
-./gradlew -p examples/scenarios stopAwsEmulator
-```
-
-Seed preserves unrelated data. Reset discards all resources in the project's development emulator and recreates only the selected scenario. See the [data fixtures and scenarios guide](docs/src/docs/asciidoc/scenarios.adoc) for task properties and Kotlin/Groovy configuration, or run the [scenario example](examples/scenarios/README.md).
-
-## Additional AWS services
-
-Typed resource tasks now cover **SSM Parameter Store, Secrets Manager, EventBridge, Kinesis Data Streams, KMS, and CloudWatch Logs**. They support managed tests and persistent development instances using the same local SDK connection as the existing S3/SQS tasks.
-
-Run the complete example twice to verify SDK round trips and configuration-cache reuse:
-
-```sh
-./gradlew -p examples/services verifyServices --configuration-cache
-./gradlew -p examples/services verifyServices --configuration-cache
-```
-
-The example seeds configuration and secrets from JSON, routes EventBridge events into SQS, publishes/consumes stream records, encrypts/decrypts a file, and retrieves application logs. Use `-PfailExample=true` to exercise cleanup after a failed test. For persistent resources, run `provisionServices -Pdevelopment=true`, then `stopAwsEmulator` when finished.
-
-See [the service task guide](docs/src/docs/asciidoc/services.adoc) for the complete task/property reference, Kotlin/Groovy DSL, fixture schemas, overwrite rules, deletion semantics, and supported limits. The generated guide is available at `docs/build/site/services.html` after `./gradlew :docs:site`.
-
-## Apply from a checkout
-
-Until publication, include this repository in your application's plugin management.
-
-Kotlin `settings.gradle.kts`:
+Version **0.2.0** is implemented in this repository and has not been published to the Gradle Plugin Portal. Include the checkout in your application's `settings.gradle.kts`, adjusting the path as needed:
 
 ```kotlin
 pluginManagement {
@@ -101,7 +35,7 @@ pluginManagement {
 }
 ```
 
-Kotlin `build.gradle.kts`:
+Apply the plugin and opt in an existing task in `build.gradle.kts`:
 
 ```kotlin
 plugins {
@@ -115,186 +49,26 @@ awsEmulator {
 }
 ```
 
-Groovy `settings.gradle`:
+Add `.aws-emulator/` to your application's `.gitignore`, then run `./gradlew test`. Your application supplies its own AWS SDK and test dependencies. `port.set(0)` selects an available port for concurrent builds or simultaneous managed and development instances.
 
-```groovy
-pluginManagement {
-    includeBuild('../gradle-aws-emulator')
-}
-```
+Use an SDK that supports external endpoint configuration and its normal credential providers. Explicit client settings can override the supplied connection; see [credentials and TLS](docs/src/docs/asciidoc/connections.adoc) for SDK configuration and custom trust stores. The [getting-started guide](docs/src/docs/asciidoc/getting-started.adoc) also includes Groovy DSL setup.
 
-Groovy `build.gradle`:
+## Runtime modes
 
-```groovy
-plugins {
-    id 'java'
-    id 'io.github.gregwhitaker.aws-emulator'
-}
+| Mode | Use it for | Lifetime |
+| --- | --- | --- |
+| **Managed** | Tests and other tasks attached with `awsEmulator.useWith(...)`. Custom resource tasks also default to this mode. | Starts on demand, is shared by participating tasks in the project, and is removed after use, including ordinary task failures. |
+| **Development** | Interactive work with `startAwsEmulator`, module convenience tasks, or explicitly selected `EmulatorMode.DEVELOPMENT`. | Persists across Gradle invocations until `stopAwsEmulator` or `restartAwsEmulator`. |
 
-awsEmulator {
-    port.set(0)
-    useWith(tasks.named('test'))
-}
-```
+Managed and development instances have separate containers and connection files. AWS resources live in memory: stopping or restarting an instance discards its data. Managed cleanup saves container logs under `.aws-emulator/logs/` by default.
 
-To opt in only integration tests, pass the provider for your existing `integrationTest` task instead. Applying the plugin alone does not start Docker or change test tasks.
+`useWith` accepts existing `Test`, `JavaExec`, and `Exec` tasks, including subclasses. It supplies connection settings at execution time. Participating tasks with work run on every invocation; configuration-cache reuse is supported, while up-to-date skipping and build-cache reuse are disabled. Skipped or `NO-SOURCE` consumers do not start an emulator themselves, though their provisioning dependencies can still run.
 
-## Lifecycle tasks
+Projects get separate runtimes by default. Use [shared runtime ownership](docs/src/docs/asciidoc/shared-runtimes.adoc) to connect multiple projects to one instance. Tasks sharing an instance also share resources, so use distinct names for concurrent tests. See [tests and process execution](docs/src/docs/asciidoc/testing.adoc) for setup dependencies, mode selection, and Python/Node integration.
 
-| Task | Behavior |
-| --- | --- |
-| `prepareAwsEmulator` | Build the pinned image, or locate/pull an image override. |
-| `startAwsEmulator` | Start the project's development instance and wait for HTTPS readiness. Reuse it if its configuration matches. |
-| `stopAwsEmulator` | Gracefully stop and remove the project's development container and generated connection files. Safe to repeat. |
-| `restartAwsEmulator` | Stop and start the development instance with the current configuration and empty state. |
-| `statusAwsEmulator` | Report the development container's state, health, and endpoint. |
-| `logsAwsEmulator` | Print the last 100 lines from the development container. |
-| `doctorAwsEmulator` | Diagnose Docker, images, ports, owned containers, connection files, and HTTPS health without starting an instance. |
-| `cleanupAwsEmulator` | Archive logs and remove stale project-owned managed containers. Use `--report-only` to preview; active builds and development instances are skipped. |
-| `exportAwsEmulatorConnection` | Start/reuse development and write `connection.sh` and `connection.ps1` in its runtime home. |
+## Provision resources
 
-For example:
-
-```sh
-./gradlew -p examples/basic startAwsEmulator -PawsEmulator.port=9297
-./gradlew -p examples/basic statusAwsEmulator
-./gradlew -p examples/basic logsAwsEmulator
-./gradlew -p examples/basic stopAwsEmulator
-```
-
-Start, stop, restart, status, logs, and connection exports operate on a persistent **development** instance. It survives the end of a Gradle invocation. Doctor inspects all project-owned instances; cleanup targets stale managed instances. Changed settings require `restartAwsEmulator`; an unrelated container with the same name is never adopted or stopped.
-
-AWS Emulator keeps resources in memory. Stop and restart discard those resources. There is no state-persistence or reset API in this release of the emulator.
-
-## Managed tests and process execution
-
-`awsEmulator.useWith(taskProvider)` supports Gradle `Test`, `JavaExec`, and `Exec` tasks, including subclasses. By default, a build service starts one fresh **managed** instance per participating project and shares it among that project's opted-in tasks. Projects can explicitly share a runtime owner as described below. Managed instances have separate container names and directories from development instances.
-
-The service archives the container's complete available timestamped logs under `.aws-emulator/logs/` before removing its managed container and connection files, including after ordinary task/test failures. Startup failures also archive logs when a container was created. Archive failures warn and cleanup continues. The log path is printed; logs remain until explicitly deleted. Skipped and `NO-SOURCE` consumers do not start an emulator themselves. Explicit provisioning dependencies still execute when those consumers are skipped or have no sources. Opted-in tasks always execute when they have work: up-to-date checks and build-cache reuse are disabled because the emulator starts with fresh external state.
-
-For Java application execution:
-
-```kotlin
-awsEmulator {
-    useWith(tasks.named<JavaExec>("run"))
-}
-```
-
-This configures an existing task. For Spring Boot run/debug tasks, apply the optional companion plugin described below.
-
-Tasks sharing an instance also share emulated resources; use distinct resource names when tests run concurrently. Each project gets its own instance unless it selects a shared runtime owner. Set the owner's `port` to `0` for parallel projects, concurrent builds, or simultaneous managed and development instances. The plugin selects an available host port and passes that same nonzero port to both Docker and the emulator. A competing process can still claim a selected port before Docker binds it; the plugin reports the failure and cleans up rather than attaching to that process.
-
-Graceful cleanup requires the Gradle process and Docker daemon to remain available. A hard kill or daemon failure can leave a container behind. Inspect and remove stale containers owned by this project's runtime with:
-
-```sh
-./gradlew doctorAwsEmulator
-./gradlew cleanupAwsEmulator --report-only
-./gradlew cleanupAwsEmulator
-```
-
-Cleanup checks ownership labels, the runtime-home owner marker, and the lifetime lock before removing managed containers. Active builds and development instances are preserved. Running containers from older plugin versions without a lifetime lock are skipped because their activity cannot be established; identify and stop those individually before retrying cleanup. The plugin does not prune other containers, images, or AWS configuration.
-
-## Python, Node, AWS CLI, and IDE launches
-
-Attach an existing `Exec` task just like a JVM consumer:
-
-```kotlin
-val pythonTest = tasks.register<Exec>("pythonTest") {
-    commandLine("python3", "-m", "pytest")
-}
-awsEmulator.useWith(pythonTest)
-// Use EmulatorMode.DEVELOPMENT as the second argument for a persistent instance.
-```
-
-The child receives the current endpoint, region, generated credential/config paths, `AWS_CA_BUNDLE`, and `NODE_EXTRA_CA_CERTS`. Conflicting inherited AWS credentials, profiles, and service endpoints are removed. `Exec` supports the same setup/resource sets and shared runtime owners as JVM consumers; JVM trust-store merging remains specific to `Test` and `JavaExec`.
-
-For a shell or an IDE-launched application, export the persistent development connection:
-
-```sh
-./gradlew exportAwsEmulatorConnection
-. .aws-emulator/development/connection.sh
-aws --endpoint-url "$AWS_ENDPOINT_URL" sts get-caller-identity --no-cli-pager
-```
-
-PowerShell uses `. ./.aws-emulator/development/connection.ps1`. The task prints the actual paths, including with a custom working directory or shared runtime owner. Source the script in a dedicated development shell, then launch the application or a fresh IDE process from it. You can also copy the exported values into an IDE run configuration and remove conflicting AWS overrides there. Scripts contain paths, never credential values, and clear overrides when sourced. Regenerate and source them after restarting the emulator. Close the development shell to discard its environment; `stopAwsEmulator` removes the connection scripts and generated credentials.
-
-Run the dependency-free Python and Node HTTPS probes with `./gradlew -p examples/processes pythonProbe nodeProbe --configuration-cache`. The [external-process example](examples/processes/README.md) also includes a signed AWS CLI request, development mode, connection exports, and failure cleanup.
-
-## Share a runtime across projects
-
-Applications in the same Gradle build can explicitly use an infrastructure project's runtime and named resource sets. Declare `id("io.github.gregwhitaker.aws-emulator") apply false` in the root build's `plugins` block so sharing projects use the same plugin classes, then configure each consumer:
-
-```kotlin
-awsEmulator {
-    useSharedRuntime(":local-aws", "application")
-    useWith(tasks.named<Test>("test"))
-    useWith(tasks.named<JavaExec>("run"))
-}
-```
-
-The `:local-aws` project applies the core plugin and declares `awsEmulator.resourceSets.register("application")`. Its runtime settings and working directory are authoritative; consumer runtime settings are ignored. Selected resources run once per owner and mode per invocation before all attached consumers, including the Spring Boot companion's local run tasks. Omit the resource-set names to share only the runtime. Ordinary tasks still require `useWith`.
-
-Managed consumers share one instance for the invocation, cleaned up after all participating tasks finish. Development consumers share the owner's persistent instance; use `:local-aws:stopAwsEmulator` to stop it. Managed and development instances remain separate. Owner chains and cross-build sharing are not supported.
-
-Run the complete publisher/worker example twice to verify sharing and configuration-cache reuse:
-
-```sh
-./gradlew -p examples/multi-project verifySharedRuntime --parallel --configuration-cache
-./gradlew -p examples/multi-project verifySharedRuntime --parallel --configuration-cache
-```
-
-See the [multi-project example](examples/multi-project/README.md) and [shared runtime guide](docs/src/docs/asciidoc/shared-runtimes.adoc) for owner setup, Groovy DSL, development runs, and failure cleanup.
-
-## Spring Boot companion plugin
-
-Apply **`io.github.gregwhitaker.aws-emulator.spring-boot`** alongside your chosen `org.springframework.boot` version. The companion automatically applies the base emulator plugin and adds `bootRunLocal` and `bootRunLocalDebug`. It publishes as a separate artifact and does not bring a Spring Boot version into your build. Both plugins currently use version **0.2.0**, available from this checkout until publication.
-
-```kotlin
-plugins {
-    java
-    id("org.springframework.boot") version "4.1.2"
-    id("io.github.gregwhitaker.aws-emulator.spring-boot")
-}
-
-awsEmulator {
-    port.set(0)
-    springBoot {
-        profiles.set(listOf("local"))
-        debugPort.set(5005)
-    }
-}
-```
-
-The default development instance survives application exit. `bootRunLocalDebug` waits for a debugger on `localhost:5005`; `stopAwsEmulator` removes the development instance. Set `awsEmulator.springBoot.mode` to `EmulatorMode.MANAGED` for automatic cleanup.
-
-Both local tasks automatically discover and run registered resource-creation tasks before starting the application, using the same emulator instance. For example, registering a `CreateSqsQueueTask` with its `queueName` is enough; no setup-task list or mode wiring is needed. Use `excludedSetupTasks` for test-only resources, or `autoCreateResources.set(false)` with explicit `setupTasks` for manual selection. Explicitly configured resource modes must match the application. Ordinary `bootRun` remains independently configured.
-
-Run `./gradlew -p examples/spring-boot bootRunLocal --configuration-cache` for a working SQS round trip. See the [companion plugin README](spring-boot-plugin/README.md) for setup and configuration, the [Spring Boot guide](docs/src/docs/asciidoc/spring-boot.adoc) for more detail, or the [example README](examples/spring-boot/README.md). Compatibility is tested with Spring Boot 3.5.16 and 4.1.2.
-
-The [Spring Cloud AWS example](examples/spring-cloud-aws/README.md) uses Spring Cloud AWS 3.4.0 with Boot 3.5.16. It verifies `@SqsListener` acknowledgements, auto-configured async clients, `SqsTemplate`, and required SSM/Secrets Manager configuration imports over HTTPS. Run `./gradlew -p examples/spring-cloud-aws test bootRunLocal --configuration-cache` to exercise the same definitions in managed tests and a persistent Boot run. Its Docker integration tests also check configuration-cache reuse and cleanup after test, application, and configuration-import failures.
-
-The core API also supports explicit runtime selection and setup dependencies for any `Test`, `JavaExec`, or `Exec` consumer: `awsEmulator.useWith(taskProvider, EmulatorMode.DEVELOPMENT, setupTaskProvider)`. Setup accepts reusable resource sets as well as ordinary tasks. The mode may be a `Provider<EmulatorMode>`. Existing one-argument calls continue to use managed instances.
-
-## Micronaut and Ktor
-
-Micronaut and Ktor applications use the core plugin's `awsEmulator.useWith(...)` integration with their existing `run` (`JavaExec`) and `test` tasks. Runnable examples provision SQS before startup, use normal AWS SDK for Java v2 clients over signed HTTPS, and remove managed emulators after success or failure:
-
-```sh
-./gradlew -p examples/micronaut test run --configuration-cache
-./gradlew -p examples/ktor test run --configuration-cache
-```
-
-Repeat either command to verify configuration-cache reuse. Micronaut supplies its SQS client through dependency injection; Ktor exercises an HTTP route with both a Netty server and `testApplication`. Each example chooses its framework versions and uses the core emulator plugin directly.
-
-Use `run -Pdevelopment=true` for a persistent emulator, `run --debug-jvm` for debugging, and `stopAwsEmulator` for development cleanup. Tests always use managed instances. `-PfailExample=true` deliberately fails after the SDK round trip to demonstrate cleanup.
-
-Docker-free compatibility fixtures compile Micronaut platforms 4.9.4/4.10.24 with Micronaut Gradle plugin 4.6.2 and Ktor 3.5.2/3.6.1 with Kotlin 2.4.21. Real-emulator tests cover the default examples (Micronaut platform 4.10.24 and Ktor 3.6.1), including runtime isolation and failures. This support covers JVM execution with AWS SDK for Java v2. See the [framework guide](docs/src/docs/asciidoc/frameworks.adoc), [Micronaut example](examples/micronaut/README.md), and [Ktor example](examples/ktor/README.md) for configuration and scope.
-
-## Provision S3 buckets and SQS queues
-
-Register typed tasks for the resources your application needs, then make your test task depend on them. Each task starts the emulator on demand and waits for readiness. Custom resource tasks default to the same managed instance used by `awsEmulator.useWith` in that project.
-
-Kotlin DSL:
+Register typed tasks and attach them to the consumer that needs their resources. This `build.gradle.kts` provisions a bucket and queue before tests run:
 
 ```kotlin
 import io.github.gregwhitaker.awsemulator.aws.s3.CreateS3BucketTask
@@ -310,418 +84,113 @@ val createBucket = tasks.register<CreateS3BucketTask>("createTestBucket") {
 }
 val createQueue = tasks.register<CreateSqsQueueTask>("createTestQueue") {
     queueName.set("application-test-events")
-    attributes.put("VisibilityTimeout", "45")
 }
-val test = tasks.named<Test>("test") {
+val tests = tasks.named<Test>("test") {
     dependsOn(createBucket, createQueue)
 }
-awsEmulator {
-    port.set(0)
-    useWith(test)
-}
-```
 
-Groovy DSL:
-
-```groovy
-import io.github.gregwhitaker.awsemulator.aws.s3.CreateS3BucketTask
-import io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueueTask
-
-plugins {
-    id 'java'
-    id 'io.github.gregwhitaker.aws-emulator'
-}
-
-def createBucket = tasks.register('createTestBucket', CreateS3BucketTask) {
-    bucketName.set('application-test-data')
-}
-def createQueue = tasks.register('createTestQueue', CreateSqsQueueTask) {
-    queueName.set('application-test-events')
-    attributes.put('VisibilityTimeout', '45')
-}
-def tests = tasks.named('test') {
-    dependsOn(createBucket, createQueue)
-}
 awsEmulator {
     port.set(0)
     useWith(tests)
 }
 ```
 
-The plugin declares its own AWS SDK for Java v2 dependencies for provisioning tasks. Your application declares its own SDK dependencies, as shown in `examples/basic`.
+The resource tasks and tests use the same managed instance. For reusable definitions across tests, application runs, and named development scenarios, declare `awsEmulator.resourceSets`; see [data fixtures and scenarios](docs/src/docs/asciidoc/scenarios.adoc).
 
-| Task type | Required properties | Optional properties |
-| --- | --- | --- |
-| `CreateS3BucketTask` | `bucketName` | `mode`, `apiCallTimeoutSeconds` |
-| `CreateS3BucketsTask` | `buckets` (list) | `mode`, `apiCallTimeoutSeconds` |
-| `ListS3BucketsTask` | — | `mode`, `apiCallTimeoutSeconds` |
-| `PurgeS3BucketsTask` | `buckets` (list) | `mode`, `apiCallTimeoutSeconds` |
-| `DeleteS3BucketsTask` | `buckets` (list) | `force` (default `false`), `mode`, `apiCallTimeoutSeconds` |
-| `CreateSqsQueueTask` | `queueName` | `attributes` (map of AWS attribute names to string values), `mode`, `apiCallTimeoutSeconds` |
-| `CreateSqsQueuesTask` | `queueNames` (list) | `queueAttributes` (map), `mode`, `apiCallTimeoutSeconds` |
-| `CreateSqsQueueWithDlqTask` | `queueName` | `queueAttributes`, `deadletterQueueName`, `deadletterQueueAttributes`, `maxReceiveCount` (default `1`), `mode`, `apiCallTimeoutSeconds` |
-| `ListSqsQueuesTask` | — | `prefix`, `mode`, `apiCallTimeoutSeconds` |
-| `PurgeSqsQueuesTask` | `queueNames` (list) | `mode`, `apiCallTimeoutSeconds` |
-| `PublishSqsTask` | `queueNames` (list), `messages` (file collection) | `messageGroupId` (required for FIFO), `mode`, `apiCallTimeoutSeconds` |
-
-All properties are lazy Gradle properties. Custom task instances default to `EmulatorMode.MANAGED`; `apiCallTimeoutSeconds` defaults to `30` per SDK operation, including retries. These tasks always execute and are never restored from the build cache because they operate on live emulator state. A managed provisioning task invoked alone creates resources that are removed when the build finishes.
-
-`CreateS3BucketTask` and `CreateS3BucketsTask` create general-purpose buckets in `awsEmulator.region`. They omit the location constraint for `us-east-1` and set it for other regions. Existing accessible buckets are reused without another `CreateBucket` call, preserving their objects and configuration. A region mismatch reported by `HeadBucket` fails the task. Directory buckets, access points, bucket policies, and object seeding are outside 0.2's scope.
-
-`CreateSqsQueueTask` and `CreateSqsQueuesTask` support standard and FIFO queues. Existing queues are reused when explicitly requested attribute values match; a mismatch fails without changing or purging the queue. Unspecified attributes retain their existing values. Attribute comparison uses the returned string values, including JSON-valued attributes. AWS service errors remain build failures.
-
-FIFO queues need both a `.fifo` suffix and `FifoQueue = true`:
-
-```kotlin
-val createFifo = tasks.register<CreateSqsQueueTask>("createTestFifo") {
-    queueName.set("application-events.fifo")
-    attributes.put("FifoQueue", "true")
-    attributes.put("ContentBasedDeduplication", "true")
-}
-```
-
-To provision the persistent development instance, select `DEVELOPMENT` on each resource task:
-
-```kotlin
-import io.github.gregwhitaker.awsemulator.model.EmulatorMode
-import io.github.gregwhitaker.awsemulator.aws.s3.CreateS3BucketTask
-
-val developmentBucket = tasks.register<CreateS3BucketTask>("createDevelopmentBucket") {
-    mode.set(EmulatorMode.DEVELOPMENT)
-    bucketName.set("application-development-data")
-}
-```
-
-Running `createDevelopmentBucket` starts or reuses the development instance and leaves it running. `stopAwsEmulator` removes it; `restartAwsEmulator` discards its resources. Test setup must use `MANAGED` to share the runtime selected by `useWith`.
-
-Provisioning clients use explicit emulator endpoints, regions, and generated credentials, plus per-client TLS trust. They bypass inherited proxy settings and do not change the Gradle daemon's credentials or global SSL settings. No AWS CLI is required.
-
-## S3 and SQS module tasks
-
-The modules register these convenience tasks for the persistent **development** instance:
-
-| Group | Registered tasks |
+| Resources | Guide |
 | --- | --- |
-| `AWS Emulator - S3` | `listS3Buckets`, `purgeS3Buckets`, `deleteS3Buckets` |
-| `AWS Emulator - SQS` | `listSqsQueues`, `purgeSqsQueues`, `publishSqs` |
+| S3 buckets, SQS queues, FIFO queues, dead-letter queues, and message fixtures | [S3 and SQS](docs/src/docs/asciidoc/resources.adoc) |
+| SNS topics, SQS subscriptions, and notifications | [SNS](docs/src/docs/asciidoc/sns.adoc) |
+| DynamoDB tables, indexes, and Java initializers | [DynamoDB](docs/src/docs/asciidoc/dynamodb.adoc) |
+| Cognito User Pools, public app clients, user/group fixtures, and runtime ID exports | [Cognito](docs/src/docs/asciidoc/cognito.adoc) |
+| S3 object uploads/downloads, DynamoDB item fixtures, and development datasets | [Data fixtures and scenarios](docs/src/docs/asciidoc/scenarios.adoc) |
+| SSM Parameter Store, Secrets Manager, EventBridge, Kinesis, KMS, and CloudWatch Logs | [Additional services](docs/src/docs/asciidoc/services.adoc) |
+
+These guides cover task properties, Kotlin/Groovy configuration, fixture formats, and resource reuse and deletion behavior.
+
+The [Cognito example](examples/cognito/README.md) verifies password sign-in, token refresh, and Spring Security authorization. Pinned AWS Emulator `1.0.322` signs JWTs with ES256 while AWS Cognito uses RS256; the example explicitly configures the local algorithm while preserving signature, issuer, expiry, client, and TLS validation.
+
+## Local development
+
+From this repository, use the basic example to start and inspect a persistent instance:
 
 ```sh
-./gradlew listS3Buckets
-./gradlew listSqsQueues --prefix=application-
-./gradlew publishSqs --queueNames=application-events --message=src/integration/messages
-./gradlew purgeSqsQueues --queueNames=application-events
-./gradlew purgeS3Buckets --buckets=application-data,application-uploads
-./gradlew deleteS3Buckets --buckets=application-data --force
+./gradlew -p examples/basic startAwsEmulator
+./gradlew -p examples/basic statusAwsEmulator
+./gradlew -p examples/basic logsAwsEmulator
+./gradlew -p examples/basic stopAwsEmulator
 ```
 
-These commands start or reuse the development emulator. Use `--mode=MANAGED` to select the managed runtime in a build that also provisions or consumes those resources. Custom instances of the same types still default to `MANAGED`.
+In your own application, omit `-p examples/basic`.
 
-S3 listing follows all pages. Purging removes objects, historical versions, and delete markers, including when versioning is suspended, while keeping the bucket. Deletion requires an empty bucket unless `force` is `true`; deleting an absent bucket succeeds. Purge and delete require explicit bucket names.
+| Task | Purpose |
+| --- | --- |
+| `prepareAwsEmulator` | Build or pull the emulator image ahead of time. |
+| `startAwsEmulator` | Start or reuse the development instance and wait for HTTPS readiness. |
+| `stopAwsEmulator` | Remove the development container and its generated connection files. |
+| `restartAwsEmulator` | Restart with current settings and empty state. |
+| `statusAwsEmulator` | Show the development container's state, health, and endpoint. |
+| `logsAwsEmulator` | Print the last 100 lines of development-container logs. |
+| `doctorAwsEmulator` | Diagnose Docker, images, ports, owned containers, and connection health. |
+| `cleanupAwsEmulator` | Archive logs and remove stale managed containers; `--report-only` previews cleanup. |
+| `exportAwsEmulatorConnection` | Write shell and PowerShell connection scripts for development tools and IDEs. |
 
-SQS listing includes queue names, URLs, and approximate available message counts. Purge requires explicit queue names and retains the queues. It requests deletion of available and in-flight messages; the service can take up to 60 seconds to complete the purge. SDK errors fail the task.
+Changed runtime settings require `restartAwsEmulator`. A hard kill or Docker failure can leave a managed container behind; use `doctorAwsEmulator` and `cleanupAwsEmulator` to inspect and remove it. Cleanup preserves active builds and development instances.
 
-### Bulk creation and deadletter queues
+See the [lifecycle guide](docs/src/docs/asciidoc/lifecycle.adoc) for ownership and cleanup rules, [connection exports](docs/src/docs/asciidoc/connections.adoc#shell-exports) for shell and IDE setup, and [configuration reference](docs/src/docs/asciidoc/configuration.adoc) for ports, regions, images, timeouts, and defaults.
 
-```kotlin
-import io.github.gregwhitaker.awsemulator.aws.s3.CreateS3BucketsTask
-import io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueuesTask
-import io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueueWithDlqTask
+### Spring Boot
 
-val createBuckets = tasks.register<CreateS3BucketsTask>("createTestBuckets") {
-    buckets.set(listOf("application-data", "application-uploads"))
-}
-val createQueues = tasks.register<CreateSqsQueuesTask>("createTestQueues") {
-    queueNames.set(listOf("application-events", "application-notifications"))
-    queueAttributes.put("VisibilityTimeout", "45")
-}
-val createOrders = tasks.register<CreateSqsQueueWithDlqTask>("createOrdersQueue") {
-    queueName.set("application-orders.fifo")
-    queueAttributes.put("FifoQueue", "true")
-    maxReceiveCount.set(3)
-}
-```
-
-Bulk creation uses the same reuse and attribute checks as the singular tasks. The DLQ task defaults to `<queue>-dlq`, inserting `-dlq` before `.fifo` for FIFO queues. It infers `FifoQueue=true` for a FIFO DLQ and requires matching queue types. Override `deadletterQueueName` or `deadletterQueueAttributes` as needed.
-
-The DLQ task creates or reuses the DLQ, reads its actual ARN, then creates or updates the source queue's requested attributes and redrive policy. Existing messages are retained subject to the configured queue attributes. This task deliberately updates an existing source queue; the ordinary creation tasks only verify it. Configure the redrive policy through `deadletterQueueName` and `maxReceiveCount` rather than a `RedrivePolicy` entry.
-
-### Publish message fixtures before tests
-
-```kotlin
-import io.github.gregwhitaker.awsemulator.aws.sqs.PublishSqsTask
-
-val publishOrders = tasks.register<PublishSqsTask>("publishTestOrders") {
-    dependsOn(createOrders)
-    queueNames.add("application-orders.fifo")
-    messages.from(layout.projectDirectory.dir("src/integration/messages"))
-    messageGroupId.set("integration-tests")
-}
-tasks.named<Test>("test") {
-    dependsOn(createBuckets, createQueues, publishOrders)
-}
-awsEmulator { useWith(tasks.named<Test>("test")) }
-```
-
-`messages` accepts UTF-8 files, directories traversed recursively, and `.tar.gz`/`.tgz` archives. Every nonempty line is one message sent to every selected queue; whitespace is preserved. Directory files are processed in path order, archive entries in archive order. Hidden entries and directory symlinks are skipped, and archives are read without extraction. Invalid input fails before publishing begins. Service failures stop publishing; earlier successful sends remain, so rerunning can send duplicates.
-
-FIFO targets require `messageGroupId` (or `--messageGroupId` on `publishSqs`). Each delivery gets a unique deduplication ID so identical fixture lines remain separate messages. Publishing tasks always execute, including on configuration-cache reuse.
-
-## SNS topics and SQS subscriptions
-
-SNS tasks create standard/FIFO topics, subscribe SQS queues, list topics and subscriptions, publish messages, and delete topics.
-
-```kotlin
-import io.github.gregwhitaker.awsemulator.aws.sns.CreateSnsTopicWithSqsEndpointTask
-import io.github.gregwhitaker.awsemulator.aws.sns.PublishSnsTask
-
-val createNotifications = tasks.register<CreateSnsTopicWithSqsEndpointTask>("createNotifications") {
-    topicName.set("application-notifications")
-    subscriptionAttributes.put("RawMessageDelivery", "true")
-}
-val publishNotification = tasks.register<PublishSnsTask>("publishTestNotification") {
-    dependsOn(createNotifications)
-    topicName.set("application-notifications")
-    message.set("""{"event":"created"}""")
-}
-val notificationTests = tasks.named<Test>("test") { dependsOn(publishNotification) }
-awsEmulator { useWith(notificationTests) }
-```
-
-The subscriber queue defaults to `<topic>-subscriber`. The task preserves existing queue messages and policy statements, adds a topic-specific delivery grant, and reuses the subscription. Existing topics and queues must match explicitly requested attributes. Use `CreateSnsTopicTask` with `topicName` and optional `attributes` for a topic without a queue.
-
-Four convenience tasks target the persistent development instance:
+Apply **`io.github.gregwhitaker.aws-emulator.spring-boot`** alongside your application's `org.springframework.boot` plugin. The companion applies the core plugin and adds `bootRunLocal` and `bootRunLocalDebug`, with automatic resource creation before startup.
 
 ```sh
-./gradlew listSnsTopics
-./gradlew listSnsTopicSubscriptions --topicName=application-notifications
-./gradlew publishSns --topicName=application-notifications --message='{"event":"created"}'
-./gradlew deleteSnsTopic --topicName=application-notifications
+./gradlew -p examples/spring-boot bootRunLocal --configuration-cache
+./gradlew -p examples/spring-boot bootRunLocalDebug
+./gradlew -p examples/spring-boot stopAwsEmulator
 ```
 
-Provision those development topics with `mode.set(EmulatorMode.DEVELOPMENT)` first. Topic deletion also removes subscriptions but retains their SQS queues. See the [SNS guide](docs/src/docs/asciidoc/sns.adoc) for all task properties, FIFO configuration, and Groovy examples.
+The local tasks use a persistent development instance by default. The debug task waits for a debugger on `localhost:5005`. See the [companion README](spring-boot-plugin/README.md) for installation, profiles, resource selection, and managed mode.
 
-## DynamoDB tables
+Micronaut and Ktor use the core plugin with their existing `run` and `test` tasks; see the [framework guide](docs/src/docs/asciidoc/frameworks.adoc).
 
-`DynamoDbModule` groups table tasks under `AWS Emulator - DynamoDB` using AWS SDK for Java v2.
+## Examples
 
-| Task type | Registration | Behavior |
-| --- | --- | --- |
-| `CreateDynamoDbTableTask` | Register a named task | Create or reuse a table, wait for `ACTIVE`, and optionally initialize a newly created table. |
-| `ListDynamoDBTablesTask` | `listDynamoDbTables` | List every table, following all response pages. |
-| `DeleteDynamoDbTableTask` | `deleteDynamoDbTable` | Delete the named table and its items; wait for deletion to complete. |
+Each example is an independent composite build that uses this checkout. Run commands from the repository root with `./gradlew -p examples/<example> ...`.
 
-```kotlin
-import io.github.gregwhitaker.awsemulator.aws.dynamodb.CreateDynamoDbTableTask
-import software.amazon.awssdk.services.dynamodb.model.*
+| Example | Demonstrates |
+| --- | --- |
+| [Basic](examples/basic/README.md) | S3, standard/FIFO SQS queues, a dead-letter queue, message fixtures, and STS requests. |
+| [Data fixtures and scenarios](examples/scenarios/README.md) | S3 files, DynamoDB items, reusable resource sets, and development reset/reseed. |
+| [DynamoDB](examples/dynamodb/README.md) | Indexes, stream settings, and a Java initializer in `buildSrc`. |
+| [Additional services](examples/services/README.md) | Configuration, secrets, events, streams, encryption, and logs. |
+| [Cognito](examples/cognito/README.md) | User Pools, user/group fixtures, runtime ID exports, and signed JWT authorization with Spring Security. |
+| [External processes](examples/processes/README.md) | Python, Node, AWS CLI, and shell/IDE connection exports. |
+| [Multi-project](examples/multi-project/README.md) | Shared runtime ownership and resources across applications. |
+| [Spring Boot](examples/spring-boot/README.md) | Local run/debug tasks, profiles, and SQS provisioning. |
+| [Spring Cloud AWS](examples/spring-cloud-aws/README.md) | SQS listeners, async clients, and SSM/Secrets Manager configuration imports. |
+| [Micronaut](examples/micronaut/README.md) | Injected SQS clients and framework tests. |
+| [Ktor](examples/ktor/README.md) | An HTTP/SQS route and `testApplication`. |
 
-val createProducts = tasks.register<CreateDynamoDbTableTask>("createProducts") {
-    tableName.set("catalog.products")
-    keySchema.add(KeySchemaElement.builder().attributeName("id").keyType(KeyType.HASH).build())
-    attributeDefinitions.add(AttributeDefinition.builder().attributeName("id").attributeType(ScalarAttributeType.S).build())
-}
-tasks.named<Test>("test") { dependsOn(createProducts) }
-awsEmulator { useWith(tasks.named<Test>("test")) }
-```
+## Documentation
 
-Creation supports `globalSecondaryIndexes`, `localSecondaryIndexes`, `provisionedThroughput` (100 read/write units by default), `sseSpecification` (`enabled=true` by default), and optional `streamSpecification`. These are lazy properties containing SDK v2 model objects. Each GSI requires its own throughput. The task validates the schema before starting Docker.
-
-Existing tables are reused without changing their definitions or items and without rerunning initializers. Creation and deletion use `waitTimeoutSeconds` (default `60`); individual SDK calls use `apiCallTimeoutSeconds` (default `30`). Deleting a missing table fails, matching the LocalStack task.
-
-The registered list/delete commands use the development emulator; custom tasks default to managed mode. For a development session:
+The [user guide](docs/src/docs/asciidoc/index.adoc) covers configuration, resource tasks, integrations, and [troubleshooting](docs/src/docs/asciidoc/troubleshooting.adoc). Generate the HTML guide and Java API reference locally:
 
 ```sh
-./gradlew createProducts --mode=DEVELOPMENT
-./gradlew listDynamoDbTables
-./gradlew deleteDynamoDbTable --tableName=catalog.products
-./gradlew stopAwsEmulator
+./gradlew :docs:site
 ```
 
-Set `initializer` to the fully qualified name of a public build-classpath class with a `DynamoDbClient` constructor and a public instance `void run()` method. It receives the plugin's client after the new table is active. When using `buildSrc`, include the plugin and SDK together in its dependencies so they share SDK types.
+Open `docs/build/site/index.html`. Site generation requires Java and Gradle, with no Docker or separate frontend toolchain. See [docs/README.md](docs/README.md) for link checks, packaging, authoring, and GitHub Pages deployment.
 
-The [DynamoDB guide](docs/src/docs/asciidoc/dynamodb.adoc) covers all properties and initializer setup. The [standalone example](examples/dynamodb/build.gradle.kts) uses a Kotlin build and a `buildSrc` initializer:
-
-```sh
-./gradlew -p examples/dynamodb integrationTest --configuration-cache
-```
-
-## Configuration
-
-All properties use Gradle's lazy property API.
-
-| Property | Default | Meaning |
-| --- | --- | --- |
-| `emulatorVersion` | `1.0.322` | Pinned emulator release used to build the image. |
-| `image` | unset | Use this Docker image instead of building one; pull it if missing locally. It must have an AWS Emulator entrypoint binding `0.0.0.0` and accept the normal emulator CLI flags. |
-| `platform` | `auto` | Detect the Docker engine architecture, or specify `linux/amd64` or `linux/arm64`. |
-| `port` | `9297` | Host/container port; `0` asks the plugin to select one. Also configurable with `-PawsEmulator.port=...`. |
-| `region` | `us-east-1` | Region supplied to consuming SDKs. |
-| `telemetryEnabled` | `false` | Explicitly enable the emulator's AWS telemetry. |
-| `dockerExecutable` | `docker` | Docker executable name or absolute path. |
-| `memoryLimit` | `2g` | Container memory limit; swap is capped at the same total. |
-| `startupTimeoutSeconds` | `60` | Readiness deadline after the container starts. |
-| `commandTimeoutSeconds` | `60` | Timeout for each normal Docker command. |
-| `buildTimeoutSeconds` | `600` | Timeout for an image build or pull. |
-| `workingDirectory` | `.aws-emulator` in the project | Generated Dockerfiles, locks, and isolated runtime homes. |
-
-Add `.aws-emulator/` to your application's `.gitignore`. The directory contains generated local credentials while the emulator runs. Image layers remain in Docker's cache after instances stop.
-
-## Credentials, endpoints, and TLS
-
-For each opted-in JVM, the plugin sets the endpoint, region, emulator credentials/config paths, and TLS trust store. It removes inherited AWS credential, profile, and service-endpoint environment overrides and corresponding configured JVM credential/endpoint properties. It disables EC2 metadata lookup and endpoint discovery. It does not change the Gradle daemon's credentials or global trust settings.
-
-Connection files are generated at execution time, after readiness, and are not stored as configuration-cache values. The plugin writes a separate `host-config` with host paths because the emulator's own `config` contains container paths. Authentication remains enabled. Readiness checks validate both the generated certificate and the endpoint hostname.
-
-Each opted-in JVM receives a combined trust store containing the emulator certificate, the selected Java launcher's default trust roots (`jssecacerts`, or `cacerts`), and certificates from its configured custom trust store. Configure custom trust with the standard `javax.net.ssl.trustStore`, `trustStoreType`, `trustStorePassword`, and `trustStoreProvider` JVM properties. Relative paths resolve against the consuming task's working directory. JVM argument providers and trust properties in `JAVA_TOOL_OPTIONS`, `JDK_JAVA_OPTIONS`, and `_JAVA_OPTIONS` are resolved at execution time. Source stores and the Gradle daemon's TLS settings are unchanged; private keys are never copied. Invalid trust settings fail the task before the application starts.
-
-Combined stores live under the runtime's `consumer-truststores/` directory and are removed with that runtime. Different certificate sets use separate files, so consumers do not acquire each other's custom trust roots. Explicit SDK client endpoint/credential configuration and application-created SSL contexts can still override the plugin's supplied settings; use the normal SDK providers as demonstrated by the example. See [Credentials and TLS](docs/src/docs/asciidoc/connections.adoc) for custom trust configuration.
-
-Use an AWS SDK version that supports external endpoint configuration. The included example verifies AWS SDK for Java v2 `2.39.6`. An SDK client that hardcodes an endpoint will continue to use it. For operations using host prefixes, Java SDK clients also need `SdkAdvancedClientOption.DISABLE_HOST_PREFIX_INJECTION` in their client override configuration; the environment variable alone does not control this in Java. The endpoint uses `127.0.0.1` to support S3 path-style routing.
-
-For a development instance on port 9297, host-side files live under:
-
-```text
-.aws-emulator/development/.aws/emulator/9297/
-  emulator_credentials
-  ca.pem
-  truststore.p12
-  host-config
-```
-
-The lifecycle tasks print the actual endpoint and directory, including when a port is selected automatically.
-
-AWS references: [Docker installation](https://docs.aws.amazon.com/emulator/latest/userguide/getting-started-docker.html), [SDK configuration](https://docs.aws.amazon.com/emulator/latest/userguide/point-sdk-to-emulator.html), [CLI and runtime files](https://docs.aws.amazon.com/emulator/latest/userguide/cli-reference.html), [versioned packages](https://docs.aws.amazon.com/emulator/latest/userguide/versioning.html).
-
-## Repository and package layout
-
-The repository uses Kotlin DSL build scripts. The root build coordinates the plugin and documentation subprojects. Only the plugin produces a published library artifact. The example is an independent composite build that consumes the plugin as an application would.
-
-```text
-build.gradle.kts                     root verification and wrapper configuration
-settings.gradle.kts                  includes :plugin, :spring-boot-plugin, and :docs
-gradle.properties                    shared plugin/documentation version
-docs/                               static user guide, site assets, and link verification
-  build.gradle.kts                   site generation, Java API inclusion, and ZIP packaging
-  src/docs/asciidoc/                 guide pages and shared navigation
-  src/site/                         browser assets
-plugin/
-  build.gradle.kts                   plugin dependencies, metadata, and publishing
-  src/main/java/io/github/gregwhitaker/awsemulator/
-    AwsEmulatorPlugin.java           loads the emulator and AWS modules
-    emulator/
-      EmulatorModule.java           registers the lifecycle task group and runtime
-      AwsEmulatorExtension.java     lazy runtime settings and useWith integration
-      AwsEmulatorService.java       shared runtime lifetime
-      *AwsEmulatorTask.java         lifecycle task types
-    aws/
-      AwsModule.java                loads the AWS service modules
-      AbstractAwsResourceTask.java  shared resource-task configuration
-      s3/                           S3Module, S3 task types, and provisioning helpers
-      sqs/                          SqsModule, SQS task types, and provisioning helpers
-      sns/                          SnsModule, SNS tasks, and SQS subscription helpers
-      dynamodb/                     DynamoDbModule, table tasks, and initializer support
-      internal/                     execution-scoped SDK clients
-    core/                           shared emulator task base
-    model/                          public configuration types
-    internal/
-      docker/                       process execution, Docker commands, image builds
-      runtime/                      runtime coordination, TLS, connections, owned files
-  src/test/                          unit tests without Docker
-  src/functional/                    Gradle TestKit DSL and configuration tests
-  src/integration/                   real Docker and SDK integration tests
-  src/testFixtures/                  shared TestKit runner setup
-spring-boot-plugin/                  optional Spring Boot companion and its publication
-  src/main/                          Boot run/debug integration and configuration
-  src/functional/                    Boot version, DSL, and configuration-cache tests
-  src/integration/                   real Boot applications and emulator cleanup tests
-examples/basic/                      runnable Kotlin DSL consumer
-examples/scenarios/                  S3/DynamoDB fixtures and named development scenarios
-examples/spring-boot/                runnable Spring Boot and SQS consumer
-examples/micronaut/                  Micronaut-managed SQS client and framework tests
-examples/ktor/                       Ktor HTTP/SQS route and framework tests
-```
-
-Tasks are organized by feature, following the module pattern in `gradle-localstack`. `AwsEmulatorPlugin` loads `EmulatorModule` and `AwsModule`; `AwsModule` loads the AWS service modules. Each service package keeps its module, task types, and provisioning helpers together. Modules register or configure tasks lazily when the plugin is applied. The build service owns the runtime lifetime, and everything under `internal` is an implementation detail.
-
-| Module | Gradle task group | Responsibilities |
-| --- | --- | --- |
-| `EmulatorModule` | `AWS Emulator` | Runtime configuration, lifecycle, diagnostics, cleanup, and connection exports. |
-| `ScenarioModule` | `AWS Emulator - Scenarios` | Named development datasets, seeding, and reset/reseed. |
-| `S3Module` | `AWS Emulator - S3` | Bucket lifecycle, object uploads, listing, and downloads. |
-| `SqsModule` | `AWS Emulator - SQS` | Queue and DLQ creation, listing, purging, and message publishing. |
-| `SnsModule` | `AWS Emulator - SNS` | Topic creation, listing, deletion, SQS subscriptions, and message publishing. |
-| `DynamoDbModule` | `AWS Emulator - DynamoDB` | Table lifecycle, Java initializers, JSON item imports, and item clearing. |
-
-Register named resource tasks in your build; their service module supplies the group and default description. Imports use `io.github.gregwhitaker.awsemulator.aws.s3.CreateS3BucketTask` and `io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueueTask`.
-
-Separate test source sets follow [Gradle's plugin testing guidance](https://docs.gradle.org/current/userguide/testing_gradle_plugins.html#sec:organizing_test_source_code). Functional and integration tests mirror the production packages: service-specific tests live under `aws.<service>`, scenarios spanning AWS services under `aws`, emulator lifecycle integration tests under `emulator`, and plugin-wide tests in the root plugin package. The feature modules are packaged together in the plugin artifact.
-
-## Build and verify
+## Build and contribute
 
 ```sh
 ./gradlew build
 ./gradlew dockerTest
 ```
 
-`build` runs both plugins' tests that require no Docker, plugin validation, and documentation generation/link checks/packaging. `dockerTest` runs `:plugin:integrationTest` and `:spring-boot-plugin:integrationTest`; it requires a running local Docker daemon and downloads/builds the emulator image if necessary. The suites verify signed HTTPS SDK requests, sharing between tasks, configuration-cache reuse, failure cleanup, lifecycle tasks, parallel projects, resource provisioning, and Spring Boot run/debug behavior. Docker tests deliberately fail nested fixture builds to check cleanup; the enclosing tests must pass.
+`build` runs both plugins' unit and functional checks, plugin validation, and documentation generation, verification, and packaging. `dockerTest` runs both plugins' integration suites against a real emulator and requires Docker.
 
-To run TestKit consumers against another Gradle version:
-
-```sh
-./gradlew :plugin:functionalTest :spring-boot-plugin:functionalTest dockerTest -PtestGradleVersion=9.6.1
-```
-
-`-PtestGradleInstallation=/path/to/gradle` can instead use an existing installation. The CI matrix is configured for Gradle 8.14.3 and 9.6.1, Java 17 and 21, and real Docker execution on Linux AMD64 and ARM64. Windows runs the Docker-free suite; Docker integration on Windows has not been verified.
-
-`java-gradle-plugin`, `maven-publish`, and `com.gradle.plugin-publish` generate an implementation artifact and marker publication for each plugin. Build artifacts are in each plugin subproject's `build/libs/`; reports are in `build/reports/tests/`. The core coordinate is `io.github.gregwhitaker:gradle-aws-emulator:0.2.0`; the companion is `io.github.gregwhitaker:gradle-aws-emulator-spring-boot:0.2.0` and depends on the core. Use the composite build above for local development. CI publishes all artifacts to a temporary Maven repository, then builds the independent consumers in `smoke-tests/core` and `smoke-tests/spring-boot` on each Java/Gradle/OS combination. These resolve each plugin ID through its marker and published dependencies without a composite build or TestKit's injected classpath. The release workflow publishes version tags.
-
-## Publish to the Gradle Plugin Portal
-
-The release version comes from `pluginVersion` in the root `gradle.properties`. Publishing includes the implementation JAR, sources, Javadoc, dependency metadata, and the plugin marker; test fixtures and the documentation subproject are not published. `publishPlugins` runs the plugin's unit tests, functional tests, and plugin validation before publishing.
-
-Build and verify the release locally without credentials or uploading artifacts:
-
-```sh
-./gradlew build :plugin:publishToMavenLocal :spring-boot-plugin:publishToMavenLocal -Dmaven.repo.local="$PWD/build/publication-check"
-version="$(sed -n 's/^pluginVersion=//p' gradle.properties | tr -d '\r')"
-for consumer in core spring-boot; do
-    ./gradlew -p "smoke-tests/$consumer" build \
-        "-PpluginVersion=$version" "-PpluginRepository=$PWD/build/publication-check" \
-        --configuration-cache --configuration-cache-problems=fail
-done
-./gradlew dockerTest
-```
-
-The first command writes the implementation and marker publications to `build/publication-check/` without changing your usual Maven local repository. The smoke consumers restrict emulator artifacts to that repository, verify public task types and transitive dependencies, and package a minimal application with Spring Boot without starting Docker. The companion consumer applies only the companion ID, checking its dependency on the core artifact. Portal validation with `--validate-only` also requires publishing credentials and contacts the Portal, but does not upload the release.
-
-Create a [Plugin Portal account and API key](https://plugins.gradle.org/docs/publish-plugin), linked to the `gregwhitaker` GitHub account so the Portal can verify the plugin namespace. Add the key and secret to this repository's GitHub Actions secrets as `GRADLE_PUBLISH_KEY` and `GRADLE_PUBLISH_SECRET`.
-
-To release through GitHub Actions:
-
-1. Set `pluginVersion` to the release version, update the changelog, and commit the release changes.
-2. Push that commit and a matching version tag, for example `v0.2.0` for `pluginVersion=0.2.0`.
-3. The [publish workflow](.github/workflows/publish.yml) checks the tag, builds the plugin and docs, runs unit/functional/Docker integration tests, validates the publication, then uploads it. It can also be dispatched manually against a matching version tag.
-
-For example, from the intended release commit:
-
-```sh
-git tag v0.2.0
-git push origin v0.2.0
-```
-
-To publish locally, provide `GRADLE_PUBLISH_KEY` and `GRADLE_PUBLISH_SECRET` in your environment, or put `gradle.publish.key` and `gradle.publish.secret` in your user-level `~/.gradle/gradle.properties`. Keep credentials out of this repository. After running the validation commands above:
-
-```sh
-./gradlew :plugin:publishPlugins --validate-only :spring-boot-plugin:publishPlugins --validate-only
-./gradlew :plugin:publishPlugins :spring-boot-plugin:publishPlugins
-```
-
-The first publication requires [Portal approval](https://plugins.gradle.org/docs/publish-plugin#approval). Published versions are immutable; use a new version for subsequent releases. After approval, update the publication-status text in this README and the user guide. Applications can then apply the released plugin without a composite build:
-
-```kotlin
-plugins {
-    id("io.github.gregwhitaker.aws-emulator") version "0.2.0"
-}
-```
+See [Contributing](CONTRIBUTING.md) for repository layout, coding conventions, and focused verification commands. Maintainers can find publication checks and release steps in [Publish to the Gradle Plugin Portal](CONTRIBUTING.md#publish-to-the-gradle-plugin-portal).
 
 ## License
 

@@ -98,7 +98,7 @@ final class CognitoOperations {
             if (!id.equals(requireClient(client, poolId, name))) throw new GradleException("Cognito app client changed during creation; retry after resolving the name conflict.");
         }
         var actual = client.describeUserPoolClient(DescribeUserPoolClientRequest.builder().userPoolId(poolId).clientId(id).build()).userPoolClient();
-        if (actual == null || actual.clientSecret() != null && !actual.clientSecret().isEmpty()
+        if (actual == null || (actual.clientSecret() != null && !actual.clientSecret().isEmpty())
                 || !new HashSet<>(flows).equals(new HashSet<>(actual.explicitAuthFlowsAsStrings()))) {
             throw new GradleException("Cognito app client '" + name + "' has different authentication settings. Existing clients are not modified; choose another name or delete the client explicitly.");
         }

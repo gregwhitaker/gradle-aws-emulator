@@ -79,7 +79,7 @@ dependencies {
         exclude(group = "software.amazon.awssdk", module = "netty-nio-client")
     }
     implementation("software.amazon.awssdk:url-connection-client")
-    for (service in listOf("ssm", "secretsmanager", "eventbridge", "kinesis", "kms", "cloudwatchlogs", "cognitoidentityprovider")) {
+    for (service in listOf("ssm", "secretsmanager", "eventbridge", "kinesis", "kms", "cloudwatchlogs", "cognitoidentityprovider", "sesv2")) {
         implementation("software.amazon.awssdk:$service") {
             exclude(group = "software.amazon.awssdk", module = "apache-client")
             exclude(group = "software.amazon.awssdk", module = "netty-nio-client")

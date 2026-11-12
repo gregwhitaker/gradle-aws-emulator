@@ -2,7 +2,7 @@
 include::_partials/attributes.adoc[]
 :description: Connect Gradle Test, JavaExec, and Exec tasks to a managed or development AWS Emulator instance.
 
-Opt existing JVM tasks into the emulator with `awsEmulator.useWith(taskProvider)`. One fresh managed instance is shared by the participating tasks in each project by default. Use xref:shared-runtimes.adoc[`useSharedRuntime`] to explicitly share an owner and resource setup across projects.
+Opt existing `Test`, `JavaExec`, or `Exec` tasks into the emulator with `awsEmulator.useWith(taskProvider)`. One fresh managed instance is shared by the participating tasks in each project by default. Use xref:shared-runtimes.adoc[`useSharedRuntime`] to explicitly share an owner and resource setup across projects.
 
 toc::[]
 
@@ -64,6 +64,8 @@ val pythonTests = tasks.register<Exec>("pythonTests") {
 }
 val cliIdentity = tasks.register<Exec>("cliIdentity") {
     commandLine("aws", "sts", "get-caller-identity", "--no-cli-pager")
+    // Registered before useWith: runs after its connection setup, including on cache reuse.
+    doFirst { args("--endpoint-url", environment.getValue("AWS_ENDPOINT_URL")) }
 }
 awsEmulator {
     port.set(0)

@@ -1,0 +1,14 @@
+[
+  {
+    "username": "alice",
+    "password": "Local-Test123!",
+    "attributes": { "email": "alice@example.test", "email_verified": "true" },
+    "groups": ["admins"]
+  },
+  {
+    "username": "bob",
+    "password": "Local-Test123!",
+    "attributes": { "email": "bob@example.test", "email_verified": "true" },
+    "groups": ["members"]
+  }
+]

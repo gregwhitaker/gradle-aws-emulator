@@ -8,6 +8,7 @@ import org.gradle.api.Project;
 public final class CognitoModule {
     private CognitoModule() {}
 
+    /** Configures custom task types and registers inspection/deletion commands for the development runtime. */
     public static void load(Project project) {
         configure(project, CreateCognitoUserPoolTask.class, "Creates or reuses a Cognito User Pool.");
         configure(project, CreateCognitoUserPoolClientTask.class, "Creates or reuses a public Cognito app client.");

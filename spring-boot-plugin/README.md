@@ -130,7 +130,7 @@ awsEmulator {
 }
 ```
 
-Managed and development instances are separate. See the [base plugin lifecycle documentation](../README.md#managed-tests-and-java-execution) for sharing and cleanup behavior.
+Managed and development instances are separate. See the [base plugin lifecycle documentation](../README.md#runtime-modes) for sharing and cleanup behavior.
 
 ## Automatic resource creation
 

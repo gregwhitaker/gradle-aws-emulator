@@ -2,6 +2,7 @@
 
 ## 0.2.0 — Unreleased
 
+- Add Cognito User Pool and public app client tasks, confirmed user/group fixtures, runtime configuration exports, and a Spring Security example with signed JWT verification and lifecycle/configuration-cache tests. Document the pinned emulator's ES256 token compatibility requirement.
 - Add Micronaut and Ktor examples using the core plugin, with framework-managed/HTTP SQS consumers, version compatibility checks, and real-emulator lifecycle and configuration-cache tests.
 - Preserve selected-JDK and custom TLS trust roots alongside the emulator certificate in isolated consumer trust stores, including lazy JVM and environment options.
 

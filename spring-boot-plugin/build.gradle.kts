@@ -100,6 +100,10 @@ val functionalTest = tasks.register<Test>("functionalTest") {
     shouldRunAfter(tasks.named("test"))
 }
 tasks.register<Test>("integrationTest") {
+    systemProperty("cognito.example", rootProject.layout.projectDirectory.dir("examples/cognito").asFile.absolutePath)
+    inputs.files(rootProject.fileTree("examples/cognito") {
+        include("build.gradle.kts", "src/**", "fixtures/**")
+    }).withPropertyName("cognitoExample").withPathSensitivity(PathSensitivity.RELATIVE)
     systemProperty("springCloudAws.example", rootProject.layout.projectDirectory.dir("examples/spring-cloud-aws").asFile.absolutePath)
     inputs.files(rootProject.fileTree("examples/spring-cloud-aws") {
         include("build.gradle.kts", "src/**", "fixtures/**")
