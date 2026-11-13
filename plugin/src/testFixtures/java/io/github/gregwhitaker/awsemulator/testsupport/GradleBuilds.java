@@ -28,6 +28,12 @@ import java.util.Arrays;
 public final class GradleBuilds {
     private GradleBuilds() {}
 
+    public static GradleRunner isolatedRunner(Path project, String... tasks) {
+        var args = new ArrayList<>(Arrays.asList(tasks));
+        args.add("-Dorg.gradle.unsafe.isolated-projects=true");
+        return runner(project, args.toArray(String[]::new));
+    }
+
     public static GradleRunner runner(Path project, String... tasks) {
         var args = new ArrayList<>(Arrays.asList(tasks));
         args.addAll(Arrays.asList("--configuration-cache", "--configuration-cache-problems=fail", "--stacktrace", "--console=plain"));
@@ -56,7 +62,7 @@ public final class GradleBuilds {
         // plugin under test. Register a cache-compatible coverage dump at that point.
         Path initScript = project.resolve(".gradle/jacoco-testkit.init.gradle");
         String script = """
-            gradle.afterProject { project, state ->
+            gradle.lifecycle.afterProject { project ->
                 if (project.plugins.hasPlugin('io.github.gregwhitaker.aws-emulator')) {
                     project.pluginManager.apply('jacoco-testkit-coverage')
                 }

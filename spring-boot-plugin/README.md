@@ -136,6 +136,8 @@ Managed and development instances are separate. See the [base plugin lifecycle d
 
 Select a [named runtime](../docs/src/docs/asciidoc/named-runtimes.adoc) with `awsEmulator.springBoot.runtimeName.set("development")`, after declaring that name in `awsEmulator.runtimes`. Both local tasks and their resource setup use the selected name. Its lifecycle commands include `statusAwsEmulatorDevelopment` and `stopAwsEmulatorDevelopment`. Existing builds keep using `default`.
 
+The companion's runtime and setup wiring supports Gradle Isolated Projects. Multi-project builds can still hit [Spring Boot issue 43755](https://github.com/spring-projects/spring-boot/issues/43755) when Boot packaging tasks are realized, including indirectly through Java test ordering. See the [isolation compatibility notes](../docs/src/docs/asciidoc/spring-boot.adoc#isolated-projects).
+
 ## Automatic resource creation
 
 Both local tasks discover registered resource-creation tasks in the application's project and execute them before startup. The queue in the quick start needs only its name; the companion supplies setup dependencies and selects the application's runtime as the resource task's default mode.

@@ -105,6 +105,13 @@ The tasks support configuration-cache reuse. With automatic main-class discovery
 
 The base plugin supplies endpoint, region, generated credentials, and TLS trust just before the JVM starts. Your application still declares its own AWS SDK dependencies. See xref:connections.adoc[Credentials and TLS] for connection details.
 
+[#isolated-projects]
+== Gradle Isolated Projects
+
+The companion's local Boot tasks, resource setup, named runtimes, and shared owner selection support xref:shared-runtimes.adoc#isolated-projects[Isolated Projects]. Keep each application's configuration in its own project.
+
+The upstream Spring Boot plugin still reads other projects' `group` and `version` while configuring `BootJar` in a multi-project build; see https://github.com/spring-projects/spring-boot/issues/43755[Spring Boot issue 43755]. Gradle's Java test ordering can realize that task even when packaging is not requested. Such builds can therefore fail isolation checks independently of the emulator plugin. Single-project Boot applications and shared-owner local Boot execution are covered by this plugin's isolation tests; full multi-project Boot test and packaging support also depends on the upstream plugin.
+
 == Configuration
 
 Configure the companion in `awsEmulator { springBoot { ... } }`. The previous top-level `springBootEmulator` block remains an alias for the same settings for compatibility with existing builds.

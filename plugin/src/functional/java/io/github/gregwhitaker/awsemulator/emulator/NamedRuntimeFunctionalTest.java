@@ -18,6 +18,7 @@ package io.github.gregwhitaker.awsemulator.emulator;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Files;
@@ -29,9 +30,10 @@ import static org.junit.jupiter.api.Assertions.*;
 class NamedRuntimeFunctionalTest {
     @TempDir Path project;
 
-    @ParameterizedTest @ValueSource(booleans = {false, true})
-    void bothDslsKeepSettingsOwnershipAndExternalConnectionsIndependent(boolean kotlin) throws Exception {
+    @ParameterizedTest @CsvSource({"false,false", "true,false", "false,true", "true,true"})
+    void bothDslsKeepSettingsOwnershipAndExternalConnectionsIndependent(boolean kotlin, boolean isolated) throws Exception {
         settings();
+        if (isolated) Files.writeString(project.resolve("gradle.properties"), "org.gradle.unsafe.isolated-projects=true\n");
         Files.writeString(project.resolve(kotlin ? "build.gradle.kts" : "build.gradle"), kotlin ? """
             import io.github.gregwhitaker.awsemulator.aws.sqs.ListSqsQueuesTask
             plugins { id("io.github.gregwhitaker.aws-emulator") }
@@ -214,9 +216,13 @@ class NamedRuntimeFunctionalTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"queue", "queue.map { it }", "files().builtBy(queue)"})
-    void lazyConsumerSelectionAlignsSetupProducersAndRejectsConflicts(String setup) throws Exception {
+    @CsvSource(delimiter = '|', value = {"queue|false", "queue.map { it }|false", "files().builtBy(queue)|false",
+        "files(queue)|false", "files().builtBy(queue).filter { true }|false", "wrapper|false",
+        "queue|true", "queue.map { it }|true", "files().builtBy(queue)|true",
+        "files(queue)|true", "files().builtBy(queue).filter { true }|true", "wrapper|true"})
+    void lazyConsumerSelectionAlignsSetupProducersAndRejectsConflicts(String setup, boolean isolated) throws Exception {
         settings();
+        if (isolated) Files.writeString(project.resolve("gradle.properties"), "org.gradle.unsafe.isolated-projects=true\n");
         Files.writeString(project.resolve("build.gradle"), """
             import io.github.gregwhitaker.awsemulator.aws.sqs.ListSqsQueuesTask
             import io.github.gregwhitaker.awsemulator.model.EmulatorMode
@@ -229,6 +235,7 @@ class NamedRuntimeFunctionalTest {
                     logger.lifecycle('SETUP:' + task.runtimeName.get() + ':' + task.runtime.get().parameters.region.get())
                 }
             }
+            def wrapper = tasks.register('prepareWrapped') { inputs.files(queue) }
             awsEmulator {
                 dockerExecutable.set('must-not-invoke-docker')
                 runtimes { register('first'); register('last') { region.set('eu-west-1') } }

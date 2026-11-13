@@ -68,7 +68,7 @@ These snippets assume existing `test` and `run` tasks. `useSharedRuntime` select
 
 Owner selection also applies to resource and lifecycle tasks in the consumer project. It works before or after `useWith`, including consumers already realized during configuration. Local resource sets and explicit setup dependencies can still be attached through `useWith`.
 
-The owner supplies the complete xref:named-runtimes.adoc[named runtime] namespace. Declare names in the owner and select them in applications, for example `useWith(tasks.named<Test>("test"), "integration")` or `springBoot { runtimeName.set("development") }`. Consumer runtime definitions and settings are ignored. Lifecycle aliases in consumers select the corresponding owner runtime.
+The owner supplies the complete xref:named-runtimes.adoc[named runtime] namespace. Declare names in the owner and select them in applications, for example `useWith(tasks.named<Test>("test"), "integration")` or `springBoot { runtimeName.set("development") }`. Consumer runtime definitions and settings are ignored. Lifecycle aliases in consumers select the corresponding owner runtime. Consumer aliases are created on request by a task rule; use the owner's `tasks --all` output to list its named lifecycle tasks.
 
 == Resource setup and modes
 
@@ -101,7 +101,26 @@ Prefer fully qualified lifecycle commands on the owner:
 
 Lifecycle tasks in a sharing consumer also target the shared runtime. Stopping, restarting, or resetting it affects every application using that development instance. Scenario definitions remain project-local: define shared development scenarios in the owner and invoke its scenario commands.
 
-The owner path must be absolute, such as `:local-aws` or `:` for the root, and identify a project in the same build with the core plugin applied. Selecting an owner evaluates its project. Owner chains, cycles, selecting oneself, and switching to a different owner are rejected. Unknown resource names fail while resolving consumer dependencies, before Docker starts. Sharing across included builds is not supported; Gradle Isolated Projects is not supported by this cross-project configuration API.
+The owner path must be absolute, such as `:local-aws` or `:` for the root, and identify a project in the same build with the core plugin applied. Owner metadata is resolved when a participating task is selected. Owner chains, cycles, selecting oneself, and switching to a different owner are rejected. Unknown runtime and resource names fail while resolving consumer dependencies, before Docker starts. Sharing across included builds is not supported.
+
+[#isolated-projects]
+== Gradle Isolated Projects
+
+Default, named, external, and shared runtimes support Isolated Projects, including resource sets, scenarios, parallel project configuration, and configuration-cache reuse. With the repository's Gradle 8.14.3 wrapper, run:
+
+[source,shell]
+----
+./gradlew -p examples/multi-project verifySharedRuntime --parallel -Dorg.gradle.unsafe.isolated-projects=true
+./gradlew -p examples/multi-project verifySharedRuntime --parallel -Dorg.gradle.unsafe.isolated-projects=true
+----
+
+For Gradle 8.14–9.6, the equivalent `gradle.properties` setting is `org.gradle.unsafe.isolated-projects=true`. Gradle 9.7+ uses `org.gradle.isolated-projects=true` or `--isolated-projects`. Isolation enables the configuration cache; repeat the same command to verify reuse. See https://docs.gradle.org/current/userguide/isolated_projects.html[Gradle's Isolated Projects documentation].
+
+Configure each project's plugins, runtimes, resources, and consumers in its own build script or a convention plugin. Pass the owner's absolute project path and resource-set names to `useSharedRuntime`; do not read another project's extension or task container. For ordinary dependencies between applications, use task paths such as `dependsOn(":orders-api:run")`.
+
+The plugin exchanges immutable owner metadata through a project dependency and attaches owner setup by task path. Changes to owner settings invalidate affected configuration-cache entries. Unselected resource sets remain lazy, and configuration does not start Docker or read connection credentials. Shared managed instances retain their usual cleanup after all participating consumers finish, including failures.
+
+The Spring Boot companion's local tasks and resource wiring support isolation. The upstream Spring Boot plugin has a separate xref:spring-boot.adoc#isolated-projects[limitation in multi-project builds] when packaging tasks are realized, including indirectly by tests.
 
 == Run the multi-project example
 

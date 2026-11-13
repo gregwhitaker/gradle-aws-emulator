@@ -11,6 +11,8 @@ Run from the repository root with Java 17+ and a local Docker engine:
 
 The suites send and receive their own messages and verify empty initial queues. The second invocation reuses the configuration cache with fresh managed instances. Both instances are removed after the participating tasks finish. `integration` inherits `us-east-1`; `acceptance` uses `eu-west-1`. Connection summaries are written under `build/connections/` without credential contents.
 
+To run with Gradle Isolated Projects, add `-Dorg.gradle.unsafe.isolated-projects=true` to both commands above. Each named runtime keeps its independent state and cleanup, including when the configuration cache is reused. Gradle 9.7+ uses `--isolated-projects` instead.
+
 To exercise cleanup after a failed suite:
 
 ```sh

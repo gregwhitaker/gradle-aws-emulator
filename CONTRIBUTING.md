@@ -88,6 +88,12 @@ Hyphenated example names become camel-case property names, such as
 - Register and configure tasks lazily. Use Gradle properties and providers with
   appropriate task input/output annotations. Preserve configuration-cache
   compatibility and avoid capturing `Project` in execution-time actions.
+- Preserve Isolated Projects support. Exchange shared runtime metadata through
+  project dependencies and attach foreign setup by task path. Do not read another
+  project's extensions/tasks or resolve task dependency graphs directly. The
+  `LocalTaskDependencies` helper contains a narrow Gradle-internal bridge for
+  provider producer metadata; keep its output-provider and runtime-selection
+  regression tests passing across the supported Gradle matrix.
 - Applying a plugin must not start Docker or opt existing tasks into the emulator.
   Resolve connections, credentials, and generated TLS files during execution.
 - Preserve lifecycle behavior: managed instances are shared by participating
@@ -115,6 +121,15 @@ Run checks appropriate to the change from the repository root:
 | `./gradlew licenseCheck` | Apache 2.0 headers across the repository. |
 | `./gradlew jacocoTestReport` | Combined and per-plugin unit/functional coverage in HTML and XML. |
 | `./gradlew jacocoIntegrationTestReport` | Combined and per-plugin integration coverage; requires Docker. |
+
+Functional tests include Isolated Projects checks in both DSLs, shared and named
+runtime selection, parallel configuration, owner-change invalidation, and cache
+reuse. Named/shared runtime and Spring Boot integration fixtures also enable
+isolation. Run the focused isolation fixture against another Gradle version with:
+
+```sh
+./gradlew :plugin:functionalTest --tests '*IsolatedProjectsFunctionalTest' -PtestGradleVersion=9.6.1
+```
 
 Both plugin modules receive `build.test-logger` through `build.java-conventions`.
 The logger comes from the `test-logger` subproject of the included `build-logic`

@@ -150,8 +150,9 @@ class SpringBootAutoSetupFunctionalTest {
         assertFalse(output.contains(":unrelatedFixture SKIPPED"), output);
     }
 
-    @ParameterizedTest @org.junit.jupiter.params.provider.ValueSource(booleans = {false, true})
-    void resourceSetsKeepManagedTestsSeparateFromBootAndScenarioSetup(boolean automatic) throws Exception {
+    @ParameterizedTest @CsvSource({"false,false", "true,false", "false,true", "true,true"})
+    void resourceSetsKeepManagedTestsSeparateFromBootAndScenarioSetup(boolean automatic, boolean isolated) throws Exception {
+        if (isolated) Files.writeString(project.resolve("gradle.properties"), "org.gradle.unsafe.isolated-projects=true\n");
         fixture("3.5.16", """
             def shared = awsEmulator.resourceSets.register('application') {
                 provision('queue', CreateSqsQueueTask) { queueName.set('shared-events') }
@@ -185,8 +186,9 @@ class SpringBootAutoSetupFunctionalTest {
         assertFalse(Files.exists(project.resolve(".aws-emulator")));
     }
 
-    @Test
-    void sharedRuntimeAutomaticallyAddsOwnerResourcesToBootAndTestConsumers() throws Exception {
+    @ParameterizedTest @org.junit.jupiter.params.provider.ValueSource(booleans = {false, true})
+    void sharedRuntimeAutomaticallyAddsOwnerResourcesToBootAndTestConsumers(boolean isolated) throws Exception {
+        if (isolated) Files.writeString(project.resolve("gradle.properties"), "org.gradle.unsafe.isolated-projects=true\n");
         Files.writeString(project.resolve("settings.gradle"), "include 'api', 'worker', 'localAws'\n");
         Files.writeString(project.resolve("build.gradle"), """
             plugins {
@@ -207,7 +209,14 @@ class SpringBootAutoSetupFunctionalTest {
             """);
         for (String child : List.of("api", "worker")) {
             Files.createDirectories(project.resolve(child));
-            Files.writeString(project.resolve(child + "/build.gradle"), """
+            // Boot's archive task constructor reads other projects' coordinates when its Test task's
+            // archive ordering is resolved. Exercise isolated Boot consumers alongside a plain JVM test
+            // project; keep the full Boot/Test combination covered without isolation until Boot fixes that.
+            Files.writeString(project.resolve(child + "/build.gradle"), isolated && child.equals("worker") ? """
+                plugins { id 'java'; id 'io.github.gregwhitaker.aws-emulator' }
+                awsEmulator.useWith(tasks.named('test'))
+                awsEmulator.useSharedRuntime(':localAws', 'application')
+                """ : """
                 plugins {
                     id 'java'
                     id 'org.springframework.boot'
@@ -221,13 +230,15 @@ class SpringBootAutoSetupFunctionalTest {
                 """);
         }
         for (int run = 0; run < 2; run++) {
-            String output = runner(project, ":api:bootRunLocal", ":worker:bootRunLocalDebug", ":api:test", ":worker:test",
-                "--parallel", "--dry-run").build().getOutput();
+            String[] tasks = isolated
+                ? new String[] {":api:bootRunLocal", ":api:bootRunLocalDebug", ":worker:test", "--parallel", "--dry-run"}
+                : new String[] {":api:bootRunLocal", ":worker:bootRunLocalDebug", ":api:test", ":worker:test", "--parallel", "--dry-run"};
+            String output = runner(project, tasks).build().getOutput();
             for (String mode : List.of("MANAGED", "DEVELOPMENT")) {
                 String setup = ":localAws:awsEmulatorResources_application_" + mode + "_queue SKIPPED";
                 assertEquals(1, output.split(setup, -1).length - 1, output);
-                for (String consumer : mode.equals("MANAGED") ? List.of(":api:test", ":worker:test")
-                        : List.of(":api:bootRunLocal", ":worker:bootRunLocalDebug")) {
+                for (String consumer : mode.equals("MANAGED") ? (isolated ? List.of(":worker:test") : List.of(":api:test", ":worker:test"))
+                        : List.of(":api:bootRunLocal", isolated ? ":api:bootRunLocalDebug" : ":worker:bootRunLocalDebug")) {
                     assertTrue(output.indexOf(setup) < output.indexOf(consumer + " SKIPPED"), output);
                 }
             }

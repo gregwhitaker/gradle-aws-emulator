@@ -116,6 +116,8 @@ class SharedRuntimeIntegrationTest {
         }
         Path settings = project.resolve("settings.gradle.kts");
         Files.writeString(settings, Files.readString(settings).replace("    includeBuild(\"../..\")", ""));
+        Files.writeString(project.resolve("gradle.properties"), "\norg.gradle.unsafe.isolated-projects=true\n",
+            StandardOpenOption.CREATE, StandardOpenOption.APPEND);
         if (named) {
             runtimeName = "acceptance";
             Files.writeString(project.resolve("local-aws/build.gradle.kts"),

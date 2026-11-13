@@ -37,7 +37,7 @@ tasks.withType<JavaCompile>().configureEach {
 }
 
 tasks.withType<Jar>().configureEach {
-    from(rootProject.layout.projectDirectory.file("LICENSE")) { into("META-INF") }
+    from(rootProject.projectDir.resolve("LICENSE")) { into("META-INF") }
 }
 
 tasks.withType<Javadoc>().configureEach {

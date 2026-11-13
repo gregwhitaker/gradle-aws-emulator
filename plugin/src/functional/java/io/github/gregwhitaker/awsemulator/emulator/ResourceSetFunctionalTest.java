@@ -19,6 +19,7 @@ package io.github.gregwhitaker.awsemulator.emulator;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -28,9 +29,10 @@ import static org.junit.jupiter.api.Assertions.*;
 class ResourceSetFunctionalTest {
     @TempDir Path project;
 
-    @ParameterizedTest @ValueSource(booleans = {false, true})
-    void reusesDefinitionsAcrossManagedConsumersAndScenariosInBothDsls(boolean kotlin) throws Exception {
+    @ParameterizedTest @CsvSource({"false,false", "true,false", "false,true", "true,true"})
+    void reusesDefinitionsAcrossManagedConsumersAndScenariosInBothDsls(boolean kotlin, boolean isolated) throws Exception {
         fixture(kotlin);
+        if (isolated) Files.writeString(project.resolve("gradle.properties"), "org.gradle.unsafe.isolated-projects=true\n");
         String help = runner(project, "help").build().getOutput();
         assertFalse(help.contains("PROBE:"), help);
         for (int run = 0; run < 2; run++) {
@@ -90,19 +92,27 @@ class ResourceSetFunctionalTest {
         assertFalse(output.contains("PROBE:"), output);
     }
 
-    @Test void preservesProducerDependenciesInOrdinaryGradleSetupNotation() throws Exception {
+    @ParameterizedTest @ValueSource(booleans = {false, true})
+    void preservesProducerDependenciesInOrdinaryGradleSetupNotation(boolean isolated) throws Exception {
         fixture(false);
+        if (isolated) Files.writeString(project.resolve("gradle.properties"), "org.gradle.unsafe.isolated-projects=true\n");
         append("""
-            def prepare = tasks.register('prepareFile') {
-                outputs.file(layout.buildDirectory.file('fixture.txt'))
-                doLast { logger.lifecycle('FILE_PROVIDER_SETUP') }
+            abstract class PrepareFile extends DefaultTask {
+                @OutputFile abstract RegularFileProperty getDestination()
+                @TaskAction void prepare() {
+                    destination.get().asFile.text = 'fixture'
+                    logger.lifecycle('FILE_PROVIDER_SETUP')
+                }
+            }
+            def prepare = tasks.register('prepareFile', PrepareFile) {
+                destination.set(layout.buildDirectory.file('fixture.txt'))
             }
             def additional = tasks.register('additionalFile') {
                 doLast { logger.lifecycle('FILE_COLLECTION_SETUP') }
             }
             def files = objects.fileCollection().from('extra.txt').builtBy(additional)
             awsEmulator.useWith(tasks.named('test'), EmulatorMode.MANAGED,
-                prepare.map { it.outputs.files.singleFile }, files)
+                prepare.flatMap { it.destination }.map { it.asFile }, files)
             """);
         for (int run = 0; run < 2; run++) {
             var result = runner(project, "test").build();

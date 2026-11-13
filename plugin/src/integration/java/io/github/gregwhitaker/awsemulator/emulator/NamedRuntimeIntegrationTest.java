@@ -129,6 +129,7 @@ class NamedRuntimeIntegrationTest {
             }
         }
         Files.writeString(project.resolve("settings.gradle.kts"), "rootProject.name = \"named-runtime-integration\"\n");
+        Files.writeString(project.resolve("gradle.properties"), "org.gradle.unsafe.isolated-projects=true\n");
         return project;
     }
 

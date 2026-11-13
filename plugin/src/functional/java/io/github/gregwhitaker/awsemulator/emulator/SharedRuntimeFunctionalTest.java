@@ -20,7 +20,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.junit.jupiter.params.provider.ValueSource;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -31,9 +30,10 @@ import static org.junit.jupiter.api.Assertions.*;
 class SharedRuntimeFunctionalTest {
     @TempDir Path project;
 
-    @ParameterizedTest @ValueSource(booleans = {false, true})
-    void sharesOwnerTasksAndSettingsAcrossModesAndCacheReuse(boolean kotlin) throws Exception {
+    @ParameterizedTest @CsvSource({"false,false", "true,false", "false,true", "true,true"})
+    void sharesOwnerTasksAndSettingsAcrossModesAndCacheReuse(boolean kotlin, boolean isolated) throws Exception {
         fixture(kotlin);
+        if (isolated) Files.writeString(project.resolve("gradle.properties"), "org.gradle.unsafe.isolated-projects=true\n");
         assertFalse(runner(project, "help").build().getOutput().contains("PROBE:"));
         for (int run = 0; run < 2; run++) {
             String output = runner(project, ":api:test", ":worker:test", ":api:development", ":worker:development",
@@ -68,6 +68,7 @@ class SharedRuntimeFunctionalTest {
     })
     void rejectsInvalidSelectionsBeforeDocker(String selection, String message) throws Exception {
         fixture(false);
+        Files.writeString(project.resolve("gradle.properties"), "org.gradle.unsafe.isolated-projects=true\n");
         Files.writeString(project.resolve("api/build.gradle"), """
             plugins { id 'java'; id 'io.github.gregwhitaker.aws-emulator' }
             awsEmulator { useWith(tasks.named('test')); %s }
@@ -79,6 +80,7 @@ class SharedRuntimeFunctionalTest {
 
     @Test void rejectsCyclicAndChainedOwners() throws Exception {
         fixture(false);
+        Files.writeString(project.resolve("gradle.properties"), "org.gradle.unsafe.isolated-projects=true\n");
         Files.writeString(project.resolve("zz-infra/build.gradle"), "\nawsEmulator.useSharedRuntime(':api')\n", StandardOpenOption.APPEND);
         String cycle = runner(project, ":api:test").buildAndFail().getOutput();
         assertTrue(cycle.contains("sharing cannot be chained or cyclic"), cycle);

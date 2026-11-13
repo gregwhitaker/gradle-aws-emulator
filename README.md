@@ -78,6 +78,8 @@ Managed instances start fresh and are shared by participating tasks selecting th
 
 Use [shared runtime ownership](docs/src/docs/asciidoc/shared-runtimes.adoc) to connect multiple projects to one instance. Tasks sharing an instance also share resources, so use distinct names for concurrent tests.
 
+Gradle Isolated Projects is supported, including default, named, external, and shared runtimes. With Gradle 8.14–9.6, enable it using `-Dorg.gradle.unsafe.isolated-projects=true`; Gradle 9.7+ uses `--isolated-projects`. See the [isolation guide](docs/src/docs/asciidoc/shared-runtimes.adoc#isolated-projects) for build-script requirements and the Spring Boot compatibility limitation.
+
 ## Named runtimes
 
 Give suites independent AWS state and settings within one project:

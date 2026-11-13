@@ -19,7 +19,7 @@ package io.github.gregwhitaker.awsemulator.emulator;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.CsvSource;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import static io.github.gregwhitaker.awsemulator.testsupport.GradleBuilds.runner;
@@ -28,9 +28,10 @@ import static org.junit.jupiter.api.Assertions.*;
 class ScenarioFunctionalTest {
     @TempDir Path project;
 
-    @ParameterizedTest @ValueSource(booleans = {false, true})
-    void scenariosAreLazyAndSeedInDependencyOrderInBothDsls(boolean kotlin) throws Exception {
+    @ParameterizedTest @CsvSource({"false,false", "true,false", "false,true", "true,true"})
+    void scenariosAreLazyAndSeedInDependencyOrderInBothDsls(boolean kotlin, boolean isolated) throws Exception {
         fixture(kotlin);
+        if (isolated) Files.writeString(project.resolve("gradle.properties"), "org.gradle.unsafe.isolated-projects=true\n");
         String tasks = runner(project, "tasks", "--all").build().getOutput();
         assertTrue(tasks.contains("seedAwsEmulatorDemo"), tasks);
         assertTrue(tasks.contains("resetAwsEmulatorEmpty"), tasks);

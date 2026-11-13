@@ -17,13 +17,14 @@
 package io.github.gregwhitaker.awsemulator.emulator;
 
 import io.github.gregwhitaker.awsemulator.aws.AbstractAwsResourceTask;
+import io.github.gregwhitaker.awsemulator.internal.LocalTaskDependencies;
 import io.github.gregwhitaker.awsemulator.model.EmulatorMode;
 import org.gradle.api.Buildable;
 import org.gradle.api.GradleException;
 import org.gradle.api.Project;
 import org.gradle.api.Task;
 import org.gradle.api.provider.Provider;
-import org.gradle.api.tasks.TaskDependency;
+import org.gradle.api.file.FileCollection;
 import org.gradle.api.tasks.TaskProvider;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -48,16 +49,26 @@ final class ResourceSetModule {
         // Gradle can use a TaskProvider's producer without evaluating map transformations.
         // Realize the selected setup task here so its runtime is aligned before graph traversal.
         if (setup instanceof TaskProvider<?> task) return resolve(task.get(), runtimeName, mode);
-        // Preserve task-output producers while aligning them even when Gradle skips the mapping.
-        if (setup instanceof Provider<?> provider) return alignDependencies(
-            project.files(provider.map(value -> resolve(value, runtimeName, mode))).getBuildDependencies(), runtimeName);
+        // Preserve output providers without reading their values before their producers have run.
+        if (setup instanceof Provider<?> provider) {
+            LocalTaskDependencies.visitProducers(project, provider,
+                task -> alignSetup(task, runtimeName, new HashSet<>()));
+            return provider.map(value -> resolve(value, runtimeName, mode));
+        }
         if (setup instanceof EmulatorResourceSet resources) return tasks(resources, runtimeName, mode);
-        if (setup instanceof String path) setup = project.getTasks().getByPath(path);
+        if (setup instanceof CharSequence path) {
+            LocalTaskDependencies.visit(project, path, task -> alignSetup(task, runtimeName, new HashSet<>()));
+            return path.toString();
+        }
         if (setup instanceof Task task) {
             alignSetup(task, runtimeName, new HashSet<>());
             return task;
         }
-        if (setup instanceof Buildable buildable) return alignDependencies(buildable.getBuildDependencies(), runtimeName);
+        if (setup instanceof FileCollection files) {
+            LocalTaskDependencies.visit(project, files, task -> alignSetup(task, runtimeName, new HashSet<>()));
+            return files;
+        }
+        if (setup instanceof Buildable) return setup;
         if (setup instanceof Object[] values) return resolve(List.of(values), runtimeName, mode);
         if (setup instanceof Iterable<?> values) {
             List<Object> result = new ArrayList<>();
@@ -67,19 +78,11 @@ final class ResourceSetModule {
         return setup;
     }
 
-    private TaskDependency alignDependencies(TaskDependency dependencies, String runtimeName) {
-        return consumer -> {
-            Set<? extends Task> tasks = dependencies.getDependencies(consumer);
-            Set<Task> visited = new HashSet<>();
-            for (Task task : tasks) alignSetup(task, runtimeName, visited);
-            return tasks;
-        };
-    }
-
     private void alignSetup(Task task, String runtimeName, Set<Task> visited) {
+        if (task.getProject() != project) return;
         if (!visited.add(task)) return;
         if (task instanceof AbstractAwsResourceTask resource) selectRuntime(resource, runtimeName);
-        for (Task dependency : task.getTaskDependencies().getDependencies(task)) alignSetup(dependency, runtimeName, visited);
+        LocalTaskDependencies.visitPrerequisites(project, task, dependency -> alignSetup(dependency, runtimeName, visited));
     }
 
     static void selectRuntime(AbstractAwsResourceTask resource, String runtimeName) {

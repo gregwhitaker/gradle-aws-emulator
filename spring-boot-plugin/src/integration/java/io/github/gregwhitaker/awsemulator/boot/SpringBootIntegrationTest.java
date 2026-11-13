@@ -164,6 +164,7 @@ class SpringBootIntegrationTest {
     }
 
     private void fixture(String bootVersion) throws Exception {
+        Files.writeString(project.resolve("gradle.properties"), "org.gradle.unsafe.isolated-projects=true\n");
         Files.writeString(project.resolve("settings.gradle"), "rootProject.name = 'boot-runtime-fixture'\n");
         Files.writeString(project.resolve("build.gradle"), """
             import io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueueTask

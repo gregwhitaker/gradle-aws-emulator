@@ -17,12 +17,12 @@
 package io.github.gregwhitaker.awsemulator.emulator;
 
 import io.github.gregwhitaker.awsemulator.aws.AbstractAwsResourceTask;
+import io.github.gregwhitaker.awsemulator.internal.LocalTaskDependencies;
 import io.github.gregwhitaker.awsemulator.model.EmulatorMode;
 import org.gradle.api.GradleException;
 import org.gradle.api.Project;
 import org.gradle.api.Task;
 import org.gradle.api.provider.Provider;
-import org.gradle.api.tasks.TaskDependency;
 import org.gradle.api.tasks.TaskProvider;
 import java.util.*;
 
@@ -126,8 +126,6 @@ final class ScenarioModule {
             configureDefinitions(provider.get(), runtimeName, start, visited);
         } else if (definitions instanceof Task task) {
             configureResources(task, runtimeName, start, visited);
-        } else if (definitions instanceof TaskDependency dependencies) {
-            for (Task task : dependencies.getDependencies(null)) configureResources(task, runtimeName, start, visited);
         }
     }
 
@@ -141,7 +139,7 @@ final class ScenarioModule {
             if (start != null) resource.dependsOn(start);
         }
         // Select the runtime before resolving prerequisites, including their lazy service bindings.
-        for (Task dependency : task.getTaskDependencies().getDependencies(task)) configureResources(dependency, runtimeName, start, visited);
+        LocalTaskDependencies.visitPrerequisites(project, task, dependency -> configureResources(dependency, runtimeName, start, visited));
     }
 
     private TaskProvider<Task> command(String name, String description) {

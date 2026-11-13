@@ -19,6 +19,7 @@ package io.github.gregwhitaker.awsemulator.boot.internal;
 import io.github.gregwhitaker.awsemulator.aws.AbstractAwsResourceTask;
 import io.github.gregwhitaker.awsemulator.boot.SpringBootEmulatorExtension;
 import io.github.gregwhitaker.awsemulator.core.annotation.AwsEmulatorSetupTask;
+import io.github.gregwhitaker.awsemulator.internal.LocalTaskDependencies;
 import io.github.gregwhitaker.awsemulator.model.EmulatorMode;
 import org.gradle.api.GradleException;
 import org.gradle.api.Project;
@@ -77,9 +78,8 @@ final class SpringBootResourceSetup {
             }
         }
         // Explicit prerequisites (including fixture tasks) must use the same instance as their resource task.
-        for (Task dependency : task.getTaskDependencies().getDependencies(task)) {
-            alignRuntime(dependency, project, runtimeName, mode, consumer, visited);
-        }
+        LocalTaskDependencies.visitPrerequisites(project, task,
+            dependency -> alignRuntime(dependency, project, runtimeName, mode, consumer, visited));
     }
 
     private static GradleException incompatibleRuntime(AbstractAwsResourceTask resource, String name, String consumer) {

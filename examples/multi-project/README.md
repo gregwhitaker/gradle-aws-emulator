@@ -38,6 +38,17 @@ To demonstrate cleanup after an application or test failure:
 
 These commands intentionally fail. Their managed emulator is still removed.
 
+## Isolated Projects
+
+Each module configures its own plugin and consumers. Owner selection uses `useSharedRuntime` and application ordering uses task paths, so this example also supports Gradle Isolated Projects:
+
+```sh
+./gradlew -p examples/multi-project verifySharedRuntime --parallel -Dorg.gradle.unsafe.isolated-projects=true
+./gradlew -p examples/multi-project verifySharedRuntime --parallel -Dorg.gradle.unsafe.isolated-projects=true
+```
+
+Isolation enables the configuration cache. The second invocation reuses it and runs all consumers against a fresh shared managed instance. The flag shown works with the repository's wrapper; Gradle 9.7+ uses `--isolated-projects`.
+
 ## Persistent development
 
 ```sh

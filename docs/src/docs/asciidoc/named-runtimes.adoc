@@ -150,6 +150,6 @@ Declare the `development` runtime first. Both local Boot tasks and their setup u
 
 A named runtime can configure `external { endpoint.set(...); credentialsFile.set(...); certificateFile.set(...) }` while another runtime owns a managed container. Both modes of an external runtime use its supplied endpoint. Different names pointing to the same external endpoint share AWS state; the plugin does not isolate or clean up that server.
 
-With `useSharedRuntime`, the selected owner supplies the complete runtime namespace and settings. Declare the names in the owner and select them from participating projects. Shared resource sets are instantiated per owner, runtime name, and mode. Consumer-side runtime settings are ignored; the existing restrictions on cross-build sharing and Isolated Projects still apply.
+With `useSharedRuntime`, the selected owner supplies the complete runtime namespace and settings. Declare the names in the owner and select them from participating projects. Shared resource sets are instantiated per owner, runtime name, and mode. Consumer-side runtime settings are ignored. Named and shared runtimes support xref:shared-runtimes.adoc#isolated-projects[Gradle Isolated Projects]; sharing remains limited to projects in the same build.
 
 Connection resolution stays at execution time, configuration-cache reuse is supported, and applying the plugin or declaring runtimes never starts Docker.
