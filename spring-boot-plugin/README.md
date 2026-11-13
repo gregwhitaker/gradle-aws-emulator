@@ -134,6 +134,8 @@ awsEmulator {
 
 Managed and development instances are separate. See the [base plugin lifecycle documentation](../README.md#runtime-modes) for sharing and cleanup behavior.
 
+Select a [named runtime](../docs/src/docs/asciidoc/named-runtimes.adoc) with `awsEmulator.springBoot.runtimeName.set("development")`, after declaring that name in `awsEmulator.runtimes`. Both local tasks and their resource setup use the selected name. Its lifecycle commands include `statusAwsEmulatorDevelopment` and `stopAwsEmulatorDevelopment`. Existing builds keep using `default`.
+
 ## Automatic resource creation
 
 Both local tasks discover registered resource-creation tasks in the application's project and execute them before startup. The queue in the quick start needs only its name; the companion supplies setup dependencies and selects the application's runtime as the resource task's default mode.
@@ -143,6 +145,8 @@ Discovery covers S3 buckets, SQS queues and DLQs, SNS topics and subscriptions, 
 [SES identity, template, configuration-set, and event-destination tasks](../docs/src/docs/asciidoc/ses.adoc) are also discovered. Sending email and reading message insights require explicit dependencies and are not automatic startup actions.
 
 Declare ordering between resources with `dependsOn`, such as a log stream depending on its log group. Add message publishing, data fixtures, and custom preparation through `setupTasks` or explicit dependencies. Explicit resource modes must match the application's mode; a conflict fails before startup.
+
+Unassigned resource tasks follow the application's runtime name. Discovery skips tasks explicitly assigned to other names; explicit prerequisites targeting another runtime fail before startup. Use separate tasks or reusable resource sets when test suites and the application select different runtimes.
 
 Exclude test-only resources from automatic discovery by task name or path:
 
@@ -174,13 +178,14 @@ Use reusable resource sets for consumers that need different modes in the same b
 
 ## Configuration
 
-Use `awsEmulator.springBoot.resourceSets.add(applicationResources)` to attach a reusable set declared in `awsEmulator.resourceSets`. The local tasks provision and seed it in their selected mode. Attach the same definition to managed tests with `awsEmulator.useWith(test, EmulatorMode.MANAGED, applicationResources)` or to a scenario with `resources(applicationResources)`. Each mode gets separate tasks; generated resource-set tasks are excluded from automatic discovery, and explicit sets still run when `autoCreateResources` is false. See the [resource-set guide](../docs/src/docs/asciidoc/scenarios.adoc) for composition and ordering.
+Use `awsEmulator.springBoot.resourceSets.add(applicationResources)` to attach a reusable set declared in `awsEmulator.resourceSets`. The local tasks provision and seed it in their selected runtime name and mode. Attach the same definition to managed tests with `awsEmulator.useWith(test, EmulatorMode.MANAGED, applicationResources)` or to a scenario with `resources(applicationResources)`. Each runtime name and mode gets separate tasks; generated resource-set tasks are excluded from automatic discovery, and explicit sets still run when `autoCreateResources` is false. See the [resource-set guide](../docs/src/docs/asciidoc/scenarios.adoc) for composition and ordering.
 
 Configure these properties in `awsEmulator { springBoot { ... } }`:
 
 | Property | Default | Behavior |
 | --- | --- | --- |
 | `mode` | `EmulatorMode.DEVELOPMENT` | Use the persistent development instance or a build-owned `MANAGED` instance. |
+| `runtimeName` | `default` | Select a declared named runtime or the existing default runtime. |
 | `profiles` | `["local"]` | Set `spring.profiles.active`; an empty list adds no profile argument. |
 | `jvmArgs` | `[]` | Additional JVM arguments for both local tasks. |
 | `autoCreateResources` | `true` | Discover resource-provisioning tasks and run them before the application. |

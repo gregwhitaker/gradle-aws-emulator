@@ -36,6 +36,42 @@ class SpringBootIntegrationTest {
     @TempDir Path project;
 
     @Test
+    void namedBootRuntimeSelectsItsOwnSetupAndCleansOnlyItsManagedInstance() throws Exception {
+        fixture("3.5.16");
+        Files.writeString(project.resolve("build.gradle"), """
+            awsEmulator {
+                runtimes {
+                    register('application')
+                    register('other') { dockerExecutable.set('must-not-invoke-other-docker') }
+                }
+                springBoot { runtimeName.set('application') }
+            }
+            tasks.register('otherQueue', io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueueTask) {
+                runtimeName.set('other')
+                queueName.set('other-runtime-queue')
+            }
+            """, StandardOpenOption.APPEND);
+        try {
+            for (int run = 0; run < 3; run++) {
+                String output = runner(project, "bootRunLocal").build().getOutput();
+                assertTrue(output.contains("BOOT_EMULATOR_VERIFIED"), output);
+                assertFalse(output.contains("> Task :otherQueue"), output);
+                if (run > 1) assertTrue(output.contains("Reusing configuration cache"), output);
+            }
+            var development = Files.readAllLines(project.resolve("connection.txt"));
+            Path credentials = Path.of(development.get(1));
+            assertTrue(credentials.toString().replace('\\', '/').contains("/runtimes/application/development/"));
+            String failed = runner(project, "bootRunLocal", "-Pmanaged=true", "--args=fail").buildAndFail().getOutput();
+            assertTrue(failed.contains("Intentional application failure"), failed);
+            assertCredentialsRemoved();
+            assertTrue(new HttpsHealthProbe().ready(development.get(0), credentials.getParent().resolve("truststore.p12")));
+            assertFalse(Files.exists(project.resolve(".aws-emulator/runtimes/other")));
+        } finally {
+            runner(project, "stopAwsEmulatorApplication").build();
+        }
+    }
+
+    @Test
     void localBootRunsLeaveExternalEmulatorRunningForBothModesAndOnFailure() throws Exception {
         fixture("3.5.16");
         Files.writeString(project.resolve("build.gradle"), """

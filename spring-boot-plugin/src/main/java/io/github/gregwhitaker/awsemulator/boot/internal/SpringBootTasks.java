@@ -74,7 +74,7 @@ public final class SpringBootTasks {
             }
         });
         project.getExtensions().getByType(AwsEmulatorExtension.class)
-            .useWith(local, extension.getMode(), extension.getResourceSets(), extension.getSetupTasks(),
+            .useWithRuntime(local, extension.getRuntimeName(), extension.getMode(), extension.getResourceSets(), extension.getSetupTasks(),
                 project.provider(() -> SpringBootResourceSetup.discover(project, extension, name)));
     }
 

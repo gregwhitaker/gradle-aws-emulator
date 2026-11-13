@@ -22,6 +22,7 @@ import org.gradle.api.GradleException;
 import org.gradle.api.Project;
 import org.gradle.api.Task;
 import org.gradle.api.provider.Provider;
+import org.gradle.api.tasks.TaskDependency;
 import org.gradle.api.tasks.TaskProvider;
 import java.util.*;
 
@@ -32,7 +33,7 @@ final class ScenarioModule {
     private final Map<String, TaskProvider<Task>> seedTasks = new LinkedHashMap<>();
     private final Map<String, TaskProvider<Task>> resetTasks = new LinkedHashMap<>();
     private final Set<String> suffixes = new HashSet<>();
-    private String activeScenario;
+    private final Map<String, String> activeScenarios = new HashMap<>();
 
     private ScenarioModule(Project project, AwsEmulatorExtension extension) {
         this.project = project;
@@ -44,8 +45,8 @@ final class ScenarioModule {
     }
 
     private void register() {
-        var restart = project.getTasks().named("restartAwsEmulator");
-        project.getTasks().named("startAwsEmulator").configure(task -> task.mustRunAfter(restart));
+        var restart = project.getTasks().withType(RestartAwsEmulatorTask.class);
+        project.getTasks().withType(StartAwsEmulatorTask.class).configureEach(task -> task.mustRunAfter(restart));
         project.getTasks().withType(AbstractAwsResourceTask.class).configureEach(task -> task.mustRunAfter(restart));
         extension.getScenarios().all(this::registerScenario);
         var selected = project.getProviders().gradleProperty("awsEmulator.scenario").orElse(extension.getDefaultScenario());
@@ -67,7 +68,8 @@ final class ScenarioModule {
         seed.configure(task -> task.dependsOn(project.provider(() -> prepare(scenario))));
         seedTasks.put(name, seed);
         var reset = command("resetAwsEmulator" + suffix, "Restarts the development emulator and loads the '" + name + "' scenario.");
-        reset.configure(task -> task.dependsOn(project.getTasks().named("restartAwsEmulator"), seed));
+        reset.configure(task -> task.dependsOn(project.provider(() ->
+            extension.lifecycleTask("restartAwsEmulator", scenario.getRuntimeName().get())), seed));
         resetTasks.put(name, reset);
     }
 
@@ -80,26 +82,27 @@ final class ScenarioModule {
 
     private List<Object> prepare(EmulatorScenario scenario) {
         List<Object> dependencies = new ArrayList<>();
-        TaskProvider<Task> start = extension.usesExternalRuntime() ? null : project.getTasks().named("startAwsEmulator");
+        String runtimeName = scenario.getRuntimeName().get();
+        TaskProvider<Task> start = extension.usesExternalRuntime(runtimeName) ? null : extension.lifecycleTask("startAwsEmulator", runtimeName);
         if (start != null) dependencies.add(start);
-        Object resources = extension.resolveSetup(scenario.resources(), EmulatorMode.DEVELOPMENT);
+        Object resources = extension.resolveSetup(scenario.resources(), runtimeName, EmulatorMode.DEVELOPMENT);
         dependencies.add(resources);
         dependencies.addAll(scenario.provisioning());
         dependencies.addAll(scenario.seeding());
+        String activeScenario = activeScenarios.putIfAbsent(runtimeName, scenario.getName());
         if (activeScenario != null) {
-            if (!activeScenario.equals(scenario.getName())) throw new GradleException("Select only one AWS Emulator scenario per Gradle invocation.");
+            if (!activeScenario.equals(scenario.getName())) throw new GradleException("Select only one AWS Emulator scenario per runtime per Gradle invocation: " + runtimeName);
             return dependencies;
         }
-        activeScenario = scenario.getName();
         Set<Task> direct = new HashSet<>();
         Set<Task> visited = new HashSet<>();
         for (var provider : concat(scenario)) {
             Task task = provider.get();
             if (!direct.add(task)) throw new GradleException("A task may appear only once in a scenario: " + task.getPath());
-            configureResources(task, start, visited);
+            configureResources(task, runtimeName, start, visited);
             task.dependsOn(resources);
         }
-        configureDefinitions(resources, start, visited);
+        configureDefinitions(resources, runtimeName, start, visited);
         TaskProvider<? extends AbstractAwsResourceTask> previous = null;
         for (var provider : scenario.seeding()) {
             var task = provider.get();
@@ -116,26 +119,29 @@ final class ScenarioModule {
         return tasks;
     }
 
-    private void configureDefinitions(Object definitions, TaskProvider<Task> start, Set<Task> visited) {
+    private void configureDefinitions(Object definitions, String runtimeName, TaskProvider<Task> start, Set<Task> visited) {
         if (definitions instanceof Iterable<?> values) {
-            for (Object value : values) configureDefinitions(value, start, visited);
+            for (Object value : values) configureDefinitions(value, runtimeName, start, visited);
         } else if (definitions instanceof Provider<?> provider) {
-            configureDefinitions(provider.get(), start, visited);
+            configureDefinitions(provider.get(), runtimeName, start, visited);
         } else if (definitions instanceof Task task) {
-            configureResources(task, start, visited);
+            configureResources(task, runtimeName, start, visited);
+        } else if (definitions instanceof TaskDependency dependencies) {
+            for (Task task : dependencies.getDependencies(null)) configureResources(task, runtimeName, start, visited);
         }
     }
 
-    private void configureResources(Task task, TaskProvider<Task> start, Set<Task> visited) {
+    private void configureResources(Task task, String runtimeName, TaskProvider<Task> start, Set<Task> visited) {
         if (!visited.add(task)) return;
-        // Include resource prerequisites so a pre-existing dependsOn chain uses the same runtime.
-        for (Task dependency : task.getTaskDependencies().getDependencies(task)) configureResources(dependency, start, visited);
         if (task instanceof AbstractAwsResourceTask resource) {
             if (task.getProject() != project) throw new GradleException("Scenario resource tasks must belong to the same project: " + task.getPath());
+            ResourceSetModule.selectRuntime(resource, runtimeName);
             if (resource.getMode().get() != EmulatorMode.DEVELOPMENT) resource.getMode().set(EmulatorMode.DEVELOPMENT);
             resource.getMode().disallowChanges();
             if (start != null) resource.dependsOn(start);
         }
+        // Select the runtime before resolving prerequisites, including their lazy service bindings.
+        for (Task dependency : task.getTaskDependencies().getDependencies(task)) configureResources(dependency, runtimeName, start, visited);
     }
 
     private TaskProvider<Task> command(String name, String description) {

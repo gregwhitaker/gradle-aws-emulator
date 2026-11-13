@@ -59,7 +59,9 @@ API: link:api/io/github/gregwhitaker/awsemulator/emulator/ExternalEmulatorConnec
 
 Existing `useWith` wiring works for `Test`, `JavaExec`, and `Exec`, including Spring Boot's `bootRunLocal` and `bootRunLocalDebug`. Resource tasks, Kinesis worker processes, named resource sets, and `seedAwsEmulator` use the external connection too.
 
-Both `MANAGED` and `DEVELOPMENT` select this same external instance. They do not provide separate state or automatic cleanup in external mode. Provisioning and fixture tasks still make their requested AWS resource changes; these persist after successful and failed builds. Use distinct resource names when consumers run concurrently. Resource sets selected in both modes can run once per mode against the same state.
+Both `MANAGED` and `DEVELOPMENT` select this same external instance for the configured runtime name. They do not provide separate state or automatic cleanup in external mode. Provisioning and fixture tasks still make their requested AWS resource changes; these persist after successful and failed builds. Use distinct resource names when consumers run concurrently. Resource sets selected in both modes can run once per mode against the same state.
+
+Configure `external` within a xref:named-runtimes.adoc[named runtime] to use an existing endpoint alongside independently managed runtimes in the same project. Named runtimes do not inherit the top-level external connection. Different names pointing to the same external endpoint still share its AWS state.
 
 With `useSharedRuntime`, configure `external` on the selected owner project. The owner's endpoint, files, region, and working directory apply to every participating project.
 

@@ -19,6 +19,8 @@ package io.github.gregwhitaker.awsemulator.emulator;
 import io.github.gregwhitaker.awsemulator.aws.AbstractAwsResourceTask;
 import org.gradle.api.Named;
 import org.gradle.api.provider.Provider;
+import org.gradle.api.provider.Property;
+import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.tasks.TaskProvider;
 import javax.inject.Inject;
 import java.util.ArrayList;
@@ -28,12 +30,19 @@ import java.util.List;
 /** A named development dataset, defined using the plugin's typed resource tasks. */
 public class EmulatorScenario implements Named {
     private final String name;
+    private final Property<String> runtimeName;
     private final List<TaskProvider<? extends AbstractAwsResourceTask>> provision = new ArrayList<>();
     private final List<TaskProvider<? extends AbstractAwsResourceTask>> seed = new ArrayList<>();
     private final List<Provider<? extends EmulatorResourceSet>> resources = new ArrayList<>();
 
-    @Inject public EmulatorScenario(String name) { this.name = name; }
+    @Inject public EmulatorScenario(String name, ObjectFactory objects) {
+        this.name = name;
+        runtimeName = objects.property(String.class).convention(AwsEmulatorExtension.DEFAULT_RUNTIME);
+    }
     @Override public String getName() { return name; }
+
+    /** Runtime whose development instance receives this scenario. Defaults to default. */
+    public Property<String> getRuntimeName() { return runtimeName; }
 
     /** Applies reusable definitions to the development instance before this scenario's explicit tasks. */
     @SafeVarargs public final void resources(Provider<? extends EmulatorResourceSet>... sets) {

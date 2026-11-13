@@ -2,6 +2,7 @@
 
 ## 0.2.0 — Unreleased
 
+- Add named runtimes per project with independent settings, state, ownership, and cleanup; select them for consumers, resource tasks, scenarios, shared owners, and Spring Boot, with named lifecycle tasks and `--runtime` selection.
 - Connect to externally managed emulators through `awsEmulator.external`, with explicit HTTPS endpoints, credentials, and CA files; preserve external lifecycle and state across consumers, provisioning, Spring Boot, and configuration-cache reuse.
 - Declare the Kinesis base task caching policy explicitly for Gradle 9 plugin validation.
 - Preserve lifecycle and image locks when operations in the same JVM contend, and add regression coverage for interrupted managed startup and cleanup.

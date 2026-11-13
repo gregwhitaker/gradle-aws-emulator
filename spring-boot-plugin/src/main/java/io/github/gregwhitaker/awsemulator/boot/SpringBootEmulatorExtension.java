@@ -26,6 +26,8 @@ import org.gradle.api.provider.Property;
  * Ordinary bootRun remains independently configured.
  */
 public abstract class SpringBootEmulatorExtension {
+    /** Named runtime used by local run/debug tasks and their setup. Defaults to default. */
+    public abstract Property<String> getRuntimeName();
     /** DEVELOPMENT (default) retains the emulator after the application exits; MANAGED cleans it up. */
     public abstract Property<EmulatorMode> getMode();
     /** Active Spring profiles, defaulting to local. An empty list supplies no profile argument. */

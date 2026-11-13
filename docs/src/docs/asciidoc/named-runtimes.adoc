@@ -1,0 +1,155 @@
+= Named runtimes
+include::_partials/attributes.adoc[]
+:description: Give test suites, local applications, and external emulator connections independent runtime settings within one Gradle project.
+
+Use named runtimes when two test suites need separate AWS state, or when managed tests run alongside an external development endpoint. Existing builds continue using the reserved `default` runtime configured directly on `awsEmulator`.
+
+toc::[]
+
+== Define and select runtimes
+
+.Kotlin DSL
+[source,kotlin]
+----
+awsEmulator {
+    runtimes {
+        register("integration")
+        register("acceptance") { region.set("eu-west-1") }
+    }
+    useWith(tasks.named<Test>("integrationTest"), "integration")
+    useWith(tasks.named<Test>("acceptanceTest"), "acceptance")
+}
+----
+
+.Groovy DSL
+[source,groovy]
+----
+awsEmulator {
+    runtimes {
+        register('integration')
+        register('acceptance') { region.set('eu-west-1') }
+    }
+    useWith(tasks.named('integrationTest'), 'integration')
+    useWith(tasks.named('acceptanceTest'), 'acceptance')
+}
+----
+
+These snippets assume the test tasks already exist. The link:{repo-url}/tree/main/examples/named-runtimes[runnable example] creates the suites and shares a reusable queue definition across them.
+
+Each named runtime has its own build service, Docker ownership identity, working directory, managed instance, and persistent development instance. Participating tasks selecting the same name and mode share that instance. Managed instances are cleaned up after their consumers, including failures; development instances persist until explicitly stopped.
+
+The name and lifecycle mode are separate selections. `useWith(task, "integration")` uses `MANAGED`; use `useWith(task, "integration", EmulatorMode.DEVELOPMENT, setupTasks...)` for development. Existing overloads without a runtime name select `default`.
+
+For provider-based selections, use `useWithRuntime(task, runtimeNameProvider, modeProvider, setupTasks...)`. Repeated configuration updates the name and mode for all attached setup definitions.
+
+Names start with a lowercase letter and contain letters, numbers, or single hyphens. `default` is reserved. Names must produce unique lifecycle task suffixes: for example, `foo-bar` and `fooBar` cannot both be used. Unknown names fail before consumer execution.
+
+API: link:api/io/github/gregwhitaker/awsemulator/emulator/NamedEmulatorRuntime.html[NamedEmulatorRuntime] and link:api/io/github/gregwhitaker/awsemulator/emulator/EmulatorRuntimeConfiguration.html[EmulatorRuntimeConfiguration].
+
+== Defaults and settings
+
+Named runtimes inherit the top-level emulator version, image, platform, region, telemetry, Docker executable, memory limit, and timeouts through lazy conventions. Override any of these in the named runtime block.
+
+Three settings differ:
+
+* `port` defaults to `0`, selecting an available port. The top-level port and `-PawsEmulator.port` apply to `default` only.
+* `workingDirectory` defaults to `awsEmulator.workingDirectory/runtimes/<name>`. Keep custom working directories distinct.
+* `external` is independently configured and disabled by default, even if the top-level runtime is external.
+
+The default runtime keeps its existing paths and ownership identity. Adding a named runtime does not adopt, stop, or move an existing default development instance.
+
+== Resource tasks and reusable definitions
+
+Set `runtimeName` on a resource task when wiring it with ordinary Gradle dependencies:
+
+[source,kotlin]
+----
+val queue = tasks.register<CreateSqsQueueTask>("createIntegrationQueue") {
+    runtimeName.set("integration")
+    queueName.set("application-events")
+}
+----
+
+Typed setup tasks passed through `useWith` inherit the selected runtime name when not explicitly assigned. Conflicting assignments fail before Docker is invoked. Resource task modes must still match the consumer mode.
+
+For reuse across suites, prefer resource sets:
+
+[source,kotlin]
+----
+awsEmulator {
+    val application = resourceSets.register("application") {
+        provision("queue", CreateSqsQueueTask::class.java) {
+            queueName.set("application-events")
+        }
+    }
+    useWith(tasks.named<Test>("integrationTest"), "integration", application)
+    useWith(tasks.named<Test>("acceptanceTest"), "acceptance", application)
+}
+----
+
+A set creates separate task instances for each runtime name and mode. Consumers sharing that pair reuse the same setup graph. The attachment locks both `runtimeName` and `mode`; do not set them in resource-set definitions. One explicit task instance cannot provision two different runtimes; use separate tasks or a resource set.
+
+== Lifecycle and command-line selection
+
+Every named runtime gets lifecycle tasks with its name as a suffix, for example:
+
+[source,shell]
+----
+./gradlew startAwsEmulatorIntegration
+./gradlew statusAwsEmulatorIntegration
+./gradlew exportAwsEmulatorConnectionIntegration
+./gradlew stopAwsEmulatorIntegration
+----
+
+The same suffix applies to prepare, restart, logs, doctor, and cleanup tasks. These tasks are fixed to their named runtime. Use them to operate on multiple runtimes in one invocation.
+
+The original lifecycle tasks and module convenience commands accept `--runtime`:
+
+[source,shell]
+----
+./gradlew startAwsEmulator --runtime integration
+./gradlew listSqsQueues --runtime integration
+./gradlew stopAwsEmulator --runtime acceptance
+----
+
+A command affects only its selected runtime. Cleanup does not scan other runtime owners. An external runtime rejects lifecycle operations as described in xref:external-emulators.adoc[existing emulators].
+
+== Scenarios and Spring Boot
+
+Select a scenario's runtime with `runtimeName`:
+
+[source,kotlin]
+----
+awsEmulator {
+    scenarios {
+        register("acceptanceData") {
+            runtimeName.set("acceptance")
+            resources(applicationResources)
+        }
+    }
+}
+----
+
+`seedAwsEmulatorAcceptanceData` provisions the acceptance development instance. `resetAwsEmulatorAcceptanceData` restarts only that instance before seeding. Different scenarios may run in one invocation when they target different runtime names; select only one scenario per name.
+
+With the Spring Boot companion:
+
+[source,kotlin]
+----
+awsEmulator {
+    springBoot {
+        runtimeName.set("development")
+        resourceSets.add(applicationResources)
+    }
+}
+----
+
+Declare the `development` runtime first. Both local Boot tasks and their setup use it. Automatic setup discovery leaves tasks explicitly assigned to other runtimes alone; unassigned tasks follow Boot's selection. Explicit setup dependencies must target the same runtime.
+
+== External and shared runtimes
+
+A named runtime can configure `external { endpoint.set(...); credentialsFile.set(...); certificateFile.set(...) }` while another runtime owns a managed container. Both modes of an external runtime use its supplied endpoint. Different names pointing to the same external endpoint share AWS state; the plugin does not isolate or clean up that server.
+
+With `useSharedRuntime`, the selected owner supplies the complete runtime namespace and settings. Declare the names in the owner and select them from participating projects. Shared resource sets are instantiated per owner, runtime name, and mode. Consumer-side runtime settings are ignored; the existing restrictions on cross-build sharing and Isolated Projects still apply.
+
+Connection resolution stays at execution time, configuration-cache reuse is supported, and applying the plugin or declaring runtimes never starts Docker.

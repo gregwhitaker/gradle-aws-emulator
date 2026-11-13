@@ -18,7 +18,8 @@ package io.github.gregwhitaker.awsemulator.emulator;
 
 import io.github.gregwhitaker.awsemulator.internal.docker.ProcessCommandRunner;
 import io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorSettings;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -31,9 +32,11 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class SharedRuntimeIntegrationTest {
     @TempDir Path project;
+    private String runtimeName = "default";
 
-    @Test void sharesQueuesAcrossProcessesAndCleansUpAfterConsumersAndSetupFail() throws Exception {
-        fixture();
+    @ParameterizedTest @ValueSource(booleans = {false, true})
+    void sharesQueuesAcrossProcessesAndCleansUpAfterConsumersAndSetupFail(boolean named) throws Exception {
+        fixture(named);
         for (int run = 0; run < 2; run++) {
             String output = runner(project, "verifySharedRuntime", "--parallel", "--max-workers=4").build().getOutput();
             assertTrue(output.contains("Processed order-1001 from the other module"), output);
@@ -42,7 +45,8 @@ class SharedRuntimeIntegrationTest {
                 assertEquals(endpoint, endpoint(output, task), output);
             }
             assertEquals(1, output.split("AWS Emulator ready at", -1).length - 1, output);
-            assertTrue(output.contains(":local-aws:awsEmulatorResources_application_MANAGED_ordersQueue"), output);
+            String prefix = named ? runtimeName + "_" : "";
+            assertTrue(output.contains(":local-aws:awsEmulatorResources_" + prefix + "application_MANAGED_ordersQueue"), output);
             if (run > 0) assertTrue(output.contains("Reusing configuration cache"), output);
             assertCleanedUp();
             assertEquals("", containers("local-aws"));
@@ -70,8 +74,9 @@ class SharedRuntimeIntegrationTest {
         assertEquals("", containers("local-aws"));
     }
 
-    @Test void sharesDevelopmentAcrossInvocationsWhileManagedTestsStaySeparate() throws Exception {
-        fixture();
+    @ParameterizedTest @ValueSource(booleans = {false, true})
+    void sharesDevelopmentAcrossInvocationsWhileManagedTestsStaySeparate(boolean named) throws Exception {
+        fixture(named);
         try {
             String first = runner(project, ":orders-worker:run", "-Pdevelopment=true").build().getOutput();
             String original = containers("local-aws");
@@ -89,13 +94,14 @@ class SharedRuntimeIntegrationTest {
             assertEquals(original, containers("local-aws"));
             assertCleanedUp();
         } finally {
-            runner(project, ":local-aws:stopAwsEmulator").build();
+            // A consumer's named lifecycle alias must operate on the owner's instance.
+            runner(project, named ? ":orders-worker:stopAwsEmulatorAcceptance" : ":local-aws:stopAwsEmulator").build();
         }
         assertEquals("", containers("local-aws"));
-        assertFalse(Files.exists(project.resolve("local-aws/.aws-emulator/development")));
+        assertFalse(Files.exists(runtimeDirectory().resolve("development")));
     }
 
-    private void fixture() throws Exception {
+    private void fixture(boolean named) throws Exception {
         Path source = Path.of(System.getProperty("multiProject.example"));
         try (var files = Files.walk(source)) {
             for (Path file : files.filter(Files::isRegularFile).toList()) {
@@ -110,6 +116,20 @@ class SharedRuntimeIntegrationTest {
         }
         Path settings = project.resolve("settings.gradle.kts");
         Files.writeString(settings, Files.readString(settings).replace("    includeBuild(\"../..\")", ""));
+        if (named) {
+            runtimeName = "acceptance";
+            Files.writeString(project.resolve("local-aws/build.gradle.kts"),
+                "\nawsEmulator.runtimes.register(\"acceptance\")\n", StandardOpenOption.APPEND);
+            for (String child : List.of("orders-api", "orders-worker")) {
+                Files.writeString(project.resolve(child + "/build.gradle.kts"), """
+
+                    awsEmulator {
+                        useWithRuntime(tasks.named<JavaExec>("run"), providers.provider { "acceptance" }, applicationMode)
+                        useWith(tasks.named<Test>("test"), "acceptance")
+                    }
+                    """, StandardOpenOption.APPEND);
+            }
+        }
     }
 
     private String endpoint(String output, String task) {
@@ -119,7 +139,7 @@ class SharedRuntimeIntegrationTest {
     }
 
     private void assertCleanedUp() throws Exception {
-        try (var files = Files.list(project.resolve("local-aws/.aws-emulator"))) {
+        try (var files = Files.list(runtimeDirectory())) {
             assertFalse(files.anyMatch(file -> file.getFileName().toString().startsWith("managed-")));
         }
         for (String child : List.of("orders-api", "orders-worker")) {
@@ -128,9 +148,16 @@ class SharedRuntimeIntegrationTest {
         }
     }
 
+    private Path runtimeDirectory() {
+        Path directory = project.resolve("local-aws/.aws-emulator");
+        return runtimeName.equals("default") ? directory : directory.resolve("runtimes/" + runtimeName);
+    }
+
     private String containers(String child) throws Exception {
+        String identity = project.resolve(child).toRealPath().toString();
+        if (child.equals("local-aws") && !runtimeName.equals("default")) identity += "\n" + runtimeName;
         return new ProcessCommandRunner().run(List.of("docker", "container", "ls", "--all", "--filter",
-            "label=io.github.gregwhitaker.aws-emulator.owner=" + EmulatorSettings.hash(project.resolve(child).toRealPath().toString()),
+            "label=io.github.gregwhitaker.aws-emulator.owner=" + EmulatorSettings.hash(identity),
             "--format", "{{.ID}}"), Duration.ofSeconds(30)).requireSuccess("Checking shared runtime cleanup");
     }
 }

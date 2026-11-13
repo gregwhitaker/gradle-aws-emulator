@@ -30,7 +30,7 @@ import java.util.Set;
 
 /**
  * Reusable resource and fixture definitions. Each selected runtime gets its own task instances.
- * Configure task inputs here; the attachment selects and locks the runtime mode.
+ * Configure task inputs here; the attachment selects and locks the runtime name and mode.
  */
 public class EmulatorResourceSet implements Named {
     private final String name;

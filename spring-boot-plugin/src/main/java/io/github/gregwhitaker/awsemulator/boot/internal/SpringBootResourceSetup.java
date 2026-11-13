@@ -35,19 +35,27 @@ final class SpringBootResourceSetup {
     static List<Task> discover(Project project, SpringBootEmulatorExtension extension, String consumer) {
         if (!extension.getAutoCreateResources().get()) return List.of();
         Set<String> excluded = new HashSet<>(extension.getExcludedSetupTasks().get());
+        String runtimeName = extension.getRuntimeName().get();
         List<Task> setup = new ArrayList<>();
-        for (Task task : project.getTasks().withType(AbstractAwsResourceTask.class).matching(candidate ->
+        for (AbstractAwsResourceTask task : project.getTasks().withType(AbstractAwsResourceTask.class).matching(candidate ->
                 candidate.getClass().isAnnotationPresent(AwsEmulatorSetupTask.class)
                     && !candidate.getExtensions().getExtraProperties().has("awsEmulatorResourceSet"))) {
-            if (!excluded.contains(task.getName()) && !excluded.contains(task.getPath())) setup.add(task);
+            if (excluded.contains(task.getName()) || excluded.contains(task.getPath())) continue;
+            // Unassigned tasks follow Boot; tasks explicitly attached to another named runtime are left alone.
+            if (!task.getRuntimeName().get().equals(runtimeName)) {
+                try { task.getRuntimeName().convention(runtimeName); }
+                catch (IllegalStateException ignored) { continue; }
+                if (!task.getRuntimeName().get().equals(runtimeName)) continue;
+            }
+            setup.add(task);
         }
         Set<Task> visited = new HashSet<>();
         EmulatorMode mode = extension.getMode().get();
-        for (Task task : setup) alignRuntime(task, project, mode, consumer, visited);
+        for (Task task : setup) alignRuntime(task, project, runtimeName, mode, consumer, visited);
         return setup;
     }
 
-    private static void alignRuntime(Task task, Project project, EmulatorMode mode, String consumer, Set<Task> visited) {
+    private static void alignRuntime(Task task, Project project, String runtimeName, EmulatorMode mode, String consumer, Set<Task> visited) {
         if (!visited.add(task)) return;
         if (task.getProject() == project && (task.getName().equals("bootRunLocal") || task.getName().equals("bootRunLocalDebug"))) {
             throw new GradleException("Spring Boot setup tasks cannot depend on " + task.getPath() + ". The application runs after setup.");
@@ -55,6 +63,11 @@ final class SpringBootResourceSetup {
         if (task instanceof AbstractAwsResourceTask resource) {
             if (task.getProject() != project) {
                 throw new GradleException("Spring Boot setup resources must belong to the application's project: " + task.getPath());
+            }
+            if (!resource.getRuntimeName().get().equals(runtimeName)) {
+                try { resource.getRuntimeName().convention(runtimeName); }
+                catch (IllegalStateException e) { throw incompatibleRuntime(resource, runtimeName, consumer); }
+                if (!resource.getRuntimeName().get().equals(runtimeName)) throw incompatibleRuntime(resource, runtimeName, consumer);
             }
             if (resource.getMode().get() != mode) {
                 // Change the default for this Boot invocation, while respecting an explicitly selected mode.
@@ -65,8 +78,14 @@ final class SpringBootResourceSetup {
         }
         // Explicit prerequisites (including fixture tasks) must use the same instance as their resource task.
         for (Task dependency : task.getTaskDependencies().getDependencies(task)) {
-            alignRuntime(dependency, project, mode, consumer, visited);
+            alignRuntime(dependency, project, runtimeName, mode, consumer, visited);
         }
+    }
+
+    private static GradleException incompatibleRuntime(AbstractAwsResourceTask resource, String name, String consumer) {
+        return new GradleException("Spring Boot setup task " + resource.getPath() + " uses runtime '"
+            + resource.getRuntimeName().get() + "' but " + consumer + " uses '" + name
+            + "'. Use separate tasks or a reusable resource set for different runtimes.");
     }
 
     private static GradleException incompatibleMode(AbstractAwsResourceTask resource, EmulatorMode mode, String consumer) {

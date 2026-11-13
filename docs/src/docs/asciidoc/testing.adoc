@@ -8,6 +8,8 @@ toc::[]
 
 To use an already-running emulator, configure xref:external-emulators.adoc[`awsEmulator.external`]. The same consumer wiring applies. Both modes use that endpoint, and no external resources or connection source files are removed after the build.
 
+For independent suites in one project, declare xref:named-runtimes.adoc[named runtimes] and select them with `useWith(task, "integration", setupTasks...)` or `useWith(task, "integration", EmulatorMode.DEVELOPMENT, setupTasks...)`. Existing overloads select `default`. `useWithRuntime(task, runtimeNameProvider, modeProvider, setupTasks...)` supports lazy selections. Typed setup tasks inherit the selected name unless explicitly assigned; conflicting names fail before execution. Reusable resource sets create separate tasks for each name and mode.
+
 == Opt in tests
 
 The method supports Gradle `Test`, `JavaExec`, and `Exec` tasks, including subclasses. Applying the plugin alone does not modify your tests.
@@ -108,7 +110,7 @@ See xref:resources.adoc[S3 and SQS resources] for queue attributes, FIFO queues,
 
 * The service starts the managed emulator on demand and waits for HTTPS readiness.
 * The plugin supplies the child process's endpoint, region, credential paths, and TLS trust at execution time.
-* Participating tasks in one project share an instance. Different projects receive separate instances unless they explicitly select the same runtime owner.
+* Participating tasks selecting the same runtime name and mode in one project share an instance. Different projects receive separate instances unless they explicitly select the same runtime owner.
 * The service archives container logs under `.aws-emulator/logs/`, then removes its managed container and connection files after consumers finish, including ordinary task or test failures.
 * A skipped or `NO-SOURCE` consumer does not start an emulator itself. Its explicit provisioning dependencies can still execute.
 

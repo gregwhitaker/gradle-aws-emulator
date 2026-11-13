@@ -26,6 +26,8 @@ With an xref:external-emulators.adoc[external connection], the plugin owns no li
 
 == Start a development session
 
+Commands select the `default` runtime unless given `--runtime <name>`. Each xref:named-runtimes.adoc[named runtime] also has fixed lifecycle tasks, such as `startAwsEmulatorIntegration`, `stopAwsEmulatorIntegration`, and `cleanupAwsEmulatorIntegration`. Use the suffixed tasks to operate on several runtimes in one invocation. Status, doctor, logs, cleanup, stop, and restart are scoped to the selected name; other runtime owners are untouched.
+
 From the plugin repository, use the example application:
 
 [source,shell]

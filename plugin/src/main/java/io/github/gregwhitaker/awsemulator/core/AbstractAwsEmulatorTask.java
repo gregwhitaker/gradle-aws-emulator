@@ -20,11 +20,22 @@ import io.github.gregwhitaker.awsemulator.emulator.AwsEmulatorService;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Internal;
+import org.gradle.api.tasks.Input;
+import org.gradle.api.tasks.options.Option;
 import org.gradle.work.DisableCachingByDefault;
 
 /** Shared service binding for tasks that consume this project's emulator. */
 @DisableCachingByDefault(because = "Operates on a live emulator runtime")
 public abstract class AbstractAwsEmulatorTask extends DefaultTask {
+    public AbstractAwsEmulatorTask() { getRuntimeName().convention("default"); }
+
+    /** Named runtime to use, or default for the top-level awsEmulator settings. */
+    @Input
+    public abstract Property<String> getRuntimeName();
+
+    @Option(option = "runtime", description = "Named AWS Emulator runtime (default: default)")
+    public void setRuntimeNameOption(String name) { getRuntimeName().set(name); }
+
     @Internal
     public abstract Property<AwsEmulatorService> getRuntime();
 }

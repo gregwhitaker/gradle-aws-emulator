@@ -35,6 +35,7 @@ public final class AwsEmulatorSpringBootPlugin implements Plugin<Project> {
             .create("springBoot", SpringBootEmulatorExtension.class);
         // Preserve existing builds while exposing the companion settings under awsEmulator.
         project.getExtensions().add("springBootEmulator", extension);
+        extension.getRuntimeName().convention("default");
         extension.getMode().convention(EmulatorMode.DEVELOPMENT);
         extension.getProfiles().convention(List.of("local"));
         extension.getJvmArgs().convention(List.of());

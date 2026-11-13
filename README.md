@@ -72,11 +72,30 @@ For Groovy DSL setup, see [getting started](docs/src/docs/asciidoc/getting-start
 | **Managed** | `awsEmulator.useWith(...)` or a custom resource task, by default. | Automatic after participating tasks finish, including ordinary task failures. |
 | **Development** | `startAwsEmulator`, module convenience tasks, or `EmulatorMode.DEVELOPMENT`. | Explicit `stopAwsEmulator`; the instance survives Gradle and application exits. |
 
-Managed instances start fresh and are shared by participating tasks in each project. Development instances are separate. **Stopping or restarting either instance discards its in-memory AWS resources.** Managed cleanup saves container logs under `.aws-emulator/logs/` by default.
+Managed instances start fresh and are shared by participating tasks selecting the same runtime name in each project. Development instances are separate. **Stopping or restarting either instance discards its in-memory AWS resources.** Managed cleanup saves container logs under the selected runtime's working directory.
 
 `useWith` accepts existing `Test`, `JavaExec`, and `Exec` tasks. Configuration-cache reuse is supported. Tasks that access emulator state opt out of up-to-date checks and build-cache reuse; see [tests and process execution](docs/src/docs/asciidoc/testing.adoc) for setup dependencies and execution rules.
 
 Use [shared runtime ownership](docs/src/docs/asciidoc/shared-runtimes.adoc) to connect multiple projects to one instance. Tasks sharing an instance also share resources, so use distinct names for concurrent tests.
+
+## Named runtimes
+
+Give suites independent AWS state and settings within one project:
+
+```kotlin
+awsEmulator {
+    runtimes {
+        register("integration")
+        register("acceptance") { region.set("eu-west-1") }
+    }
+    useWith(tasks.named<Test>("integrationTest"), "integration")
+    useWith(tasks.named<Test>("acceptanceTest"), "acceptance")
+}
+```
+
+Each name has its own managed and development instances, automatic port, and working directory. Existing configuration and consumers keep using `default`. Select names on resource tasks with `runtimeName`, or use lifecycle commands such as `startAwsEmulatorIntegration` and `stopAwsEmulator --runtime integration`. Resource sets, scenarios, external connections, shared owners, and Spring Boot support named runtimes.
+
+See the [named runtime guide](docs/src/docs/asciidoc/named-runtimes.adoc) for inheritance and selection rules, and the [runnable example](examples/named-runtimes/README.md) for complete suite setup.
 
 ## Connect to an existing emulator
 

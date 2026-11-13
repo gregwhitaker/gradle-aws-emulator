@@ -104,6 +104,7 @@ val functionalTest = tasks.named<Test>("functionalTest") {
 
 tasks.named<Test>("integrationTest") {
     useExample("external")
+    useExample("named-runtimes")
     useExample("ses")
     useExample("multi-project", multiProject = true)
     useExample("scenarios")

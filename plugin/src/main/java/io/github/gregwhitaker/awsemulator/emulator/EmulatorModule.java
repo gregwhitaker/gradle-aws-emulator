@@ -35,22 +35,27 @@ public final class EmulatorModule {
 
     public static void load(Project project) {
         AwsEmulatorExtension extension = registerExtension(project);
-        Provider<AwsEmulatorService> service = registerService(project, extension);
+        Provider<AwsEmulatorService> service = registerService(project, extension, AwsEmulatorExtension.DEFAULT_RUNTIME);
         extension.attach(project, service);
-        project.getTasks().withType(AbstractAwsEmulatorTask.class).configureEach(task -> {
-            task.getRuntime().convention(extension.runtime());
-            extension.usesRuntime(task);
+        project.getTasks().withType(AbstractAwsEmulatorTask.class).configureEach(extension::configureRuntime);
+        registerLifecycleTasks(project, AwsEmulatorExtension.DEFAULT_RUNTIME);
+        extension.getRuntimes().all(runtime -> {
+            inheritSettings(extension, runtime);
+            extension.registerRuntime(runtime.getName(), registerService(project, runtime, runtime.getName()));
         });
-        register(project, PREPARE_TASK_NAME, PrepareAwsEmulatorTask.class, "Builds or locates the AWS Emulator Docker image.");
-        register(project, START_TASK_NAME, StartAwsEmulatorTask.class, "Starts the project's persistent development emulator.");
-        register(project, STOP_TASK_NAME, StopAwsEmulatorTask.class, "Stops the project's persistent development emulator.");
-        register(project, RESTART_TASK_NAME, RestartAwsEmulatorTask.class, "Restarts the development emulator with empty state.");
-        register(project, STATUS_TASK_NAME, StatusAwsEmulatorTask.class, "Reports the development emulator's status and endpoint.");
-        register(project, LOGS_TASK_NAME, LogsAwsEmulatorTask.class, "Displays recent development emulator logs.");
-        register(project, "doctorAwsEmulator", DoctorAwsEmulatorTask.class, "Diagnoses Docker, images, ports, and project-owned emulator connections.");
-        register(project, "cleanupAwsEmulator", CleanupAwsEmulatorTask.class, "Archives logs and removes stale project-owned managed containers.");
-        register(project, "exportAwsEmulatorConnection", ExportAwsEmulatorConnectionTask.class, "Exports development connection settings for POSIX shells and PowerShell.");
         ScenarioModule.load(project, extension);
+    }
+
+    static void registerLifecycleTasks(Project project, String runtimeName) {
+        register(project, runtimeName, PREPARE_TASK_NAME, PrepareAwsEmulatorTask.class, "Builds or locates the AWS Emulator Docker image.");
+        register(project, runtimeName, START_TASK_NAME, StartAwsEmulatorTask.class, "Starts the project's persistent development emulator.");
+        register(project, runtimeName, STOP_TASK_NAME, StopAwsEmulatorTask.class, "Stops the project's persistent development emulator.");
+        register(project, runtimeName, RESTART_TASK_NAME, RestartAwsEmulatorTask.class, "Restarts the development emulator with empty state.");
+        register(project, runtimeName, STATUS_TASK_NAME, StatusAwsEmulatorTask.class, "Reports the development emulator's status and endpoint.");
+        register(project, runtimeName, LOGS_TASK_NAME, LogsAwsEmulatorTask.class, "Displays recent development emulator logs.");
+        register(project, runtimeName, "doctorAwsEmulator", DoctorAwsEmulatorTask.class, "Diagnoses Docker, images, ports, and project-owned emulator connections.");
+        register(project, runtimeName, "cleanupAwsEmulator", CleanupAwsEmulatorTask.class, "Archives logs and removes stale project-owned managed containers.");
+        register(project, runtimeName, "exportAwsEmulatorConnection", ExportAwsEmulatorConnectionTask.class, "Exports development connection settings for POSIX shells and PowerShell.");
     }
 
     private static AwsEmulatorExtension registerExtension(Project project) {
@@ -70,8 +75,26 @@ public final class EmulatorModule {
         return extension;
     }
 
-    private static Provider<AwsEmulatorService> registerService(Project project, AwsEmulatorExtension extension) {
-        String owner = EmulatorSettings.hash(project.getProjectDir().getAbsolutePath());
+    private static void inheritSettings(AwsEmulatorExtension defaults, NamedEmulatorRuntime runtime) {
+        runtime.getEmulatorVersion().convention(defaults.getEmulatorVersion());
+        runtime.getImage().convention(defaults.getImage());
+        runtime.getPlatform().convention(defaults.getPlatform());
+        runtime.getPort().convention(0);
+        runtime.getRegion().convention(defaults.getRegion());
+        runtime.getTelemetryEnabled().convention(defaults.getTelemetryEnabled());
+        runtime.getDockerExecutable().convention(defaults.getDockerExecutable());
+        runtime.getMemoryLimit().convention(defaults.getMemoryLimit());
+        runtime.getStartupTimeoutSeconds().convention(defaults.getStartupTimeoutSeconds());
+        runtime.getCommandTimeoutSeconds().convention(defaults.getCommandTimeoutSeconds());
+        runtime.getBuildTimeoutSeconds().convention(defaults.getBuildTimeoutSeconds());
+        runtime.getWorkingDirectory().convention(defaults.getWorkingDirectory().dir("runtimes/" + runtime.getName()));
+        // External connections are deliberately independent, allowing managed tests alongside an external default.
+    }
+
+    private static Provider<AwsEmulatorService> registerService(Project project, EmulatorRuntimeConfiguration extension, String name) {
+        String identity = project.getProjectDir().getAbsolutePath();
+        if (!AwsEmulatorExtension.DEFAULT_RUNTIME.equals(name)) identity += "\n" + name;
+        String owner = EmulatorSettings.hash(identity);
         return project.getGradle().getSharedServices()
             .registerIfAbsent("awsEmulator-" + owner, AwsEmulatorService.class, spec -> {
                 AwsEmulatorService.Parameters parameters = spec.getParameters();
@@ -95,11 +118,15 @@ public final class EmulatorModule {
             });
     }
 
-    private static <T extends AbstractAwsEmulatorTask> void register(Project project, String name,
+    private static <T extends AbstractAwsEmulatorTask> void register(Project project, String runtimeName, String name,
             Class<T> type, String description) {
-        project.getTasks().register(name, type, task -> {
+        project.getTasks().register(name + NamedEmulatorRuntime.taskSuffix(runtimeName), type, task -> {
             task.setGroup(GROUP_NAME);
             task.setDescription(description);
+            if (!AwsEmulatorExtension.DEFAULT_RUNTIME.equals(runtimeName)) {
+                task.getRuntimeName().set(runtimeName);
+                task.getRuntimeName().disallowChanges();
+            }
         });
     }
 }

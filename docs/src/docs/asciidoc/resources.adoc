@@ -94,6 +94,7 @@ All properties use Gradle's lazy property API.
 |===
 |Shared property |Default |Meaning
 |`mode` |`EmulatorMode.MANAGED` for custom instances |Select the build-owned runtime or the persistent `DEVELOPMENT` runtime. The six module convenience tasks default to `DEVELOPMENT`.
+|`runtimeName` |`default` |Select a declared named runtime. Its name and lifecycle mode must match the consumer; see xref:named-runtimes.adoc[named runtimes].
 |`apiCallTimeoutSeconds` |`30` |Positive timeout for each SDK operation, including retries.
 |===
 
@@ -149,7 +150,7 @@ The S3 and SQS modules register six tasks that use the persistent development em
 |AWS Emulator - SQS |`publishSqs` |`--queueNames=one,two`, `--message=path`, optional `--messageGroupId=group`
 |===
 
-Every resource task accepts `--mode=MANAGED` or `--mode=DEVELOPMENT`. Custom instances of the task types default to `MANAGED`. Ensure provisioning and consuming tasks select the same runtime.
+Every resource task accepts `--mode=MANAGED` or `--mode=DEVELOPMENT` and `--runtime <name>`. Custom instances of the task types default to `MANAGED`. Ensure provisioning and consuming tasks select the same runtime name and mode.
 
 [source,shell]
 ----

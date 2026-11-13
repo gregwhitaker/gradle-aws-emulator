@@ -68,7 +68,7 @@ xref:ses.adoc[SES identity, template, configuration-set, and event-destination t
 
 Discovery uses the core `@AwsEmulatorSetupTask` annotation on resource task types. Subclasses inherit it. Annotate your own `AbstractAwsResourceTask` subclasses to opt them into discovery. Registration remains lazy, so tasks declared after the companion is applied are included.
 
-The companion selects its runtime as the default for discovered resource tasks and their resource prerequisites when a local Boot task is selected. Explicit task dependencies determine ordering between resources; for example, a log-stream task should depend on its log-group task. Use additional `setupTasks` or `dependsOn` dependencies for message publishing, data fixtures, and custom preparation.
+The companion selects its runtime name and mode as defaults for discovered resource tasks and their resource prerequisites when a local Boot task is selected. Automatic discovery skips tasks explicitly assigned to other runtime names. Explicit prerequisites must use the application's runtime; conflicts fail before startup. Explicit task dependencies determine ordering between resources; for example, a log-stream task should depend on its log-group task. Use additional `setupTasks` or `dependsOn` dependencies for message publishing, data fixtures, and custom preparation.
 
 Explicit resource modes are respected. A conflicting mode fails with a configuration error before startup. For separate test-only resources, exclude those task names or paths:
 
@@ -87,7 +87,7 @@ Exclusions affect automatic discovery; explicit dependencies still run. To selec
 
 For applications in different Gradle projects, `awsEmulator.useSharedRuntime(":local-aws", "application")` selects one owner and automatically attaches its named resources to both local Boot tasks. No additional `springBoot.resourceSets` attachment is needed for those sets. The owner's settings govern the shared runtime; the application's `springBoot.mode` still selects managed or development. See xref:shared-runtimes.adoc[sharing across projects].
 
-For resources shared with managed tests and scenarios, declare xref:scenarios.adoc#resource-sets[reusable resource sets] and attach them using `awsEmulator.springBoot.resourceSets.add(setProvider)`. The plugin creates separate tasks for each mode and runs provisioning and fixtures before either local Boot task. Generated resource-set tasks are excluded from automatic discovery, so test attachments do not leak into Boot setup. Explicit resource sets run even when `autoCreateResources` is false.
+For resources shared with managed tests and scenarios, declare xref:scenarios.adoc#resource-sets[reusable resource sets] and attach them using `awsEmulator.springBoot.resourceSets.add(setProvider)`. The plugin creates separate tasks for each runtime name and mode and runs provisioning and fixtures before either local Boot task. Generated resource-set tasks are excluded from automatic discovery, so test attachments do not leak into Boot setup. Explicit resource sets run even when `autoCreateResources` is false.
 
 [source,shell]
 ----
@@ -113,6 +113,7 @@ Configure the companion in `awsEmulator { springBoot { ... } }`. The previous to
 |===
 |`awsEmulator.springBoot` property |Default |Behavior
 |`mode` |`EmulatorMode.DEVELOPMENT` |Selects the persistent development instance or a build-owned `MANAGED` instance.
+|`runtimeName` |`default` |Selects a runtime declared in the owner's `awsEmulator.runtimes`, or the existing default runtime.
 |`profiles` |`["local"]` |Adds `spring.profiles.active`; an empty list adds no profile argument.
 |`jvmArgs` |`[]` |Additional JVM arguments for both local tasks.
 |`autoCreateResources` |`true` |Automatically discovers resource-provisioning tasks and runs them before either local task.
@@ -123,7 +124,7 @@ Configure the companion in `awsEmulator { springBoot { ... } }`. The previous to
 |`debugSuspend` |`true` |Whether the debug task waits for a debugger before starting the application.
 |===
 
-Resource setup tasks use the same runtime as the application. Reusable sets create separate tasks for consumers in different modes within one build. When using ordinary task instances instead, register separate tasks and exclude test-only resources from automatic discovery.
+Resource setup tasks use the same runtime as the application. Reusable sets create separate tasks for consumers in different runtime names or modes within one build. When using ordinary task instances instead, register separate tasks and exclude test-only resources from automatic discovery. See xref:named-runtimes.adoc[named runtimes] for declaration, settings inheritance, and lifecycle commands.
 
 Development instances retain their resources across Gradle invocations until `stopAwsEmulator` or `restartAwsEmulator`. For automatic cleanup after the application finishes, including ordinary application failures:
 
