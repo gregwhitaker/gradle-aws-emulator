@@ -2,6 +2,7 @@
 
 ## 0.2.0 — Unreleased
 
+- Connect to externally managed emulators through `awsEmulator.external`, with explicit HTTPS endpoints, credentials, and CA files; preserve external lifecycle and state across consumers, provisioning, Spring Boot, and configuration-cache reuse.
 - Declare the Kinesis base task caching policy explicitly for Gradle 9 plugin validation.
 - Preserve lifecycle and image locks when operations in the same JVM contend, and add regression coverage for interrupted managed startup and cleanup.
 - Add SES API v2 identity, template, configuration-set, and SNS event-destination provisioning; simple/raw email sends and message insights; Spring Boot setup discovery; and a Docker-tested example. Document the pinned emulator's template limitations and lack of SMTP forwarding to MailHog/Mailpit.

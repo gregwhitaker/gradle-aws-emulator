@@ -4,6 +4,8 @@ include::_partials/attributes.adoc[]
 
 Start with Java 17+, Gradle 8.14+, and Docker running Linux containers. The first emulator run downloads and builds the pinned package; later runs reuse the image.
 
+If an emulator is already running elsewhere, use xref:external-emulators.adoc[an external connection] instead; the Gradle machine then needs no Docker installation.
+
 toc::[]
 
 == Run the included example

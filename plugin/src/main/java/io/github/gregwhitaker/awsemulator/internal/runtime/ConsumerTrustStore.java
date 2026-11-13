@@ -57,7 +57,7 @@ public final class ConsumerTrustStore {
                     if (secret != null) Arrays.fill(secret, '\0');
                 }
             }
-            try (var input = Files.newInputStream(connection.directory().resolve("ca.pem"))) {
+            try (var input = Files.newInputStream(connection.certificate())) {
                 var emulatorCertificates = CertificateFactory.getInstance("X.509").generateCertificates(input);
                 if (emulatorCertificates.isEmpty()) throw new GradleException("AWS Emulator CA file contains no certificates.");
                 for (Certificate certificate : emulatorCertificates) add(certificates, certificate);

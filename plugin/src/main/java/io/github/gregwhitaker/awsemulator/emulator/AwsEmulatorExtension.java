@@ -39,6 +39,7 @@ import java.util.Set;
 /** Configuration for the AWS Emulator runtime and its opted-in consumers. */
 public abstract class AwsEmulatorExtension {
     private final Property<AwsEmulatorService> service = getObjects().property(AwsEmulatorService.class);
+    private final ExternalEmulatorConnection external = getObjects().newInstance(ExternalEmulatorConnection.class);
     private Provider<AwsEmulatorService> registeredService;
     private final Set<Task> runtimeConsumers = new LinkedHashSet<>();
     private Project project;
@@ -70,6 +71,22 @@ public abstract class AwsEmulatorExtension {
     public abstract Property<Integer> getCommandTimeoutSeconds();
     public abstract Property<Integer> getBuildTimeoutSeconds();
     public abstract DirectoryProperty getWorkingDirectory();
+    /** Connection to an existing emulator. Disabled unless enabled explicitly or configured with {@link #external(Action)}. */
+    public ExternalEmulatorConnection getExternal() { return external; }
+    /**
+     * Enables an externally owned emulator connection. Both consumer modes use this same endpoint;
+     * the plugin never starts, stops, restarts, or cleans up the external emulator.
+     * Connection files are read only when an opted-in task executes.
+     * @param action configures the HTTPS endpoint, credentials file, and CA certificate file
+     */
+    public void external(Action<? super ExternalEmulatorConnection> action) {
+        external.getEnabled().convention(true);
+        action.execute(external);
+    }
+
+    boolean usesExternalRuntime() {
+        return (runtimeOwner == null ? this : runtimeOwner).getExternal().getEnabled().get();
+    }
     /** Scenario used by seedAwsEmulator and resetAwsEmulator unless -PawsEmulator.scenario is set. */
     public abstract Property<String> getDefaultScenario();
     public NamedDomainObjectContainer<EmulatorScenario> getScenarios() { return scenarios; }
@@ -104,7 +121,8 @@ public abstract class AwsEmulatorExtension {
      * <p>Selected resource sets are resolved in the owner's project and attached automatically to
      * every {@code useWith} consumer, including the Spring Boot companion's local run tasks.
      * They execute once per owner and mode in an invocation. Managed and development instances
-     * remain separate. Managed cleanup waits for consumers across all participating projects.
+     * remain separate unless the owner selects an external connection, where both modes use the
+     * same endpoint. Managed cleanup waits for consumers across all participating projects.
      *
      * <p>The owner is evaluated when selected. Configure its plugin and resources in its own build
      * script. Repeated calls may add resource sets for the same owner; changing owners, selecting
@@ -174,7 +192,10 @@ public abstract class AwsEmulatorExtension {
         return dependencies;
     }
 
-    /** Starts a build-owned emulator for a Test, JavaExec, or Exec task and configures its child process. */
+    /**
+     * Configures a Test, JavaExec, or Exec task's child process using the managed mode.
+     * Starts a build-owned emulator unless an external connection is enabled.
+     */
     public void useWith(TaskProvider<? extends Task> taskProvider) {
         useWith(taskProvider, EmulatorMode.MANAGED);
     }
@@ -183,7 +204,8 @@ public abstract class AwsEmulatorExtension {
      * Connects a consumer to the selected runtime after its setup tasks complete.
      * Setup accepts resource sets (including providers) and Gradle dependency notation.
      * Resource sets create separate task instances for each mode and run their fixtures in order.
-     * Resource setup tasks must use the same mode as the consumer.
+     * Resource setup tasks must use the same mode as the consumer. When an external connection
+     * is enabled, both modes use that endpoint without lifecycle management or state isolation.
      */
     public void useWith(TaskProvider<? extends Task> taskProvider, EmulatorMode mode, Object... setupTasks) {
         useWith(taskProvider, getObjects().property(EmulatorMode.class).value(mode), setupTasks);

@@ -40,7 +40,9 @@ public abstract class AbstractKinesisTask extends AbstractAwsResourceTask {
             parameters.getShards().set(shards);
             parameters.getWaitSeconds().set(wait);
             parameters.getTimeoutSeconds().set(getApiCallTimeoutSeconds());
-            parameters.getPort().set(connection.port());
+            parameters.getEndpoint().set(connection.endpoint());
+            parameters.getCredentialsFile().set(connection.credentials().toFile());
+            parameters.getCertificateFile().set(connection.certificate().toFile());
             parameters.getRegion().set(connection.region());
             parameters.getConnectionDirectory().set(connection.directory().toFile());
             parameters.getKeys().set(keys);

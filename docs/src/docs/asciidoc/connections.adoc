@@ -11,18 +11,18 @@ toc::[]
 [cols="1,2",options="header"]
 |===
 |Setting |Supplied value
-|Endpoint |HTTPS on `127.0.0.1` at the selected port, through the SDK environment and JVM settings
+|Endpoint |HTTPS on `127.0.0.1` at the selected port, or the configured external endpoint, through the SDK environment and JVM settings
 |Region |The configured `awsEmulator.region`
-|Credentials |The generated `emulator_credentials` file
+|Credentials |The generated `emulator_credentials` file, or the supplied external `credentialsFile`
 |AWS config |A separate `host-config` file with host-side paths
-|TLS trust |The generated `ca.pem` and a consumer PKCS12 trust store combining default, custom, and emulator certificates
+|TLS trust |The generated `ca.pem` or external `certificateFile`, and a consumer PKCS12 trust store combining default, custom, and emulator certificates
 |Metadata/discovery |EC2 metadata lookup and endpoint discovery disabled
 |Kinesis wire format |JSON through `aws.cborEnabled=false` and `CBOR_ENABLED=false` in opted-in JVMs
 |===
 
 The plugin removes inherited AWS credential, profile, and service-endpoint environment overrides, along with corresponding configured JVM credential/endpoint properties. It does not change the Gradle daemon's credentials or global trust settings.
 
-Connection files are generated at execution time and are not serialized as configuration-cache values. Authentication remains enabled. Readiness checks validate the generated certificate and the endpoint hostname.
+Connection material is read or generated at execution time; credential values are not serialized into the configuration cache. Authentication remains enabled. Readiness checks validate the certificate and endpoint hostname. See xref:external-emulators.adoc[existing emulators] for using supplied files without Docker.
 
 == Use compatible SDK clients
 
@@ -43,7 +43,7 @@ try (var sts = StsClient.builder()
 }
 ----
 
-The environment setting alone does not control host-prefix injection in Java. The endpoint uses `127.0.0.1` to support S3 path-style routing.
+The environment setting alone does not control host-prefix injection in Java. Owned runtimes use `127.0.0.1` to support S3 path-style routing. For external DNS endpoints, configure S3 clients with path-style access, such as `forcePathStyle(true)`.
 
 Explicit SDK credentials/endpoints and application-created SSL contexts can override the plugin's values. Use normal SDK providers as shown in the xref:getting-started.adoc#the-complete-example[example application].
 
@@ -118,7 +118,9 @@ Exports and `Exec` consumers set `AWS_ENDPOINT_URL`, `AWS_REGION`, `AWS_DEFAULT_
 
 Launch the application or a fresh IDE process from the configured shell to inherit these values. Alternatively, copy the exported values into the IDE's run environment and remove the same conflicting AWS overrides. Already-running IDE processes may retain their original environment. Java applications launched outside Gradle still need appropriate JVM trust-store configuration; `Test` and `JavaExec` automate the combined trust store described above.
 
-Exports always select development because managed connection files are removed at the end of their Gradle consumers. Stop removes the development scripts and connection files; restart changes the credentials and may select another port. Regenerate and source exports after restart, then relaunch consumers. With `useSharedRuntime`, export and stop refer to the selected owner's development instance. The repository's `examples/processes` build demonstrates this workflow with Python, Node, and AWS CLI.
+Exports select development for owned runtimes because managed connection files are removed at the end of their Gradle consumers. Stop removes the development scripts and connection files; restart changes the credentials and may select another port. Regenerate and source exports after restart, then relaunch consumers. With `useSharedRuntime`, export and stop refer to the selected owner's development instance. The repository's `examples/processes` build demonstrates this workflow with Python, Node, and AWS CLI.
+
+For an external connection, exports use the supplied endpoint and files and are written under `workingDirectory/external/<connection-id>/`. They do not start or stop anything. The supplied files and generated local exports remain after the build.
 
 == Upstream references
 

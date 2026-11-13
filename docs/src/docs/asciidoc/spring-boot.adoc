@@ -58,6 +58,8 @@ Plugin application order does not matter. Until both Spring Boot and Java are pr
 
 == Automatic resource creation
 
+An xref:external-emulators.adoc[external connection] applies to both local Boot tasks and their resource setup. Configure `awsEmulator.external` on the runtime owner. Both modes connect to that instance and leave it running after application exits or failures.
+
 Register resource-creation tasks with their required properties, as above. `bootRunLocal` and `bootRunLocalDebug` automatically discover those tasks in the application's project and run them before starting the application. The queue in this example needs no `setupTasks`, `dependsOn`, or mode configuration.
 
 Automatic setup covers S3 buckets; SQS queues and DLQs; SNS topics and SQS subscriptions; DynamoDB tables and their initializers; SSM parameters; Secrets Manager secrets; EventBridge buses, rules, and targets; Kinesis streams; KMS keys and aliases; and CloudWatch log groups and streams.

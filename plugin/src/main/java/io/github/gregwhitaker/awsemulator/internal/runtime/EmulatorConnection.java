@@ -26,28 +26,34 @@ import java.util.Set;
 import java.util.Locale;
 
 /** Runtime connection paths, never the generated credential values. */
-public record EmulatorConnection(int port, String region, Path directory) {
+public record EmulatorConnection(String endpoint, String region, Path directory, Path credentials, Path certificate) {
+    public EmulatorConnection(int port, String region, Path directory) {
+        this("https://127.0.0.1:" + port, region, directory,
+            directory.resolve("emulator_credentials"), directory.resolve("ca.pem"));
+    }
+
+    public int port() {
+        int port = java.net.URI.create(endpoint).getPort();
+        return port < 0 ? 443 : port;
+    }
     static final Set<String> CREDENTIAL_ENVIRONMENT = Set.of(
         "AWS_ACCESS_KEY_ID", "AWS_ACCESS_KEY", "AWS_SECRET_ACCESS_KEY", "AWS_SECRET_KEY",
         "AWS_SESSION_TOKEN", "AWS_SECURITY_TOKEN", "AWS_PROFILE", "AWS_DEFAULT_PROFILE", "AWS_ROLE_ARN",
         "AWS_ROLE_SESSION_NAME", "AWS_WEB_IDENTITY_TOKEN_FILE", "AWS_CREDENTIAL_FILE",
         "AWS_IGNORE_CONFIGURED_ENDPOINT_URLS");
 
-    public String endpoint() { return "https://127.0.0.1:" + port; }
     public Path trustStore() { return directory.resolve("truststore.p12"); }
-    public Path credentials() { return directory.resolve("emulator_credentials"); }
-    public Path certificate() { return directory.resolve("ca.pem"); }
 
     public boolean filesExist() {
         return Files.isRegularFile(credentials()) && Files.isRegularFile(trustStore())
-            && Files.isRegularFile(directory.resolve("ca.pem"));
+            && Files.isRegularFile(certificate());
     }
 
     /** The emulator's config contains container paths. Write a separate host-side config. */
     public void writeHostConfig() throws IOException {
         Path config = directory.resolve("host-config");
         Files.writeString(config, "[default]\nregion = " + region + "\nendpoint_url = " + endpoint()
-            + "\nca_bundle = " + directory.resolve("ca.pem") + "\ns3 =\n    signature_version = s3v4\n");
+            + "\nca_bundle = " + certificate() + "\ns3 =\n    signature_version = s3v4\n");
         if (Files.getFileStore(config).supportsFileAttributeView("posix")) {
             Files.setPosixFilePermissions(config, PosixFilePermissions.fromString("rw-------"));
         }
@@ -74,7 +80,7 @@ public record EmulatorConnection(int port, String region, Path directory) {
         env.put("AWS_ENDPOINT_URL", endpoint());
         env.put("AWS_SHARED_CREDENTIALS_FILE", credentials().toString());
         env.put("AWS_CONFIG_FILE", directory.resolve("host-config").toString());
-        env.put("AWS_CA_BUNDLE", directory.resolve("ca.pem").toString());
+        env.put("AWS_CA_BUNDLE", certificate().toString());
         env.put("NODE_EXTRA_CA_CERTS", certificate().toString());
         env.put("AWS_SDK_LOAD_CONFIG", "1");
         env.put("AWS_EC2_METADATA_DISABLED", "true");

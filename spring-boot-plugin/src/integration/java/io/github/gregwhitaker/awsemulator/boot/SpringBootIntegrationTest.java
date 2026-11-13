@@ -17,6 +17,8 @@
 package io.github.gregwhitaker.awsemulator.boot;
 
 import io.github.gregwhitaker.awsemulator.testsupport.TlsFixtures;
+import io.github.gregwhitaker.awsemulator.testsupport.ExternalEmulatorFixture;
+import io.github.gregwhitaker.awsemulator.internal.runtime.HttpsHealthProbe;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import java.net.ServerSocket;
@@ -32,6 +34,41 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class SpringBootIntegrationTest {
     @TempDir Path project;
+
+    @Test
+    void localBootRunsLeaveExternalEmulatorRunningForBothModesAndOnFailure() throws Exception {
+        fixture("3.5.16");
+        Files.writeString(project.resolve("build.gradle"), """
+            awsEmulator {
+                dockerExecutable.set('must-not-invoke-docker')
+                external {
+                    endpoint.set(providers.gradleProperty('externalEndpoint'))
+                    credentialsFile.set(layout.projectDirectory.file(providers.gradleProperty('externalCredentials')))
+                    certificateFile.set(layout.projectDirectory.file(providers.gradleProperty('externalCertificate')))
+                }
+            }
+            """, StandardOpenOption.APPEND);
+        try (var owner = new ExternalEmulatorFixture(project.resolve("external-owner"))) {
+            var connection = owner.connection();
+            byte[] credentials = Files.readAllBytes(connection.credentials());
+            var arguments = new java.util.ArrayList<>(java.util.List.of("bootRunLocal",
+                "-PexternalEndpoint=" + connection.endpoint(), "-PexternalCredentials=" + connection.credentials(),
+                "-PexternalCertificate=" + connection.certificate()));
+            for (int run = 0; run < 3; run++) {
+                String output = runner(project, arguments.toArray(String[]::new)).build().getOutput();
+                assertTrue(output.contains("BOOT_EMULATOR_VERIFIED"), output);
+                if (run > 1) assertTrue(output.contains("Reusing configuration cache"), output);
+            }
+            arguments.add("-Pmanaged=true");
+            runner(project, arguments.toArray(String[]::new)).build();
+            arguments.add("--args=fail");
+            String failure = runner(project, arguments.toArray(String[]::new)).buildAndFail().getOutput();
+            assertTrue(failure.contains("Intentional application failure"), failure);
+            assertEquals(connection.endpoint() + "\n" + connection.credentials(), Files.readString(project.resolve("connection.txt")));
+            assertTrue(new HttpsHealthProbe().ready(connection.endpoint(), connection.trustStore()));
+            assertArrayEquals(credentials, Files.readAllBytes(connection.credentials()));
+        }
+    }
 
     @Test
     void boot3SharesProvisioningPersistsDevelopmentAndCleansManagedSuccessAndFailure() throws Exception {

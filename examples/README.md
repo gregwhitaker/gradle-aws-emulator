@@ -5,6 +5,7 @@ Standalone Kotlin DSL builds demonstrating the AWS Emulator Gradle plugin with A
 | Example | Demonstrates |
 | --- | --- |
 | [Basic](basic/README.md) | S3 buckets, standard and FIFO SQS queues, a dead-letter queue, message fixtures, and signed STS requests. |
+| [Existing emulator](external/README.md) | Explicit endpoint, credentials, and CA files; SQS/Kinesis provisioning and tests without managing the emulator's lifecycle. |
 | [External processes](processes/README.md) | Python/Node `Exec` consumers, AWS CLI, shell/PowerShell connection exports, and IDE launch environments. |
 | [Multi-project](multi-project/README.md) | Explicit runtime ownership, shared SQS provisioning, and an order exchange between two modules with managed tests or persistent development runs. |
 | [DynamoDB](dynamodb/README.md) | Table creation, a global secondary index, stream settings, and a Java initializer supplied by `buildSrc`. |
@@ -21,7 +22,7 @@ Each project README includes run commands, source links, and instructions for ma
 
 ## Getting started
 
-Use Java 17 or later, a running local Docker engine configured for Linux containers, and the repository's Gradle wrapper. The `docker` command must be available. No AWS account or AWS CLI is required.
+Use Java 17 or later, a running local Docker engine configured for Linux containers, and the repository's Gradle wrapper. The `docker` command must be available for examples that own their runtime; the existing-emulator example only needs connection details. No AWS account or AWS CLI is required.
 
 Run the documented commands from the **repository root**. The examples are independent builds selected with `-p examples/<example>`; they are not subprojects of the root build. The first run downloads dependencies and builds the emulator image, which later runs reuse.
 

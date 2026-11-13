@@ -6,6 +6,8 @@ Lifecycle tasks operate on a persistent development instance owned by the curren
 
 toc::[]
 
+With an xref:external-emulators.adoc[external connection], the plugin owns no lifecycle. Start, stop, restart, prepare, cleanup, logs, and scenario reset commands are rejected. Status, doctor, connection exports, and scenario seeding use the external endpoint without Docker.
+
 == Task reference
 
 [cols="1,3",options="header"]

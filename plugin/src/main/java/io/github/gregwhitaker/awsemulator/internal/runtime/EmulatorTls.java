@@ -30,6 +30,9 @@ public final class EmulatorTls {
     public static TrustManager[] trustManagers(Path trustStore) throws Exception {
         KeyStore keys = KeyStore.getInstance("PKCS12");
         try (InputStream input = Files.newInputStream(trustStore)) { keys.load(input, null); }
+        if (keys.size() == 0) {
+            try (InputStream input = Files.newInputStream(trustStore)) { keys.load(input, new char[0]); }
+        }
         TrustManagerFactory factory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
         factory.init(keys);
         return factory.getTrustManagers();

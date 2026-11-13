@@ -6,6 +6,8 @@ Opt existing `Test`, `JavaExec`, or `Exec` tasks into the emulator with `awsEmul
 
 toc::[]
 
+To use an already-running emulator, configure xref:external-emulators.adoc[`awsEmulator.external`]. The same consumer wiring applies. Both modes use that endpoint, and no external resources or connection source files are removed after the build.
+
 == Opt in tests
 
 The method supports Gradle `Test`, `JavaExec`, and `Exec` tasks, including subclasses. Applying the plugin alone does not modify your tests.

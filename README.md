@@ -9,7 +9,7 @@ Run [AWS Emulator](https://github.com/aws/aws-emulator) from your Gradle build. 
 ## Requirements
 
 - Java 17+ and Gradle 8.14+.
-- The `docker` CLI and a running local Docker engine using Linux containers. AMD64 and ARM64 are supported.
+- The `docker` CLI and a running local Docker engine using Linux containers, or a connection to an [existing emulator](#connect-to-an-existing-emulator). AMD64 and ARM64 are supported for Docker runtimes.
 
 No AWS account or AWS CLI is required. The first emulator run builds the pinned image; subsequent runs reuse it. Applying the plugin alone does not start Docker or opt existing tasks into the emulator.
 
@@ -77,6 +77,25 @@ Managed instances start fresh and are shared by participating tasks in each proj
 `useWith` accepts existing `Test`, `JavaExec`, and `Exec` tasks. Configuration-cache reuse is supported. Tasks that access emulator state opt out of up-to-date checks and build-cache reuse; see [tests and process execution](docs/src/docs/asciidoc/testing.adoc) for setup dependencies and execution rules.
 
 Use [shared runtime ownership](docs/src/docs/asciidoc/shared-runtimes.adoc) to connect multiple projects to one instance. Tasks sharing an instance also share resources, so use distinct names for concurrent tests.
+
+## Connect to an existing emulator
+
+Supply its HTTPS endpoint, credentials file, and PEM CA certificate:
+
+```kotlin
+awsEmulator {
+    external {
+        endpoint.set("https://localhost:9297")
+        credentialsFile.set(layout.projectDirectory.file("local-emulator/emulator_credentials"))
+        certificateFile.set(layout.projectDirectory.file("local-emulator/ca.pem"))
+    }
+    useWith(tasks.named<Test>("test"))
+}
+```
+
+The plugin connects without invoking Docker or managing the emulator's lifecycle. Both runtime modes use the same external instance; resource changes persist after successful and failed builds. Lifecycle commands are rejected. Resource tasks, scenario seeding, Spring Boot, connection exports, and configuration-cache reuse are supported.
+
+See the [external connection guide](docs/src/docs/asciidoc/external-emulators.adoc) and [runnable example](examples/external/README.md).
 
 ## Local development
 

@@ -9,7 +9,7 @@ The companion automatically applies the [base AWS Emulator plugin](../README.md)
 ## Requirements
 
 - Java 17+ and Gradle 8.14+.
-- A local Docker engine running Linux containers; AMD64 and ARM64 are supported.
+- A local Docker engine running Linux containers (AMD64 or ARM64), or an [external emulator connection](../docs/src/docs/asciidoc/external-emulators.adoc).
 - A Spring Boot application with `org.springframework.boot` and the Java or Kotlin JVM plugin applied.
 
 Compatibility coverage in this repository includes Spring Boot **3.5.16** and **4.1.2**. The emulator image is built on first use and reused on subsequent runs. No AWS account or AWS CLI is needed.
@@ -87,6 +87,8 @@ tasks.register('createApplicationQueue', CreateSqsQueueTask) {
 ```
 
 Keep your application's existing dependencies and repositories. The application declares its own AWS SDK dependencies; see the [runnable example build](../examples/spring-boot/build.gradle.kts) for a complete configuration.
+
+To connect to an already-running emulator, configure `awsEmulator.external` with its endpoint, credentials file, and CA certificate. Both local Boot tasks and their resource setup use that connection in either mode; application exits and failures leave the external instance running.
 
 Plugin application order does not matter. The local run tasks are registered once Spring Boot and Java are present. Applying the companion alone does not start Docker. Setting `awsEmulator.port` to `0` selects an available host port.
 

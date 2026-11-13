@@ -80,8 +80,8 @@ final class ScenarioModule {
 
     private List<Object> prepare(EmulatorScenario scenario) {
         List<Object> dependencies = new ArrayList<>();
-        var start = project.getTasks().named("startAwsEmulator");
-        dependencies.add(start);
+        TaskProvider<Task> start = extension.usesExternalRuntime() ? null : project.getTasks().named("startAwsEmulator");
+        if (start != null) dependencies.add(start);
         Object resources = extension.resolveSetup(scenario.resources(), EmulatorMode.DEVELOPMENT);
         dependencies.add(resources);
         dependencies.addAll(scenario.provisioning());
@@ -134,7 +134,7 @@ final class ScenarioModule {
             if (task.getProject() != project) throw new GradleException("Scenario resource tasks must belong to the same project: " + task.getPath());
             if (resource.getMode().get() != EmulatorMode.DEVELOPMENT) resource.getMode().set(EmulatorMode.DEVELOPMENT);
             resource.getMode().disallowChanges();
-            resource.dependsOn(start);
+            if (start != null) resource.dependsOn(start);
         }
     }
 

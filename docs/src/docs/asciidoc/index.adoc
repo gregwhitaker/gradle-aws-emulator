@@ -61,6 +61,8 @@ Run `./gradlew test` in your application. The plugin supplies the endpoint, emul
 
 Applying the plugin alone does not start Docker. Your tasks opt in explicitly, and configuration-cache reuse is supported.
 
+Already running an emulator? Use xref:external-emulators.adoc[an external connection] to supply its endpoint, credentials, and CA certificate without Docker or lifecycle management in this build.
+
 [[choose-the-right-lifetime]]
 == Two lifecycles. One workflow.
 

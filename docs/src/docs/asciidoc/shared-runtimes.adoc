@@ -70,13 +70,15 @@ Owner selection also applies to resource and lifecycle tasks in the consumer pro
 
 == Resource setup and modes
 
+An owner can select xref:external-emulators.adoc[an external connection]. Configure `awsEmulator.external` in the owner; all consumers use its endpoint and files. In this case both modes share the same external state and no lifecycle cleanup occurs.
+
 The optional names select resource sets declared in the owner. For example, `useSharedRuntime(":local-aws", "application", "fixtures")` selects two sets; `useSharedRuntime(":local-aws")` shares just the runtime. Repeated calls for the same owner add names without duplicating setup.
 
 Each selected set's provisioning and fixtures run in the owner's project, once per mode per Gradle invocation, before all attached JVM consumers. Their usual xref:scenarios.adoc#resource-sets[ordering and includes] apply. Unselected sets are not realized. Subsequent invocations rerun resource operations, including with configuration-cache reuse; fixture steps can therefore add data to a persistent instance again.
 
 * Managed consumers across the participating projects share one fresh managed instance per invocation. Cleanup waits for all participating tasks, including failure handling.
 * Development consumers share the owner's persistent instance across invocations. It stays running until explicitly stopped.
-* Managed and development modes remain separate, even when selected together. Put `port.set(0)` in the owner to let both run simultaneously.
+* With an owned runtime, managed and development modes remain separate, even when selected together. Put `port.set(0)` in the owner to let both run simultaneously.
 * Spring Boot local tasks automatically receive the shared sets in `awsEmulator.springBoot.mode`. This explicit selection is independent of `autoCreateResources`; automatic discovery still considers only local resource tasks.
 
 Sharing does not order application consumers or isolate their data. Declare task dependencies for a finite publisher/consumer workflow, or coordinate long-running applications yourself. Concurrent tests that require independent data should use distinct resource names or keep separate runtime owners.

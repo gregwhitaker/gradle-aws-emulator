@@ -88,6 +88,10 @@ public final class EmulatorModule {
                 parameters.getCommandTimeoutSeconds().set(extension.getCommandTimeoutSeconds());
                 parameters.getBuildTimeoutSeconds().set(extension.getBuildTimeoutSeconds());
                 parameters.getWorkingDirectory().set(extension.getWorkingDirectory());
+                parameters.getExternalEnabled().set(extension.getExternal().getEnabled());
+                parameters.getExternalEndpoint().set(extension.getExternal().getEndpoint());
+                parameters.getExternalCredentialsFile().set(extension.getExternal().getCredentialsFile());
+                parameters.getExternalCertificateFile().set(extension.getExternal().getCertificateFile());
             });
     }
 

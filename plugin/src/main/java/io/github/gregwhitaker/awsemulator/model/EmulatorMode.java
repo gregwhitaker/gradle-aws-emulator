@@ -16,7 +16,10 @@
 
 package io.github.gregwhitaker.awsemulator.model;
 
-/** Selects the emulator whose resources a provisioning task manages. */
+/**
+ * Selects the emulator whose resources a provisioning task manages.
+ * When an external connection is enabled, both modes use that endpoint without managing its lifecycle.
+ */
 public enum EmulatorMode {
     /** Fresh runtime shared with this project's opted-in tests, removed at build completion. */
     MANAGED,

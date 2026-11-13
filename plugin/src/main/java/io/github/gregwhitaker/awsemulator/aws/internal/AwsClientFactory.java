@@ -17,14 +17,13 @@
 package io.github.gregwhitaker.awsemulator.aws.internal;
 
 import io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorConnection;
+import io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorCredentials;
 import io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorTls;
 import org.gradle.api.GradleException;
-import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.client.config.SdkAdvancedClientOption;
 import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
-import software.amazon.awssdk.profiles.ProfileFile;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.sqs.SqsClient;
@@ -158,13 +157,7 @@ public final class AwsClientFactory {
     }
 
     private StaticCredentialsProvider credentials() {
-        var profile = ProfileFile.builder().type(ProfileFile.Type.CREDENTIALS).content(connection.credentials())
-            .build().profile("default").orElseThrow(() -> new GradleException("Emulator credentials have no default profile."));
-        String access = profile.property("aws_access_key_id").filter(value -> !value.isBlank())
-            .orElseThrow(() -> new GradleException("Emulator credentials have no access key."));
-        String secret = profile.property("aws_secret_access_key").filter(value -> !value.isBlank())
-            .orElseThrow(() -> new GradleException("Emulator credentials have no secret key."));
-        return StaticCredentialsProvider.create(AwsBasicCredentials.create(access, secret));
+        return StaticCredentialsProvider.create(EmulatorCredentials.read(connection.credentials()));
     }
 
     private UrlConnectionHttpClient.Builder http() {

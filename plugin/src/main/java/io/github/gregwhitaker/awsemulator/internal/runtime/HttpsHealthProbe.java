@@ -24,13 +24,17 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 
-/** Verifies the emulator's certificate and IP address without changing JVM-wide TLS settings. */
+/** Verifies the emulator's certificate and hostname without changing JVM-wide TLS settings. */
 public final class HttpsHealthProbe implements HealthProbe {
     @Override
     public boolean ready(int port, Path trustStore) throws Exception {
+        return ready("https://127.0.0.1:" + port, trustStore);
+    }
+
+    public boolean ready(String endpoint, Path trustStore) throws Exception {
         SSLContext context = SSLContext.getInstance("TLS");
         context.init(null, EmulatorTls.trustManagers(trustStore), null);
-        HttpsURLConnection connection = (HttpsURLConnection) URI.create("https://127.0.0.1:" + port + "/__admin/health")
+        HttpsURLConnection connection = (HttpsURLConnection) URI.create(endpoint + "/__admin/health")
             .toURL().openConnection(Proxy.NO_PROXY);
         connection.setSSLSocketFactory(context.getSocketFactory());
         connection.setConnectTimeout(500);

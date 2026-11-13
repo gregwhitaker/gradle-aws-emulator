@@ -1,0 +1,90 @@
+= Connect to an existing emulator
+include::_partials/attributes.adoc[]
+:description: Use an externally managed AWS Emulator with explicit endpoint, credentials, and certificate files, without Docker lifecycle operations.
+
+Use `awsEmulator.external` when another process, Docker Compose, or a CI service owns the emulator. The plugin supplies its connection to resource tasks and opted-in consumers without starting or stopping it. Docker is not required on the Gradle machine.
+
+toc::[]
+
+== Configure the connection
+
+Start the emulator separately and make its credentials file and PEM CA certificate bundle available on the machine running Gradle.
+
+.Kotlin DSL
+[source,kotlin]
+----
+awsEmulator {
+    region.set("us-east-1")
+    external {
+        endpoint.set("https://localhost:9297")
+        credentialsFile.set(layout.projectDirectory.file("local-emulator/emulator_credentials"))
+        certificateFile.set(layout.projectDirectory.file("local-emulator/ca.pem"))
+    }
+    useWith(tasks.named<Test>("test"))
+}
+----
+
+.Groovy DSL
+[source,groovy]
+----
+awsEmulator {
+    region.set('us-east-1')
+    external {
+        endpoint.set('https://localhost:9297')
+        credentialsFile.set(layout.projectDirectory.file('local-emulator/emulator_credentials'))
+        certificateFile.set(layout.projectDirectory.file('local-emulator/ca.pem'))
+    }
+    useWith(tasks.named('test'))
+}
+----
+
+The `external { ... }` block enables the connection. Set `enabled.set(false)` inside it to disable it conditionally. When configuring properties directly through `awsEmulator.external`, also set `enabled` to `true`.
+
+[cols="1,3",options="header"]
+|===
+|Property |Requirement
+|`endpoint` |Absolute HTTPS URL with a hostname or IP address and optional port. A trailing slash is allowed; paths, query strings, fragments, and embedded credentials are rejected.
+|`credentialsFile` |Readable AWS shared credentials file with a `[default]` profile containing `aws_access_key_id` and `aws_secret_access_key`. An optional `aws_session_token` is supported.
+|`certificateFile` |Readable PEM certificate bundle that trusts the endpoint. The server certificate must match the configured hostname or IP address.
+|`enabled` |Defaults to `false`; configuring the block enables it.
+|===
+
+The extension's `region`, `startupTimeoutSeconds`, and `workingDirectory` still apply. Readiness waits up to `startupTimeoutSeconds` for HTTPS `/__admin/health` to return `ok`; it never launches the emulator. Docker settings, including `image`, `platform`, and `port`, are ignored. The endpoint selects the port.
+
+Missing or invalid connection settings fail when a connection is needed. They never trigger a fallback to Docker. Applying the plugin, listing tasks, and skipping consumers do not require connection files or a reachable endpoint.
+
+API: link:api/io/github/gregwhitaker/awsemulator/emulator/ExternalEmulatorConnection.html[ExternalEmulatorConnection].
+
+== Consumers and resource setup
+
+Existing `useWith` wiring works for `Test`, `JavaExec`, and `Exec`, including Spring Boot's `bootRunLocal` and `bootRunLocalDebug`. Resource tasks, Kinesis worker processes, named resource sets, and `seedAwsEmulator` use the external connection too.
+
+Both `MANAGED` and `DEVELOPMENT` select this same external instance. They do not provide separate state or automatic cleanup in external mode. Provisioning and fixture tasks still make their requested AWS resource changes; these persist after successful and failed builds. Use distinct resource names when consumers run concurrently. Resource sets selected in both modes can run once per mode against the same state.
+
+With `useSharedRuntime`, configure `external` on the selected owner project. The owner's endpoint, files, region, and working directory apply to every participating project.
+
+For SDK clients using a DNS endpoint, configure S3 path-style access, such as `S3Client.builder().forcePathStyle(true)`, to avoid bucket-prefixed hostnames. The plugin's own S3 tasks already use path-style access. Other SDK requirements are covered in xref:connections.adoc[credentials and TLS].
+
+== Lifecycle and diagnostics
+
+[cols="1,3",options="header"]
+|===
+|Task |External connection behavior
+|`statusAwsEmulator`, `doctorAwsEmulator` |Check the supplied files and HTTPS health without Docker.
+|`exportAwsEmulatorConnection` |Verify readiness and write shell/PowerShell connection scripts locally.
+|`seedAwsEmulator` and named seed tasks |Provision and seed the selected scenario without starting the emulator.
+|`prepareAwsEmulator`, `startAwsEmulator`, `stopAwsEmulator`, `restartAwsEmulator`, `cleanupAwsEmulator`, `logsAwsEmulator` |Fail with an explanation that the emulator is managed externally.
+|`resetAwsEmulator` and named reset tasks |Fail at restart; scenario resource tasks cannot seed after that failure.
+|===
+
+Use the emulator's actual owner to inspect its logs or stop/restart it.
+
+== Files and configuration cache
+
+Credential values are read at execution time. The source credentials and certificate files are never copied, overwritten, or deleted. Keep them out of version control.
+
+The plugin writes a host-side AWS configuration, certificate-only trust stores, and optional exports under `workingDirectory/external/<connection-id>/`. JVM consumers retain their selected JDK's default trust and any custom trust store alongside the external certificate. Certificate and hostname verification remain enabled; Gradle daemon credentials and global TLS settings are unchanged.
+
+Configuration-cache reuse is supported. Each new invocation reads the current source credentials and certificate again, so replacing their contents does not require reconfiguring the build. Generated local connection files remain after the build and can be deleted when no consumers are using them. Nothing is removed from the external emulator.
+
+See the link:{repo-url}/tree/main/examples/external[external example] for a runnable build and connection properties.

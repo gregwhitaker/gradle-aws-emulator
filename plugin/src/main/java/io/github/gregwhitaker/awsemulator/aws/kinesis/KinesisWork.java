@@ -19,6 +19,7 @@ package io.github.gregwhitaker.awsemulator.aws.kinesis;
 import io.github.gregwhitaker.awsemulator.aws.internal.AwsClientFactory;
 import io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorConnection;
 import org.gradle.api.file.DirectoryProperty;
+import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.*;
 import org.gradle.api.logging.Logging;
 import org.gradle.workers.WorkAction;
@@ -33,7 +34,9 @@ public abstract class KinesisWork implements WorkAction<KinesisWork.Parameters> 
         Property<String> getOperation();
         Property<String> getStream();
         Property<String> getRegion();
-        Property<Integer> getPort();
+        Property<String> getEndpoint();
+        RegularFileProperty getCredentialsFile();
+        RegularFileProperty getCertificateFile();
         Property<Integer> getShards();
         Property<Integer> getWaitSeconds();
         Property<Integer> getTimeoutSeconds();
@@ -43,7 +46,9 @@ public abstract class KinesisWork implements WorkAction<KinesisWork.Parameters> 
     }
     @Override public void execute() {
         var p = getParameters();
-        var connection = new EmulatorConnection(p.getPort().get(), p.getRegion().get(), p.getConnectionDirectory().get().getAsFile().toPath());
+        var connection = new EmulatorConnection(p.getEndpoint().get(), p.getRegion().get(),
+            p.getConnectionDirectory().get().getAsFile().toPath(), p.getCredentialsFile().get().getAsFile().toPath(),
+            p.getCertificateFile().get().getAsFile().toPath());
         var log = Logging.getLogger(KinesisWork.class);
         try (var client = new AwsClientFactory(connection, p.getTimeoutSeconds().get()).kinesis()) {
             var ops = new KinesisOperations();
