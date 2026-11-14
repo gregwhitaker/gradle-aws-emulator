@@ -94,10 +94,20 @@ class ConnectionExportsTest {
         Process process;
         try { process = builder.redirectErrorStream(true).redirectOutput(diagnostics.toFile()).start(); }
         catch (java.io.IOException e) { assumeTrue(false, "PowerShell is not installed: " + e.getMessage()); return; }
-        boolean finished = process.waitFor(10, TimeUnit.SECONDS);
-        if (!finished) process.destroyForcibly();
-        assertTrue(finished);
-        assertEquals(0, process.exitValue(), Files.readString(diagnostics));
+        boolean finished;
+        try {
+            // Cold PowerShell startup can exceed ten seconds on a busy CI host.
+            // This checks the exported environment, not shell startup performance.
+            finished = process.waitFor(60, TimeUnit.SECONDS);
+        } finally {
+            if (process.isAlive()) {
+                process.destroyForcibly();
+                assertTrue(process.waitFor(5, TimeUnit.SECONDS), "PowerShell export probe did not terminate");
+            }
+        }
+        String details = Files.readString(diagnostics);
+        assertTrue(finished, "PowerShell export probe timed out after 60 seconds: " + details);
+        assertEquals(0, process.exitValue(), details);
         assertEquals(connection.credentials().toString(), Files.readString(output));
     }
 }
