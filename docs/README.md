@@ -44,6 +44,10 @@ To enable deployment:
 
 After a successful deployment, the site is available at <https://gregwhitaker.github.io/gradle-aws-emulator/>. The deployment job also reports the site URL through the `github-pages` environment. The workflow uses GitHub's built-in token; no personal access token or additional repository secret is required. Deployment permissions are scoped to the deployment job, and deployments run one at a time without canceling an active run.
 
+For a plugin release, follow the [release guide](../RELEASING.md), including the
+publication-status updates after the first Portal release.
+Pages tracks `main`; a version tag alone does not deploy the site.
+
 ## Authoring
 
 - Add top-level pages in `src/docs/asciidoc/`. Each page starts with a title followed by `include::_partials/attributes.adoc[]`.

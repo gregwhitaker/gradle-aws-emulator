@@ -25,7 +25,7 @@ import re
 import sys
 
 
-def verify_release(properties, changelog, ref_type, ref_name):
+def read_version(properties):
     versions = re.findall(r"^pluginVersion=(.*)$", properties, re.MULTILINE)
     if len(versions) != 1:
         raise ValueError("gradle.properties must contain exactly one pluginVersion entry.")
@@ -35,6 +35,11 @@ def verify_release(properties, changelog, ref_type, ref_name):
     semver = rf"{number}\.{number}\.{number}(?:-{identifier}(?:\.{identifier})*)?"
     if not re.fullmatch(semver, version) or "SNAPSHOT" in version.upper():
         raise ValueError("pluginVersion must be MAJOR.MINOR.PATCH with an optional prerelease, without SNAPSHOT or build metadata.")
+    return version
+
+
+def verify_release(properties, changelog, ref_type, ref_name):
+    version = read_version(properties)
     if ref_type != "tag" or ref_name != f"v{version}":
         raise ValueError(f"Publish from tag v{version}, matching pluginVersion in gradle.properties.")
     headings = re.findall(r"^## (.+)$", changelog, re.MULTILINE)

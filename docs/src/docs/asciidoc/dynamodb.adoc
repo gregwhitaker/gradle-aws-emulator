@@ -4,7 +4,7 @@ include::_partials/attributes.adoc[]
 
 `DynamoDbModule` groups the DynamoDB tasks under *AWS Emulator - DynamoDB*. Each task selects a managed or development runtime.
 
-For declarative JSON item imports and clearing items while preserving a table, see xref:scenarios.adoc#seed-and-clear-dynamodb-items[DynamoDB data fixtures]. These tasks complement the Java initializer described here.
+For declarative JSON item imports and clearing items while preserving a table, see xref:scenarios.adoc#seed-and-clear-dynamodb-items[DynamoDB data fixtures]. `ExportDynamoDbItemsTask` exports all items as a portable typed JSON array for `PutDynamoDbItemsTask`; see xref:scenarios.adoc#export-and-replay[export and replay]. These tasks complement the Java initializer described here.
 
 toc::[]
 
@@ -26,7 +26,7 @@ The two registered commands default to `EmulatorMode.DEVELOPMENT`. Custom task i
 ./gradlew deleteDynamoDbTable --tableName=catalog.products
 ----
 
-Each command starts or reuses its selected emulator on demand. Listing an empty emulator succeeds. Deleting a missing table fails with a clear error, matching the LocalStack task's behavior. Other SDK errors remain build failures.
+Each command starts or reuses its selected emulator on demand. Listing an empty emulator succeeds. Deleting a missing table fails with a clear error by default, matching the LocalStack task's behavior. Set `DeleteDynamoDbTableTask.ignoreMissing` to `true` for repeatable cleanup; only a missing-table error is ignored. Other SDK errors remain build failures.
 
 == Create A Table Before Tests
 

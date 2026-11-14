@@ -190,11 +190,13 @@ class DynamoDbTableOperationsTest {
     @Test
     void deletingAMissingTableFailsClearlyAndOtherFailuresArePreserved() {
         var missing = SdkStub.client(DynamoDbClient.class, (proxy, method, args) -> { throw missing(); });
+        assertDoesNotThrow(() -> operations.delete(missing, "missing-table", 5, true));
         assertTrue(assertThrows(GradleException.class, () -> operations.delete(missing, "missing-table", 5))
             .getMessage().contains("does not exist"));
         var failure = DynamoDbException.builder().statusCode(403).build();
         var denied = SdkStub.client(DynamoDbClient.class, (proxy, method, args) -> { throw failure; });
         assertSame(failure, assertThrows(DynamoDbException.class, () -> operations.delete(denied, "denied-table", 5)));
+        assertSame(failure, assertThrows(DynamoDbException.class, () -> operations.delete(denied, "denied-table", 5, true)));
     }
 
     @Test

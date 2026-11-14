@@ -36,6 +36,74 @@ import static org.junit.jupiter.api.Assertions.*;
 class DataScenariosIntegrationTest {
     @TempDir Path project;
 
+    @Test void selectiveResetAndExportReplayPreserveRuntimeAndUnrelatedResources() throws Exception {
+        fixture();
+        try {
+            runner(project, "seedAwsEmulator").build();
+            var clients = new AwsClientFactory(connection(), 30);
+            String endpoint = connection().endpoint().toString();
+            String container = containers();
+            try (var s3 = clients.s3(); var sqs = clients.sqs()) {
+                s3.createBucket(r -> r.bucket("unrelated-assets"));
+                s3.putObject(r -> r.bucket("unrelated-assets").key("keep"), RequestBody.fromString("unrelated-payload"));
+                sqs.createQueue(r -> r.queueName("unrelated-queue"));
+            }
+            for (int run = 0; run < 2; run++) {
+                try (var s3 = clients.s3(); var dynamo = clients.dynamoDb()) {
+                    s3.putObject(r -> r.bucket("scenario-assets").key("captured.bin").contentType("application/custom")
+                        .metadata(Map.of("fixture", "captured")), RequestBody.fromBytes(new byte[] {0, 1, -1}));
+                    dynamo.putItem(r -> r.tableName("scenario-products").item(Map.of("id", text("captured"), "body", text("captured-value"))));
+                }
+                String exported = runner(project, "exportScenario").build().getOutput();
+                if (run > 0) assertTrue(exported.contains("Reusing configuration cache"), exported);
+                assertTrue(exported.contains("Exported 3 S3 objects"), exported);
+                assertTrue(exported.contains("Exported 3 DynamoDB items"), exported);
+                byte[] objectFixture = Files.readAllBytes(project.resolve("build/fixtures/scenario/objects.json"));
+                byte[] itemFixture = Files.readAllBytes(project.resolve("build/fixtures/scenario/items.json"));
+                assertFalse(exported.contains("captured-value"), exported);
+                String reset = runner(project, "resetAwsEmulator", "-PawsEmulator.scenario=empty",
+                    "-PawsEmulator.resetScope=RESOURCES", "--parallel").build().getOutput();
+                if (run > 0) assertTrue(reset.contains("Reusing configuration cache"), reset);
+                try (var s3 = clients.s3(); var dynamo = clients.dynamoDb(); var sqs = clients.sqs()) {
+                    assertTrue(s3.listObjectsV2(r -> r.bucket("scenario-assets")).contents().isEmpty());
+                    assertEquals(0, dynamo.scan(r -> r.tableName("scenario-products")).count());
+                    assertEquals("unrelated-payload", s3.getObjectAsBytes(r -> r.bucket("unrelated-assets").key("keep")).asUtf8String());
+                    assertFalse(sqs.getQueueUrl(r -> r.queueName("unrelated-queue")).queueUrl().isEmpty());
+                }
+                String replay = runner(project, "resetAwsEmulatorReplay", "-PawsEmulator.resetScope=RESOURCES").build().getOutput();
+                if (run > 0) assertTrue(replay.contains("Reusing configuration cache"), replay);
+                assertFalse(replay.contains("Exported"), replay);
+                assertEquals(container, containers());
+                assertEquals(endpoint, connection().endpoint().toString());
+                try (var s3 = clients.s3(); var dynamo = clients.dynamoDb()) {
+                    assertEquals(3, s3.listObjectsV2(r -> r.bucket("scenario-assets")).contents().size());
+                    var captured = s3.getObjectAsBytes(r -> r.bucket("scenario-assets").key("captured.bin"));
+                    assertArrayEquals(new byte[] {0, 1, -1}, captured.asByteArray());
+                    assertEquals("application/custom", captured.response().contentType());
+                    assertEquals(Map.of("fixture", "captured"), captured.response().metadata());
+                    assertEquals(3, dynamo.scan(r -> r.tableName("scenario-products")).count());
+                    assertEquals("captured-value", dynamo.getItem(r -> r.tableName("scenario-products")
+                        .key(Map.of("id", text("captured")))).item().get("body").s());
+                }
+                assertArrayEquals(objectFixture, Files.readAllBytes(project.resolve("build/fixtures/scenario/objects.json")));
+                assertArrayEquals(itemFixture, Files.readAllBytes(project.resolve("build/fixtures/scenario/items.json")));
+            }
+            // The same definitions still provide an independent managed graph in a combined invocation.
+            runner(project, "resetAwsEmulator", "-PawsEmulator.resetScope=RESOURCES", "verifyFixtures", "--parallel").build();
+            assertDemo();
+            assertEquals(container, containers());
+            for (int run = 0; run < 2; run++) {
+                String clean = runner(project, "cleanAwsEmulator").build().getOutput();
+                if (run > 0) assertTrue(clean.contains("Reusing configuration cache"), clean);
+                try (var s3 = clients.s3(); var dynamo = clients.dynamoDb()) {
+                    assertEquals(List.of("unrelated-assets"), s3.listBuckets().buckets().stream().map(bucket -> bucket.name()).toList());
+                    assertFalse(dynamo.listTables().tableNames().contains("scenario-products"));
+                }
+            }
+        } finally { runner(project, "stopAwsEmulator").build(); }
+        assertNoContainers();
+    }
+
     @Test void developmentScenariosReseedResetSwitchDownloadAndPurgeWithConfigurationCache() throws Exception {
         fixture();
         try {
@@ -132,10 +200,14 @@ class DataScenariosIntegrationTest {
     }
 
     private void assertNoContainers() throws Exception {
+        assertEquals("", containers());
+    }
+
+    private String containers() throws Exception {
         String containers = new ProcessCommandRunner().run(List.of("docker", "container", "ls", "--all", "--filter",
             "label=io.github.gregwhitaker.aws-emulator.owner=" + EmulatorSettings.hash(project.toRealPath().toString()),
             "--format", "{{.ID}}"), Duration.ofSeconds(30)).requireSuccess("Checking scenario cleanup");
-        assertEquals("", containers);
+        return containers;
     }
 
     private void fixture() throws Exception {
