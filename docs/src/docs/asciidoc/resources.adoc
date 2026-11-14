@@ -1,0 +1,12 @@
+= AWS Resources
+include::_partials/attributes.adoc[]
+:role: docs-catalog
+:description: Browse AWS resource guides for provisioning and managing local services with Gradle tasks.
+
+Create and configure AWS resources with service-specific Gradle tasks. Choose a service for task references, configuration examples, and fixture support.
+
+include::_partials/resource-links.adoc[]
+
+Custom resource tasks default to a managed instance that is cleaned up when the build finishes. Module convenience tasks use the persistent development instance. See xref:lifecycle.adoc#provision-development-resources[development resource tasks] to keep resources available between builds.
+
+Use xref:scenarios.adoc#resource-sets[reusable resource sets] to share definitions across tests, local applications, and development scenarios. The xref:cloudformation.adoc[CloudFormation guide] covers provisioning from local templates.

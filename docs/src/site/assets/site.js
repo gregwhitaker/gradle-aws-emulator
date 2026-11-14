@@ -46,6 +46,14 @@
   let current = findCurrentLink();
   current?.setAttribute('aria-current', current.hash ? 'location' : 'page');
 
+  const sectionPage = current?.closest('.nav-group').dataset.section || 'index.html';
+  document.querySelectorAll('.header-section').forEach(link => {
+    const active = link.getAttribute('href') === sectionPage;
+    link.classList.toggle('is-current', active);
+    if (active) link.setAttribute('aria-current', sectionPage === page ? 'page' : 'location');
+    else link.removeAttribute('aria-current');
+  });
+
   const context = document.createElement('div');
   context.className = 'page-context';
   const home = document.createElement('a');

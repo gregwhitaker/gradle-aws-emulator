@@ -36,6 +36,10 @@ val preparedSources = layout.buildDirectory.dir("sources")
 val renderedPages = layout.buildDirectory.dir("rendered")
 val searchAssets = layout.buildDirectory.dir("search")
 val siteDirectory = layout.buildDirectory.dir("site")
+val emulatorVersion = providers.fileContents(rootProject.layout.projectDirectory.file("gradle/emulator.properties"))
+    .asText.map { text ->
+        java.util.Properties().apply { load(text.reader()) }.getProperty("emulatorVersion")
+    }
 
 val prepareDocs = tasks.register<Sync>("prepareDocs") {
     description = "Stages documentation and the runnable example used by the guide."
@@ -68,6 +72,7 @@ val renderDocs = tasks.register<JavaExec>("renderDocs") {
     mainClass.set("org.asciidoctor.cli.jruby.AsciidoctorInvoker")
     inputs.dir(preparedSources).withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.property("pluginVersion", project.version.toString())
+    inputs.property("emulatorVersion", emulatorVersion)
     outputs.dir(renderedPages)
     args(
         // Trusted repository sources write to a sibling build output directory.
@@ -76,6 +81,7 @@ val renderDocs = tasks.register<JavaExec>("renderDocs") {
         "--base-dir", preparedSources.get().asFile.absolutePath,
         "--destination-dir", renderedPages.get().asFile.absolutePath,
         "--attribute", "revnumber=${project.version}",
+        "--attribute", "emulator-version=${emulatorVersion.get()}",
         "--attribute", "attribute-missing=warn"
     )
     args(pageNames.map { preparedSources.get().file(it).asFile.absolutePath })

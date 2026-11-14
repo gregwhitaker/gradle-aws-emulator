@@ -25,6 +25,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 /** Validates bucket configuration before acquiring a runtime; policy values never appear in diagnostics. */
@@ -54,7 +55,7 @@ final class S3BucketConfiguration {
         return status;
     }
 
-    static void notifications(NotificationConfiguration configuration) {
+    static NotificationConfiguration notifications(NotificationConfiguration configuration) {
         var ids = new HashSet<String>();
         configuration.queueConfigurations().forEach(queue ->
             destination(ids, queue.id(), queue.queueArn(), "sqs", queue.events(), queue.filter()));
@@ -62,6 +63,12 @@ final class S3BucketConfiguration {
             destination(ids, topic.id(), topic.topicArn(), "sns", topic.events(), topic.filter()));
         configuration.lambdaFunctionConfigurations().forEach(function ->
             destination(ids, function.id(), function.lambdaFunctionArn(), "lambda", function.events(), function.filter()));
+        // SDK 2.39 uses "Prefix"/"Suffix"; the emulator's request model requires "prefix"/"suffix".
+        return configuration.toBuilder()
+            .queueConfigurations(configuration.queueConfigurations().stream().map(queue -> queue.toBuilder().filter(filter(queue.filter())).build()).toList())
+            .topicConfigurations(configuration.topicConfigurations().stream().map(topic -> topic.toBuilder().filter(filter(topic.filter())).build()).toList())
+            .lambdaFunctionConfigurations(configuration.lambdaFunctionConfigurations().stream()
+                .map(function -> function.toBuilder().filter(filter(function.filter())).build()).toList()).build();
     }
 
     private static void destination(Set<String> ids, String id, String arn, String service, List<Event> events, NotificationConfigurationFilter filter) {
@@ -74,12 +81,19 @@ final class S3BucketConfiguration {
             throw new GradleException("Notification destinations require at least one recognized S3 event.");
         }
         if (filter != null && filter.key() != null) {
-            var names = new HashSet<FilterRuleName>();
+            var names = new HashSet<String>();
             for (FilterRule rule : filter.key().filterRules()) {
-                if (rule.name() == null || rule.name() == FilterRuleName.UNKNOWN_TO_SDK_VERSION || !names.add(rule.name()) || rule.value() == null) {
+                String name = rule.nameAsString() == null ? "" : rule.nameAsString().toLowerCase(Locale.ROOT);
+                if (!Set.of("prefix", "suffix").contains(name) || !names.add(name) || rule.value() == null) {
                     throw new GradleException("Notification filters accept at most one prefix and one suffix, each with a value.");
                 }
             }
         }
+    }
+
+    private static NotificationConfigurationFilter filter(NotificationConfigurationFilter value) {
+        if (value == null || value.key() == null) return value;
+        return value.toBuilder().key(value.key().toBuilder().filterRules(value.key().filterRules().stream()
+            .map(rule -> rule.toBuilder().name(rule.nameAsString().toLowerCase(Locale.ROOT)).build()).toList()).build()).build();
     }
 }

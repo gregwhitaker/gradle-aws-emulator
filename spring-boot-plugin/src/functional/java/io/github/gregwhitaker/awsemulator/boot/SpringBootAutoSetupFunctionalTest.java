@@ -88,7 +88,7 @@ class SpringBootAutoSetupFunctionalTest {
             assertTrue(output.contains(":inheritedQueue SKIPPED"), output);
             assertTrue(output.contains(":customResource SKIPPED"), output);
             assertTrue(output.indexOf(":setupCreateS3BucketTask SKIPPED") < output.indexOf(":lateQueue SKIPPED"), output);
-            for (String excluded : List.of("testOnlyQueue", "fixtureMessages", "fixtureEmail", "sendSesEmail", "getSesMessageInsights", "publishSqs", "purgeSqsQueues", "deleteS3Buckets", "listS3Buckets", "bootRun")) {
+            for (String excluded : List.of("testOnlyQueue", "fixtureMessages", "fixtureEmail", "sendSesEmail", "getSesMessageInsights", "publishSqs", "purgeSqsQueues", "deleteSqsQueues", "deleteS3Buckets", "deleteS3BucketPolicy", "listS3Buckets", "bootRun")) {
                 assertFalse(output.contains(":" + excluded + " SKIPPED"), output);
             }
             if (run > 0) assertTrue(output.contains("Reusing configuration cache"), output);

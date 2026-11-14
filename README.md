@@ -67,6 +67,8 @@ Keep your application's AWS SDK and test dependencies. Use an SDK that supports 
 
 For Groovy DSL setup, see [getting started](docs/src/docs/asciidoc/getting-started.adoc). For regions, ports, images, and timeouts, see [configuration](docs/src/docs/asciidoc/configuration.adoc).
 
+The [S3 tasks](docs/src/docs/asciidoc/s3.adoc) also replace bucket policies, enable or suspend versioning, and configure bucket notifications. Use `deleteS3BucketPolicy --bucketName=<name>` to remove a development bucket's policy and `deleteSqsQueues --queueNames=<name1>,<name2>` to delete selected development queues and their messages. The [basic example](examples/basic/README.md) verifies versioned objects, S3-to-SQS notifications, and explicit queue deletion.
+
 ## CloudFormation
 
 Deploy local JSON or YAML templates with `DeployCloudFormationStackTask`. The plugin checks every resource declaration against the provisioning handlers audited for emulator **1.0.322**, rejecting types that merely report success before the task connects. It creates or updates the stack, waits for completion, and exports stack outputs as JSON.

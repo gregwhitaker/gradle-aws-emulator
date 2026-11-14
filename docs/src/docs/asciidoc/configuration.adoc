@@ -12,7 +12,7 @@ toc::[]
 |===
 |Property |Default |Meaning
 |`defaultMode` |`EmulatorMode.MANAGED` |Default lifecycle mode for custom resource tasks in this project, including named runtimes. Explicit task modes and `--mode` take precedence. Consumers, resource-set attachments, convenience tasks, and Spring Boot select their own modes.
-|`emulatorVersion` |`1.0.322` |Pinned AWS Emulator package used when building an image.
+|`emulatorVersion` |`{emulator-version}` |Pinned AWS Emulator package used when building an image.
 |`image` |Unset |Use this Docker image instead of building one. Pull it if it is missing locally.
 |`platform` |`auto` |Detect the Docker engine architecture, or select `linux/amd64` or `linux/arm64`.
 |`port` |`0` |Automatically select an available local endpoint port; also the container port with `DIRECT`. Set a nonzero value for a fixed port. Also configurable with `-PawsEmulator.port=...`.

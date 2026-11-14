@@ -1,0 +1,12 @@
+= Integrations
+include::_partials/attributes.adoc[]
+:role: docs-catalog
+:description: Connect Spring Boot, Spring Cloud AWS, Micronaut, and Ktor applications to AWS Emulator with Gradle.
+
+Connect your application's tests and local development tasks to AWS Emulator. Choose your framework for resource setup, connection settings, and runnable examples.
+
+include::_partials/integration-links.adoc[]
+
+Spring Boot and Spring Cloud AWS use the optional Spring Boot companion plugin. Micronaut and Ktor use the core plugin with their existing `run` and `test` tasks. For other applications, see xref:testing.adoc[tests and process execution] to connect existing `Test`, `JavaExec`, or `Exec` tasks.
+
+Keep your application's AWS SDK and test dependencies, and see xref:connections.adoc[SDK connection setup] for endpoints and TLS. Applying the plugin alone does not start Docker; tasks opt in explicitly.

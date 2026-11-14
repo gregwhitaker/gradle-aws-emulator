@@ -19,6 +19,7 @@ package io.github.gregwhitaker.awsemulator.testsupport;
 import io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorConnection;
 import io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorRuntime;
 import io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorSettings;
+import io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorVersion;
 import java.nio.file.Path;
 
 /** An emulator owned by the enclosing test, independent of the consumer Gradle builds under test. */
@@ -28,7 +29,7 @@ public final class ExternalEmulatorFixture implements AutoCloseable {
 
     public ExternalEmulatorFixture(Path directory) {
         runtime = new EmulatorRuntime(new EmulatorSettings(EmulatorSettings.hash(directory.toAbsolutePath().toString()),
-            "1.0.322", "", "auto", 0, "us-east-1", false, "docker", "2g", 60, 60, 600, directory));
+            EmulatorVersion.DEFAULT, "", "auto", 0, "us-east-1", false, "docker", "2g", 60, 60, 600, directory));
         try { connection = runtime.managedConnection(); }
         catch (RuntimeException e) { runtime.close(); throw e; }
     }

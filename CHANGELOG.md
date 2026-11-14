@@ -2,6 +2,7 @@
 
 ## 0.2.0 — Unreleased
 
+- Add explicit, idempotent SQS queue deletion and S3 bucket policy replacement/removal, versioning, and notification configuration tasks. Validate configuration before connecting, preserve managed/development lifecycle and configuration-cache behavior, integrate S3 setup with Spring Boot, and verify policy changes, retained object versions, S3-to-SQS delivery, and cleanup in Docker tests and the basic example.
 - Add `reportAwsEmulator` and custom `ReportAwsEmulatorTask` snapshots with standalone HTML and versioned JSON for S3, SQS, SNS, DynamoDB, and CloudFormation; support existing development, managed, external, named, and shared runtimes, partial collection results, and test finalizers before cleanup.
 - Validate that resource setup passed to `useWith` and its local prerequisites use the consumer's lifecycle mode; report mismatches before execution while preserving lazy selection and configuration-cache reuse.
 - Add `awsEmulator.defaultMode` as a lazy default for custom resource tasks, retaining `MANAGED` as the initial value and allowing task-level and command-line mode overrides.

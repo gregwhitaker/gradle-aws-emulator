@@ -15,12 +15,20 @@
  */
 
 import io.github.gregwhitaker.awsemulator.aws.s3.CreateS3BucketsTask
+import io.github.gregwhitaker.awsemulator.aws.s3.PutS3BucketPolicyTask
+import io.github.gregwhitaker.awsemulator.aws.s3.PutS3BucketVersioningTask
+import io.github.gregwhitaker.awsemulator.aws.s3.PutS3BucketNotificationConfigurationTask
 import io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueueTask
 import io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueuesTask
 import io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueueWithDlqTask
 import io.github.gregwhitaker.awsemulator.aws.sqs.PublishSqsTask
+import io.github.gregwhitaker.awsemulator.aws.sqs.DeleteSqsQueuesTask
 import io.github.gregwhitaker.awsemulator.emulator.ReportAwsEmulatorTask
 import io.github.gregwhitaker.awsemulator.model.EmulatorMode
+import software.amazon.awssdk.services.s3.model.BucketVersioningStatus
+import software.amazon.awssdk.services.s3.model.Event
+import software.amazon.awssdk.services.s3.model.NotificationConfiguration
+import software.amazon.awssdk.services.s3.model.QueueConfiguration
 
 plugins {
     java
@@ -64,6 +72,42 @@ val publishFixtures = tasks.register<PublishSqsTask>("publishFixtures") {
     messages.from(layout.projectDirectory.dir("src/integration/messages"))
 }
 
+val configureUploadPolicy = tasks.register<PutS3BucketPolicyTask>("configureUploadPolicy") {
+    dependsOn(createBuckets)
+    bucketName.set("example-uploads")
+    policyFile.set(layout.projectDirectory.file("src/integration/fixtures/upload-policy.json"))
+}
+val versionUploads = tasks.register<PutS3BucketVersioningTask>("versionUploads") {
+    dependsOn(createBuckets)
+    bucketName.set("example-uploads")
+    status.set(BucketVersioningStatus.ENABLED)
+}
+// This pinned emulator uses account 000000000000 and the example's default us-east-1 region.
+val createUploadEvents = tasks.register<CreateSqsQueueTask>("createUploadEvents") {
+    queueName.set("example-upload-events")
+    attributes.put("Policy", """{
+      "Version":"2012-10-17","Statement":[{"Effect":"Allow",
+      "Principal":{"Service":"s3.amazonaws.com"},"Action":"sqs:SendMessage",
+      "Resource":"arn:aws:sqs:us-east-1:000000000000:example-upload-events",
+      "Condition":{"ArnEquals":{"aws:SourceArn":"arn:aws:s3:::example-uploads"}}}]
+    }""")
+}
+val notifyUploads = tasks.register<PutS3BucketNotificationConfigurationTask>("notifyUploads") {
+    dependsOn(createBuckets, createUploadEvents)
+    bucketName.set("example-uploads")
+    notificationConfiguration.set(NotificationConfiguration.builder().queueConfigurations(
+        QueueConfiguration.builder().id("uploads")
+            .queueArn("arn:aws:sqs:us-east-1:000000000000:example-upload-events")
+            .events(Event.S3_OBJECT_CREATED).build()).build())
+}
+val createDiscardedQueue = tasks.register<CreateSqsQueueTask>("createDiscardedQueue") {
+    queueName.set("example-discarded-queue")
+}
+val deleteDiscardedQueue = tasks.register<DeleteSqsQueuesTask>("deleteDiscardedQueue") {
+    dependsOn(createDiscardedQueue)
+    queueNames.add("example-discarded-queue")
+}
+
 val integrationTest = tasks.register<Test>("integrationTest") {
     description = "Verifies provisioned S3 and SQS resources using signed AWS SDK requests."
     group = "verification"
@@ -88,7 +132,8 @@ val integrationTest = tasks.register<Test>("integrationTest") {
 }
 
 awsEmulator {
-    useWith(integrationTest, EmulatorMode.MANAGED, createBuckets, createQueue, createFifoQueue, publishFixtures)
+    useWith(integrationTest, EmulatorMode.MANAGED, createBuckets, createQueue, createFifoQueue, publishFixtures,
+        configureUploadPolicy, versionUploads, notifyUploads, deleteDiscardedQueue)
 }
 
 // Opt in to a snapshot after successful or failed tests, before the managed instance is removed.

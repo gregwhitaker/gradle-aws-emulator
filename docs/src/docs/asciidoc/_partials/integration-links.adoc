@@ -1,0 +1,8 @@
+++++
+<div class="guide-links">
+  <a href="spring-boot.html"><span>01</span><div><strong>Spring Boot</strong><p>Run and debug Spring Boot with automatic resource setup.</p></div><span aria-hidden="true">→</span></a>
+  <a href="spring-cloud-aws.html"><span>02</span><div><strong>Spring Cloud AWS</strong><p>Configure AWS clients, SQS listeners, and configuration imports.</p></div><span aria-hidden="true">→</span></a>
+  <a href="micronaut.html"><span>03</span><div><strong>Micronaut</strong><p>Run and test Micronaut with injected AWS SDK clients.</p></div><span aria-hidden="true">→</span></a>
+  <a href="ktor.html"><span>04</span><div><strong>Ktor</strong><p>Run and test Ktor routes against provisioned AWS resources.</p></div><span aria-hidden="true">→</span></a>
+</div>
+++++

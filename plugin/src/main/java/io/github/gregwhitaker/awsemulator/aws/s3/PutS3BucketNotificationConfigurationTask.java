@@ -37,8 +37,7 @@ public abstract class PutS3BucketNotificationConfigurationTask extends AbstractS
     @TaskAction
     public void putNotifications() {
         String bucket = bucketName();
-        var configuration = getNotificationConfiguration().get();
-        S3BucketConfiguration.notifications(configuration);
+        var configuration = S3BucketConfiguration.notifications(getNotificationConfiguration().get());
         try (var client = new AwsClientFactory(connection(), getApiCallTimeoutSeconds().get()).s3()) {
             client.putBucketNotificationConfiguration(request -> request.bucket(bucket).notificationConfiguration(configuration));
         }

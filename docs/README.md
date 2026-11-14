@@ -30,6 +30,8 @@ The overview pairs an introduction with a real build example on wide screens and
 
 The guide has grouped navigation, a page outline that stays beside the article on wide screens and collapses on smaller screens, and copyable code examples. Search opens from the header or with **⌘ K / Ctrl K**, matches guide text and code, and links directly to sections. Use the arrow keys to move through results, Enter to open one, and Escape to close. The generated index is a local script, so search also works when opening the site directly from disk. The Java API retains its own Javadoc search.
 
+The guide's GitHub badges link to the repository and show its star count from GitHub's public API. Counts are cached in the browser tab for 15 minutes. Offline, without JavaScript, or when the API is unavailable, the badges remain usable links labeled **Star**. This optional request does not affect documentation content or search.
+
 ## GitHub Pages
 
 The [Deploy docs to GitHub Pages workflow](../.github/workflows/pages.yml) publishes the guide and Java API reference on pushes to `main`. It runs `./gradlew :docs:check --no-daemon` with Java 17, uploads `docs/build/site`, and deploys only after the build and link checks succeed. The existing CI workflow also checks the documentation on pull requests.
@@ -47,8 +49,9 @@ After a successful deployment, the site is available at <https://gregwhitaker.gi
 - Add top-level pages in `src/docs/asciidoc/`. Each page starts with a title followed by `include::_partials/attributes.adoc[]`.
 - Capitalize each word in page and section headings, preserving acronyms and official product names.
 - Use `xref:page.adoc#section-id[Label]` for internal links. Top-level pages are discovered automatically at configuration time. Add each new page to the navigation in `_partials/docinfo-header.html`.
-- Give each supported AWS service its own guide page, linked directly from the alphabetized AWS resources navigation and homepage list. Keep service task references on that service's page and cross-link related workflows. Preserve heading IDs when editing. The active entry and previous/next links follow page navigation, including browser back and forward.
-- Give each framework its own guide page, linked directly from the Integrations navigation and homepage list. Keep shared task-configuration snippets in partials.
+- The primary Resources and Integrations links open `resources.adoc` and `integrations.adoc`. Their sidebar groups use `data-section` to keep the matching primary link active on overview and detail pages.
+- Give each supported AWS service its own guide page, linked directly from the alphabetized AWS resources navigation and `_partials/resource-links.adoc`, shared by the resources overview and homepage. Keep service task references on that service's page and cross-link related workflows. Preserve heading IDs when editing. The active entry and previous/next links follow page navigation, including browser back and forward.
+- Give each framework its own guide page, linked directly from the Integrations navigation and `_partials/integration-links.adoc`, shared by the integrations overview and homepage. Keep shared task-configuration snippets in partials.
 - Keep reusable partials under `_partials/`; they are included, not rendered as standalone pages.
 - The getting-started guide includes the actual build scripts, SDK test, and message fixtures from `examples/basic`. `prepareDocs` stages those files so source changes invalidate generation.
 - The separate Micronaut and Ktor guides include their own build scripts and application code from `examples/micronaut` and `examples/ktor`; `prepareDocs` stages these examples too.

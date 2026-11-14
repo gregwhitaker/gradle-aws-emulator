@@ -1,6 +1,6 @@
 = S3 Buckets & Objects
 include::_partials/attributes.adoc[]
-:description: Create, list, purge, and delete S3 buckets; upload, list, and download objects.
+:description: Create and configure S3 buckets, policies, versioning, and notifications; upload, list, and download objects.
 
 The S3 module supplies typed tasks for buckets and objects. All task types live in `io.github.gregwhitaker.awsemulator.aws.s3` and use the *AWS Emulator - S3* task group. Each task starts the selected emulator on demand and waits until it is ready.
 
@@ -68,6 +68,10 @@ All properties use Gradle's lazy property API.
 |`ListS3BucketsTask` |None |`mode`, `apiCallTimeoutSeconds`
 |`PurgeS3BucketsTask` |`buckets` |`mode`, `apiCallTimeoutSeconds`
 |`DeleteS3BucketsTask` |`buckets` |`force` (default `false`), `mode`, `apiCallTimeoutSeconds`
+|`PutS3BucketPolicyTask` |`bucketName`, exactly one of `policy` or `policyFile` |`mode`, `apiCallTimeoutSeconds`
+|`DeleteS3BucketPolicyTask` |`bucketName` |`mode`, `apiCallTimeoutSeconds`
+|`PutS3BucketVersioningTask` |`bucketName`, `status` |`mode`, `apiCallTimeoutSeconds`
+|`PutS3BucketNotificationConfigurationTask` |`bucketName`, `notificationConfiguration` |`mode`, `apiCallTimeoutSeconds`
 |`UploadS3ObjectTask` |`bucketName`, `objectKey`, `sourceFile` |`contentType`, `metadata`, `mode`, `apiCallTimeoutSeconds`
 |`UploadS3DirectoryTask` |`bucketName`, `sourceDirectory` |`prefix`, `contentTypes`, `metadata`, `mode`, `apiCallTimeoutSeconds`
 |`ListS3ObjectsTask` |`bucketName` |`prefix`, `mode`, `apiCallTimeoutSeconds`
@@ -90,7 +94,7 @@ Provisioning tasks always execute and are never restored from the build cache be
 
 If an accessible bucket already exists, the task reuses it without another `CreateBucket` call. Its objects and configuration remain intact. A region mismatch reported by `HeadBucket` fails the task.
 
-These bucket tasks do not configure directory buckets, access points, or bucket policies. Use the object tasks below to seed bucket contents.
+These creation tasks do not configure directory buckets or access points. Use the configuration tasks below for policies, versioning, and notifications, and the object tasks to seed bucket contents.
 
 API: link:api/io/github/gregwhitaker/awsemulator/aws/s3/CreateS3BucketTask.html[CreateS3BucketTask].
 
@@ -108,6 +112,98 @@ val createBuckets = tasks.register<CreateS3BucketsTask>("createTestBuckets") {
 `buckets` is a `ListProperty<String>`. Bulk creation uses the singular task's region and reuse checks. All names are validated before starting the emulator. Duplicate names are processed once.
 
 API: link:api/io/github/gregwhitaker/awsemulator/aws/s3/CreateS3BucketsTask.html[CreateS3BucketsTask].
+
+== Bucket Policies And Versioning
+
+Configure an existing bucket after its creation task. Configuration tasks do not create a missing bucket. They use the selected runtime and mode, always execute against live state, and close their SDK clients after use.
+
+[source,kotlin]
+----
+import io.github.gregwhitaker.awsemulator.aws.s3.*
+import software.amazon.awssdk.services.s3.model.BucketVersioningStatus
+import io.github.gregwhitaker.awsemulator.model.EmulatorMode
+
+val policy = tasks.register<PutS3BucketPolicyTask>("configureBucketPolicy") {
+    dependsOn(createBucket)
+    bucketName.set(createBucket.flatMap { it.bucketName })
+    policyFile.set(layout.projectDirectory.file("fixtures/bucket-policy.json"))
+}
+val versioning = tasks.register<PutS3BucketVersioningTask>("versionBucket") {
+    dependsOn(createBucket)
+    bucketName.set(createBucket.flatMap { it.bucketName })
+    status.set(BucketVersioningStatus.ENABLED)
+}
+awsEmulator { useWith(tasks.named<Test>("test"), EmulatorMode.MANAGED, policy, versioning) }
+----
+
+`PutS3BucketPolicyTask` accepts exactly one of inline `policy` (`Property<String>`) or `policyFile` (`RegularFileProperty`). Files are UTF-8 and read during execution, including on configuration-cache reuse. Both forms accept a JSON object of at most 20 KiB. Malformed JSON, duplicate keys, and trailing JSON documents fail before connecting; diagnostics omit policy values. Policy semantics are validated by the emulator.
+
+The https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketPolicy.html[policy operation] replaces the entire policy; it does not merge statements. For example, `fixtures/bucket-policy.json` can grant object reads:
+
+[source,json]
+----
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Principal": {"AWS": "arn:aws:iam::000000000000:root"},
+    "Action": "s3:GetObject",
+    "Resource": "arn:aws:s3:::application-test-data/*"
+  }]
+}
+----
+
+Match the resource ARN to your bucket and the principal to your account. This task preserves S3 Block Public Access settings; public policies can be rejected by the emulator. `DeleteS3BucketPolicyTask` removes only the policy and succeeds when the existing bucket has no policy. A missing bucket or service error fails the task.
+
+`PutS3BucketVersioningTask.status` is a required `Property<BucketVersioningStatus>` accepting `ENABLED` or `SUSPENDED`, without a default. Suspension retains existing versions; it does not return a bucket to its original unversioned state. The task leaves MFA Delete unspecified and exposes no MFA settings. See https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketVersioning.html[versioning behavior].
+
+Register configuration tasks explicitly; the module registers only the policy-deletion convenience command. The registered tasks above also accept command-line overrides:
+
+[source,shell]
+----
+./gradlew configureBucketPolicy --policyFile=fixtures/bucket-policy.json
+./gradlew versionBucket --status=SUSPENDED
+./gradlew deleteS3BucketPolicy --bucketName=application-test-data
+----
+
+The first two commands use their configured mode, initially `MANAGED`. For persistent configuration, select `DEVELOPMENT` for both the configuration task and its bucket-creation prerequisites; setting `awsEmulator.defaultMode` on the build covers custom tasks together. The deletion convenience command defaults to `DEVELOPMENT`.
+
+API: link:api/io/github/gregwhitaker/awsemulator/aws/s3/PutS3BucketPolicyTask.html[PutS3BucketPolicyTask], link:api/io/github/gregwhitaker/awsemulator/aws/s3/DeleteS3BucketPolicyTask.html[DeleteS3BucketPolicyTask], link:api/io/github/gregwhitaker/awsemulator/aws/s3/PutS3BucketVersioningTask.html[PutS3BucketVersioningTask].
+
+== Bucket Notifications
+
+`PutS3BucketNotificationConfigurationTask.notificationConfiguration` is a required `Property<NotificationConfiguration>` using the AWS SDK v2 model. It accepts queue, topic, Lambda function, and EventBridge configurations, including SDK prefix/suffix filters. There is no default configuration.
+
+For a standard SQS destination:
+
+[source,kotlin]
+----
+import software.amazon.awssdk.services.s3.model.Event
+import software.amazon.awssdk.services.s3.model.NotificationConfiguration
+import software.amazon.awssdk.services.s3.model.QueueConfiguration
+import io.github.gregwhitaker.awsemulator.aws.s3.PutS3BucketNotificationConfigurationTask
+import io.github.gregwhitaker.awsemulator.model.EmulatorMode
+
+val notifications = tasks.register<PutS3BucketNotificationConfigurationTask>("notifyUploads") {
+    dependsOn(createBucket, createNotificationQueue)
+    bucketName.set(createBucket.flatMap { it.bucketName })
+    notificationConfiguration.set(NotificationConfiguration.builder().queueConfigurations(
+        QueueConfiguration.builder().id("uploads")
+            .queueArn("arn:aws:sqs:us-east-1:000000000000:application-upload-events")
+            .events(Event.S3_OBJECT_CREATED).build()).build())
+}
+awsEmulator { useWith(tasks.named<Test>("test"), EmulatorMode.MANAGED, notifications) }
+----
+
+`createNotificationQueue` must provision that queue with an SQS resource policy allowing `s3.amazonaws.com` to perform `sqs:SendMessage`, restricted to the source bucket ARN. Match destination ARNs to the actual account and region. The link:{repo-url}/tree/main/examples/basic[basic example] provides the full queue policy and verifies delivery with the pinned emulator's account `000000000000`. SNS destinations similarly need publishing permission, and Lambda destinations need invocation permission. This task does not create destinations, modify their policies, or bypass destination validation. Direct SQS and SNS FIFO destinations are rejected; use standard destinations.
+
+The https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketNotificationConfiguration.html[notification operation] replaces the *entire* configuration, including destinations not mentioned in the new value. To remove all notifications, explicitly supply `NotificationConfiguration.builder().build()`. To enable EventBridge delivery, include `EventBridgeConfiguration.builder().build()` through the SDK builder's `eventBridgeConfiguration(...)` method. Do not register competing configuration tasks for the same bucket unless their execution order is explicit.
+
+Each destination requires an ARN for its service and at least one recognized S3 event. Supplied IDs must be nonblank and unique across destinations. Filters allow at most one prefix and one suffix, each with a value. Structural validation occurs before connecting; destination permissions, filter overlap, and other service constraints are checked by the emulator. Docker integration tests verify SQS object-created delivery; availability and fidelity of other destination workflows depend on the emulator release.
+
+The three `PutS3Bucket*` task types are setup tasks and participate in resource sets and Spring Boot automatic setup discovery. Deletion tasks are excluded from automatic setup. Groovy DSL uses the same SDK builders and properties with `tasks.register('notifyUploads', PutS3BucketNotificationConfigurationTask) { ... }`.
+
+API: link:api/io/github/gregwhitaker/awsemulator/aws/s3/PutS3BucketNotificationConfigurationTask.html[PutS3BucketNotificationConfigurationTask].
 
 == Upload And Inspect Objects
 
@@ -147,6 +243,7 @@ The S3 module registers these tasks in the *AWS Emulator - S3* group. They use t
 |`listS3Objects` |`--bucketName=application-data`, optional `--prefix=assets/`
 |`purgeS3Buckets` |`--buckets=one,two`
 |`deleteS3Buckets` |`--buckets=one,two`, optional `--force`
+|`deleteS3BucketPolicy` |`--bucketName=application-data`
 |===
 
 Every resource task accepts `--mode=MANAGED` or `--mode=DEVELOPMENT` and `--runtime <name>`. Custom instances inherit `awsEmulator.defaultMode`, initially `MANAGED`. Ensure provisioning and consuming tasks select the same runtime name and mode.

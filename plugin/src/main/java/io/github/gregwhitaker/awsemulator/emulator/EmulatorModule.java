@@ -18,6 +18,7 @@ package io.github.gregwhitaker.awsemulator.emulator;
 
 import io.github.gregwhitaker.awsemulator.core.AbstractAwsEmulatorTask;
 import io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorSettings;
+import io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorVersion;
 import io.github.gregwhitaker.awsemulator.model.EmulatorMode;
 import org.gradle.api.Project;
 import org.gradle.api.provider.Provider;
@@ -66,7 +67,7 @@ public final class EmulatorModule {
     private static AwsEmulatorExtension registerExtension(Project project) {
         AwsEmulatorExtension extension = project.getExtensions().create("awsEmulator", AwsEmulatorExtension.class);
         extension.getDefaultMode().convention(EmulatorMode.MANAGED);
-        extension.getEmulatorVersion().convention("1.0.322");
+        extension.getEmulatorVersion().convention(EmulatorVersion.DEFAULT);
         extension.getPlatform().convention("auto");
         extension.getPort().convention(project.getProviders().gradleProperty("awsEmulator.port").map(Integer::parseInt).orElse(0));
         extension.getRegion().convention("us-east-1");

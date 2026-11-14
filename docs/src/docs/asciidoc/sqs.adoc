@@ -70,6 +70,7 @@ All properties use Gradle's lazy property API.
 |`CreateSqsQueueWithDlqTask` |`queueName` |`queueAttributes`, `deadletterQueueName`, `deadletterQueueAttributes`, `maxReceiveCount` (default `1`), `mode`, `apiCallTimeoutSeconds`
 |`ListSqsQueuesTask` |None |`prefix`, `mode`, `apiCallTimeoutSeconds`
 |`PurgeSqsQueuesTask` |`queueNames` |`mode`, `apiCallTimeoutSeconds`
+|`DeleteSqsQueuesTask` |`queueNames` |`mode`, `apiCallTimeoutSeconds`
 |`PublishSqsTask` |`queueNames`, `messages` |`messageGroupId` (required for FIFO), `mode`, `apiCallTimeoutSeconds`
 |===
 
@@ -182,6 +183,7 @@ The SQS module registers these tasks in the *AWS Emulator - SQS* group. They use
 |Task |CLI options
 |`listSqsQueues` |Optional `--prefix=application-`
 |`purgeSqsQueues` |`--queueNames=one,two`
+|`deleteSqsQueues` |`--queueNames=one,two`
 |`publishSqs` |`--queueNames=one,two`, `--message=path`, optional `--messageGroupId=group`
 |===
 
@@ -192,11 +194,27 @@ Every resource task accepts `--mode=MANAGED` or `--mode=DEVELOPMENT` and `--runt
 ./gradlew listSqsQueues --prefix=application-
 ./gradlew publishSqs --queueNames=application-events --message=src/integration/messages
 ./gradlew purgeSqsQueues --queueNames=application-events
+./gradlew deleteSqsQueues --queueNames=application-events,application-orders.fifo
 ----
 
 === Listing And Cleanup
 
 SQS listing follows all response pages and prints queue names, URLs, and approximate available message counts. Purging resolves all selected names before requesting removal of their messages; it keeps the queues. The https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_PurgeQueue.html[SQS purge API] can take up to 60 seconds to remove available and in-flight messages. The task returns when the service accepts the requests and propagates service errors.
+
+`DeleteSqsQueuesTask` deletes explicitly named standard or FIFO queues and their messages. It requires a nonempty `queueNames` list, validates every name before connecting, and processes duplicates once. It does not discover queues by prefix or delete related DLQs automatically. Select a DLQ explicitly when you want to remove it too.
+
+[source,kotlin]
+----
+import io.github.gregwhitaker.awsemulator.aws.sqs.DeleteSqsQueuesTask
+
+tasks.register<DeleteSqsQueuesTask>("deleteFixtureQueues") {
+    queueNames.set(listOf("application-events", "application-orders.fifo"))
+}
+----
+
+Missing queues succeed, including a queue removed between lookup and deletion. The task resolves all selected names before its first delete; other lookup failures stop it without deleting any selected queues. A deletion failure propagates immediately and can leave earlier deletions applied. This is not an atomic operation. The task returns after request acceptance, without waiting for disappearance or immediate name reuse; https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_DeleteQueue.html[AWS deletion can take up to 60 seconds]. Custom tasks inherit `awsEmulator.defaultMode`; `deleteSqsQueues` defaults to `DEVELOPMENT`. Both always execute, including on configuration-cache reuse. Deletion tasks are not Spring Boot automatic setup tasks.
+
+API: link:api/io/github/gregwhitaker/awsemulator/aws/sqs/DeleteSqsQueuesTask.html[DeleteSqsQueuesTask].
 
 API: link:api/io/github/gregwhitaker/awsemulator/aws/sqs/ListSqsQueuesTask.html[ListSqsQueuesTask], link:api/io/github/gregwhitaker/awsemulator/aws/sqs/PurgeSqsQueuesTask.html[PurgeSqsQueuesTask].
 

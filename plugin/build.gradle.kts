@@ -33,6 +33,12 @@ base { archivesName.set("gradle-aws-emulator") }
 val functionalSourceSet = sourceSets["functional"]
 val integrationSourceSet = sourceSets["integration"]
 
+tasks.named<ProcessResources>("processResources") {
+    from(rootProject.layout.projectDirectory.file("gradle/emulator.properties")) {
+        into("io/github/gregwhitaker/awsemulator/internal/runtime")
+    }
+}
+
 publishing {
     publications.withType<MavenPublication>().configureEach {
         if (name == "pluginMaven") artifactId = "gradle-aws-emulator"

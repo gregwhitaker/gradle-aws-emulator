@@ -35,8 +35,12 @@ The [build script](build.gradle.kts) wires these provisioning tasks into `integr
 | `createExampleFifoQueue` | The `example-events.fifo` queue and its FIFO dead-letter queue, with a maximum receive count of three. |
 | `createFixtureQueues` | Two standard queues for fixture publishing. |
 | `publishFixtures` | Publishes the [JSON Lines fixtures](src/integration/messages/events.jsonl) to `example-seeded-queue`. |
+| `configureUploadPolicy` | Replaces the `example-uploads` bucket policy from [upload-policy.json](src/integration/fixtures/upload-policy.json). |
+| `versionUploads` | Enables versioning on `example-uploads`. |
+| `createUploadEvents`, `notifyUploads` | Creates a standard SQS destination with a source-bucket-scoped policy and configures S3 object-created notifications. |
+| `createDiscardedQueue`, `deleteDiscardedQueue` | Creates and explicitly deletes a disposable queue before tests. |
 
-The [integration tests](src/integration/java/example/EmulatorIntegrationTest.java) verify S3 object round trips, standard and FIFO SQS message delivery, published fixtures, the dead-letter policy, and STS identity. The build deliberately supplies invalid inherited AWS settings to show that `useWith` supplies the emulator connection to the test JVM.
+The [integration tests](src/integration/java/example/EmulatorIntegrationTest.java) verify S3 object round trips and retained versions, bucket policy and notification configuration, S3-to-SQS delivery, explicit queue deletion, standard and FIFO SQS message delivery, published fixtures, the dead-letter policy, and STS identity. Destination ARNs use this example's `us-east-1` region and the pinned emulator's account `000000000000`. The build deliberately supplies invalid inherited AWS settings to show that `useWith` supplies the emulator connection to the test JVM.
 
 The [settings file](settings.gradle.kts) includes the plugin from this checkout through `pluginManagement`, so no plugin publication is needed.
 
@@ -64,6 +68,8 @@ To create buckets and a standard queue that remain available between Gradle invo
 ```
 
 The development instance is separate from the managed test instance. Stopping or restarting it discards its resources. Run `stopAwsEmulator` when finished.
+
+To delete only the standard development queue, run `./gradlew -p examples/basic deleteSqsQueues --queueNames=example-test-queue` before stopping the emulator. Missing queues succeed; nonempty queues lose their messages, and associated DLQs remain unless named explicitly. Bucket configuration tasks replace the complete policy or notification configuration. Suspending versioning retains existing versions. See the S3 guide for persistent configuration and notification removal.
 
 ## Resource reports
 

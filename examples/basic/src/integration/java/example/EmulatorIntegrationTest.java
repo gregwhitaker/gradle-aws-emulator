@@ -20,15 +20,46 @@ import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
 import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.BucketVersioningStatus;
 import software.amazon.awssdk.services.sqs.SqsClient;
+import software.amazon.awssdk.services.sqs.model.QueueDoesNotExistException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.core.client.config.SdkAdvancedClientOption;
 import java.util.Set;
+import java.time.Duration;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class EmulatorIntegrationTest {
+    @Test
+    void verifiesBucketConfigurationNotificationsAndExplicitQueueDeletion() {
+        try (S3Client s3 = S3Client.builder().forcePathStyle(true)
+                .overrideConfiguration(config -> config.putAdvancedOption(SdkAdvancedClientOption.DISABLE_HOST_PREFIX_INJECTION, true))
+                .httpClientBuilder(UrlConnectionHttpClient.builder()).build();
+             SqsClient sqs = SqsClient.builder().httpClientBuilder(UrlConnectionHttpClient.builder()).build()) {
+            assertEquals(BucketVersioningStatus.ENABLED, s3.getBucketVersioning(r -> r.bucket("example-uploads")).status());
+            assertTrue(s3.getBucketPolicy(r -> r.bucket("example-uploads")).policy().contains("ReadExampleUploads"));
+            assertEquals(1, s3.getBucketNotificationConfiguration(r -> r.bucket("example-uploads")).queueConfigurations().size());
+            assertThrows(QueueDoesNotExistException.class, () -> sqs.getQueueUrl(r -> r.queueName("example-discarded-queue")));
+            String first = s3.putObject(r -> r.bucket("example-uploads").key("notification.txt"), RequestBody.fromString("first")).versionId();
+            String second = s3.putObject(r -> r.bucket("example-uploads").key("notification.txt"), RequestBody.fromString("second")).versionId();
+            assertNotNull(first);
+            assertNotEquals(first, second);
+            assertEquals("first", s3.getObjectAsBytes(r -> r.bucket("example-uploads").key("notification.txt").versionId(first)).asUtf8String());
+            String url = sqs.getQueueUrl(r -> r.queueName("example-upload-events")).queueUrl();
+            boolean delivered = false;
+            long deadline = System.nanoTime() + Duration.ofSeconds(15).toNanos();
+            while (!delivered && System.nanoTime() < deadline) {
+                for (var message : sqs.receiveMessage(r -> r.queueUrl(url).waitTimeSeconds(2).maxNumberOfMessages(10)).messages()) {
+                    delivered |= message.body().contains("notification.txt") && message.body().contains("example-uploads");
+                    sqs.deleteMessage(r -> r.queueUrl(url).receiptHandle(message.receiptHandle()));
+                }
+            }
+            assertTrue(delivered, "Expected an S3 notification for the uploaded object");
+        }
+    }
+
     @Test
     void signsAnAwsRequestAndVerifiesTheEmulatorCertificate() {
         assertNull(System.getenv("AWS_ACCESS_KEY_ID"));
