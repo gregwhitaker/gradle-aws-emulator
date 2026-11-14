@@ -145,7 +145,7 @@ class ReleaseGitTest(unittest.TestCase):
         self.addCleanup(output.__exit__, None, None, None)
 
     def run_git(self, *args):
-        result = subprocess.run(["git", *args], cwd=self.root, text=True, capture_output=True, check=True)
+        result = subprocess.run(["git", *args], cwd=self.root, text=True, encoding="utf-8", capture_output=True, check=True)
         return result.stdout.strip()
 
     def remote_git(self, *args):
@@ -221,6 +221,13 @@ class ReleaseGitTest(unittest.TestCase):
     def test_authentication_fails_before_metadata_is_changed(self):
         self.fail_auth = True
         with self.assertRaisesRegex(RuntimeError, "authentication"):
+            self.release()
+        self.assert_untouched()
+
+    def test_missing_git_identity_fails_before_metadata_is_changed(self):
+        self.run_git("config", "--unset", "user.email")
+        self.run_git("config", "user.useConfigOnly", "true")
+        with self.assertRaisesRegex(RuntimeError, "git var failed"):
             self.release()
         self.assert_untouched()
 
@@ -326,6 +333,16 @@ class ReleaseGitTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "changed while CI ran"):
             self.release()
         self.assertEqual("", self.remote_git("tag", "--list"))
+
+    def test_remote_tag_created_during_ci_is_not_overwritten(self):
+        def ci(commit):
+            self.remote_git("update-ref", "refs/tags/v0.3.0", self.initial)
+            return [self.ci_run(commit, "success")]
+
+        self.ci_callback = ci
+        with self.assertRaisesRegex(RuntimeError, "git push failed"):
+            self.release()
+        self.assertEqual(self.initial, self.remote_git("rev-parse", "refs/tags/v0.3.0"))
 
 
 if __name__ == "__main__":

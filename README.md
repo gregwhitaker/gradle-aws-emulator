@@ -194,7 +194,7 @@ Run checks from the repository root:
 | `./gradlew licenseFormat` | Apply Apache 2.0 headers to project-owned source files. |
 | `./gradlew jacocoTestReport` | Generate combined and per-plugin unit/functional coverage. |
 
-See [Contributing](CONTRIBUTING.md) for development setup, [code quality checks](CONTRIBUTING.md#code-quality-checks), and [coverage reports](CONTRIBUTING.md#coverage-reports). The [release guide](RELEASING.md) covers version preparation, validation, publishing, and recovery. The [changelog](CHANGELOG.md) tracks version history.
+See [Contributing](CONTRIBUTING.md) for development setup, [code quality checks](CONTRIBUTING.md#code-quality-checks), and [coverage reports](CONTRIBUTING.md#coverage-reports). Release both plugins with `python3 scripts/release.py <version>`; the [release guide](RELEASING.md) covers setup, dry runs, and recovery. The [changelog](CHANGELOG.md) tracks version history.
 
 The tested emulator version is pinned in [`gradle/emulator.properties`](gradle/emulator.properties). Upgrade PRs run compatibility checks and require maintainer review, including a separate CloudFormation provisioning audit; see the [upgrade procedure](CONTRIBUTING.md#aws-emulator-upgrades).
 
