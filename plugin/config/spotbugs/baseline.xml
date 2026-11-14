@@ -1,0 +1,282 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Copyright 2026 Greg Whitaker
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        https://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+-->
+
+<!-- Initial 34 findings from SpotBugs 4.10.5 across Gradle 8.14.3 / Java 17
+     and Gradle 9.6.1 / Java 21. Remove entries as they are resolved.
+     Run spotbugsMain -PspotbugsBaseline=false to audit all findings.
+     Do not regenerate this file to accept new findings. -->
+<BugCollection version="4.10.5">
+    <BugInstance type="REC_CATCH_EXCEPTION" priority="2" rank="17" abbrev="REC" category="STYLE" instanceHash="3ddf1745eed3098eec839948284fea10" instanceOccurrenceNum="0" instanceOccurrenceMax="0" cweid="396">
+        <LongMessage>Exception is caught when Exception is not thrown in io.github.gregwhitaker.awsemulator.aws.eventbridge.PutEventBridgeSqsTargetTask.policy(String, String, String)</LongMessage>
+        <Class classname="io.github.gregwhitaker.awsemulator.aws.eventbridge.PutEventBridgeSqsTargetTask" primary="true" />
+        <Method classname="io.github.gregwhitaker.awsemulator.aws.eventbridge.PutEventBridgeSqsTargetTask" name="policy" signature="(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;" isStatic="true" primary="true" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.aws.eventbridge.PutEventBridgeSqsTargetTask" primary="true" start="86" end="86" sourcefile="PutEventBridgeSqsTargetTask.java" sourcepath="io/github/gregwhitaker/awsemulator/aws/eventbridge/PutEventBridgeSqsTargetTask.java" />
+    </BugInstance>
+    <BugInstance type="REC_CATCH_EXCEPTION" priority="2" rank="17" abbrev="REC" category="STYLE" instanceHash="4c22683749f711a3a7ded1eb76c07641" instanceOccurrenceNum="0" instanceOccurrenceMax="0" cweid="396">
+        <LongMessage>Exception is caught when Exception is not thrown in io.github.gregwhitaker.awsemulator.aws.internal.JsonFixtures.object(String, String)</LongMessage>
+        <Class classname="io.github.gregwhitaker.awsemulator.aws.internal.JsonFixtures" primary="true" />
+        <Method classname="io.github.gregwhitaker.awsemulator.aws.internal.JsonFixtures" name="object" signature="(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;" isStatic="true" primary="true" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.aws.internal.JsonFixtures" primary="true" start="79" end="79" sourcefile="JsonFixtures.java" sourcepath="io/github/gregwhitaker/awsemulator/aws/internal/JsonFixtures.java" />
+    </BugInstance>
+    <BugInstance type="DE_MIGHT_IGNORE" priority="1" rank="14" abbrev="DE" category="BAD_PRACTICE" instanceHash="f921979a0e62aec9a78a5dca6e0e333f" instanceOccurrenceNum="0" instanceOccurrenceMax="0" cweid="754">
+        <LongMessage>io.github.gregwhitaker.awsemulator.aws.internal.ResourceFiles.write(Path, byte[]) might ignore java.lang.Exception</LongMessage>
+        <Class classname="io.github.gregwhitaker.awsemulator.aws.internal.ResourceFiles" primary="true" />
+        <Method classname="io.github.gregwhitaker.awsemulator.aws.internal.ResourceFiles" name="write" signature="(Ljava/nio/file/Path;[B)V" isStatic="true" primary="true" />
+        <Class classname="java.lang.Exception" role="CLASS_EXCEPTION" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.aws.internal.ResourceFiles" primary="true" start="47" end="47" sourcefile="ResourceFiles.java" sourcepath="io/github/gregwhitaker/awsemulator/aws/internal/ResourceFiles.java" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.aws.internal.ResourceFiles" primary="true" start="47" end="47" sourcefile="ResourceFiles.java" sourcepath="io/github/gregwhitaker/awsemulator/aws/internal/ResourceFiles.java" />
+    </BugInstance>
+    <BugInstance type="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE" priority="2" rank="13" abbrev="NP" category="STYLE" instanceHash="33a71faf484c94052316214132ff31a1" instanceOccurrenceNum="0" instanceOccurrenceMax="1" cweid="476">
+        <LongMessage>Possible null pointer dereference in io.github.gregwhitaker.awsemulator.aws.internal.ResourceFiles.write(Path, byte[]) due to return value of called method</LongMessage>
+        <Class classname="io.github.gregwhitaker.awsemulator.aws.internal.ResourceFiles" primary="true" />
+        <Method classname="io.github.gregwhitaker.awsemulator.aws.internal.ResourceFiles" name="write" signature="(Ljava/nio/file/Path;[B)V" isStatic="true" primary="true" />
+        <Method classname="java.nio.file.Path" name="getParent" signature="()Ljava/nio/file/Path;" isStatic="false" role="METHOD_CALLED" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.aws.internal.ResourceFiles" primary="true" start="40" end="40" sourcefile="ResourceFiles.java" sourcepath="io/github/gregwhitaker/awsemulator/aws/internal/ResourceFiles.java" role="SOURCE_LINE_INVOKED" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.aws.internal.ResourceFiles" start="40" end="40" sourcefile="ResourceFiles.java" sourcepath="io/github/gregwhitaker/awsemulator/aws/internal/ResourceFiles.java" role="SOURCE_LINE_KNOWN_NULL" />
+    </BugInstance>
+    <BugInstance type="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE" priority="2" rank="13" abbrev="NP" category="STYLE" instanceHash="33a71faf484c94052316214132ff31a1" instanceOccurrenceNum="1" instanceOccurrenceMax="1" cweid="476">
+        <LongMessage>Possible null pointer dereference in io.github.gregwhitaker.awsemulator.aws.internal.ResourceFiles.write(Path, byte[]) due to return value of called method</LongMessage>
+        <Class classname="io.github.gregwhitaker.awsemulator.aws.internal.ResourceFiles" primary="true" />
+        <Method classname="io.github.gregwhitaker.awsemulator.aws.internal.ResourceFiles" name="write" signature="(Ljava/nio/file/Path;[B)V" isStatic="true" primary="true" />
+        <Method classname="java.nio.file.Path" name="getParent" signature="()Ljava/nio/file/Path;" isStatic="false" role="METHOD_CALLED" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.aws.internal.ResourceFiles" primary="true" start="41" end="41" sourcefile="ResourceFiles.java" sourcepath="io/github/gregwhitaker/awsemulator/aws/internal/ResourceFiles.java" role="SOURCE_LINE_INVOKED" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.aws.internal.ResourceFiles" start="41" end="41" sourcefile="ResourceFiles.java" sourcepath="io/github/gregwhitaker/awsemulator/aws/internal/ResourceFiles.java" role="SOURCE_LINE_KNOWN_NULL" />
+    </BugInstance>
+    <BugInstance type="DE_MIGHT_IGNORE" priority="2" rank="16" abbrev="DE" category="BAD_PRACTICE" instanceHash="783a45aec02b5d62e2856b706847bca5" instanceOccurrenceNum="0" instanceOccurrenceMax="0" cweid="754">
+        <LongMessage>io.github.gregwhitaker.awsemulator.aws.s3.S3ObjectOperations.download(S3Client, String, String, Path) might ignore java.io.IOException</LongMessage>
+        <Class classname="io.github.gregwhitaker.awsemulator.aws.s3.S3ObjectOperations" primary="true" />
+        <Method classname="io.github.gregwhitaker.awsemulator.aws.s3.S3ObjectOperations" name="download" signature="(Lsoftware/amazon/awssdk/services/s3/S3Client;Ljava/lang/String;Ljava/lang/String;Ljava/nio/file/Path;)V" isStatic="false" primary="true" />
+        <Class classname="java.io.IOException" role="CLASS_EXCEPTION" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.aws.s3.S3ObjectOperations" primary="true" start="118" end="118" sourcefile="S3ObjectOperations.java" sourcepath="io/github/gregwhitaker/awsemulator/aws/s3/S3ObjectOperations.java" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.aws.s3.S3ObjectOperations" primary="true" start="118" end="118" sourcefile="S3ObjectOperations.java" sourcepath="io/github/gregwhitaker/awsemulator/aws/s3/S3ObjectOperations.java" />
+    </BugInstance>
+    <BugInstance type="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE" priority="2" rank="13" abbrev="NP" category="STYLE" instanceHash="84b9198a723b5783562ff2a9958cc26c" instanceOccurrenceNum="0" instanceOccurrenceMax="0" cweid="476">
+        <LongMessage>Possible null pointer dereference in io.github.gregwhitaker.awsemulator.aws.s3.S3ObjectOperations.contentType(Path, Map) due to return value of called method</LongMessage>
+        <Class classname="io.github.gregwhitaker.awsemulator.aws.s3.S3ObjectOperations" primary="true" />
+        <Method classname="io.github.gregwhitaker.awsemulator.aws.s3.S3ObjectOperations" name="contentType" signature="(Ljava/nio/file/Path;Ljava/util/Map;)Ljava/lang/String;" isStatic="true" primary="true" />
+        <Method classname="java.nio.file.Path" name="getFileName" signature="()Ljava/nio/file/Path;" isStatic="false" role="METHOD_CALLED" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.aws.s3.S3ObjectOperations" primary="true" start="46" end="46" sourcefile="S3ObjectOperations.java" sourcepath="io/github/gregwhitaker/awsemulator/aws/s3/S3ObjectOperations.java" role="SOURCE_LINE_DEREF" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.aws.s3.S3ObjectOperations" start="46" end="46" sourcefile="S3ObjectOperations.java" sourcepath="io/github/gregwhitaker/awsemulator/aws/s3/S3ObjectOperations.java" role="SOURCE_LINE_KNOWN_NULL" />
+    </BugInstance>
+    <BugInstance type="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE" priority="2" rank="13" abbrev="NP" category="STYLE" instanceHash="bde1e07aa72d22af9543facebc18dae5" instanceOccurrenceNum="0" instanceOccurrenceMax="1" cweid="476">
+        <LongMessage>Possible null pointer dereference in io.github.gregwhitaker.awsemulator.aws.s3.S3ObjectOperations.download(S3Client, String, String, Path) due to return value of called method</LongMessage>
+        <Class classname="io.github.gregwhitaker.awsemulator.aws.s3.S3ObjectOperations" primary="true" />
+        <Method classname="io.github.gregwhitaker.awsemulator.aws.s3.S3ObjectOperations" name="download" signature="(Lsoftware/amazon/awssdk/services/s3/S3Client;Ljava/lang/String;Ljava/lang/String;Ljava/nio/file/Path;)V" isStatic="false" primary="true" />
+        <Method classname="java.nio.file.Path" name="getParent" signature="()Ljava/nio/file/Path;" isStatic="false" role="METHOD_CALLED" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.aws.s3.S3ObjectOperations" primary="true" start="108" end="108" sourcefile="S3ObjectOperations.java" sourcepath="io/github/gregwhitaker/awsemulator/aws/s3/S3ObjectOperations.java" role="SOURCE_LINE_INVOKED" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.aws.s3.S3ObjectOperations" start="108" end="108" sourcefile="S3ObjectOperations.java" sourcepath="io/github/gregwhitaker/awsemulator/aws/s3/S3ObjectOperations.java" role="SOURCE_LINE_KNOWN_NULL" />
+    </BugInstance>
+    <BugInstance type="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE" priority="2" rank="13" abbrev="NP" category="STYLE" instanceHash="bde1e07aa72d22af9543facebc18dae5" instanceOccurrenceNum="1" instanceOccurrenceMax="1" cweid="476">
+        <LongMessage>Possible null pointer dereference in io.github.gregwhitaker.awsemulator.aws.s3.S3ObjectOperations.download(S3Client, String, String, Path) due to return value of called method</LongMessage>
+        <Class classname="io.github.gregwhitaker.awsemulator.aws.s3.S3ObjectOperations" primary="true" />
+        <Method classname="io.github.gregwhitaker.awsemulator.aws.s3.S3ObjectOperations" name="download" signature="(Lsoftware/amazon/awssdk/services/s3/S3Client;Ljava/lang/String;Ljava/lang/String;Ljava/nio/file/Path;)V" isStatic="false" primary="true" />
+        <Method classname="java.nio.file.Path" name="getParent" signature="()Ljava/nio/file/Path;" isStatic="false" role="METHOD_CALLED" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.aws.s3.S3ObjectOperations" primary="true" start="109" end="109" sourcefile="S3ObjectOperations.java" sourcepath="io/github/gregwhitaker/awsemulator/aws/s3/S3ObjectOperations.java" role="SOURCE_LINE_INVOKED" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.aws.s3.S3ObjectOperations" start="109" end="109" sourcefile="S3ObjectOperations.java" sourcepath="io/github/gregwhitaker/awsemulator/aws/s3/S3ObjectOperations.java" role="SOURCE_LINE_KNOWN_NULL" />
+    </BugInstance>
+    <BugInstance type="REC_CATCH_EXCEPTION" priority="2" rank="17" abbrev="REC" category="STYLE" instanceHash="6881b293bd595be491d08fcff8a495f7" instanceOccurrenceNum="0" instanceOccurrenceMax="0" cweid="396">
+        <LongMessage>Exception is caught when Exception is not thrown in io.github.gregwhitaker.awsemulator.aws.sns.SnsQueuePolicy.grant(String, String, String)</LongMessage>
+        <Class classname="io.github.gregwhitaker.awsemulator.aws.sns.SnsQueuePolicy" primary="true" />
+        <Method classname="io.github.gregwhitaker.awsemulator.aws.sns.SnsQueuePolicy" name="grant" signature="(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;" isStatic="true" primary="true" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.aws.sns.SnsQueuePolicy" primary="true" start="72" end="72" sourcefile="SnsQueuePolicy.java" sourcepath="io/github/gregwhitaker/awsemulator/aws/sns/SnsQueuePolicy.java" />
+    </BugInstance>
+    <BugInstance type="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE" priority="2" rank="13" abbrev="NP" category="STYLE" instanceHash="ab4b32e89947a542ba4016c1b7195da2" instanceOccurrenceNum="0" instanceOccurrenceMax="0" cweid="476">
+        <LongMessage>Possible null pointer dereference in io.github.gregwhitaker.awsemulator.aws.sqs.SqsMessageReader.file(Path, Consumer) due to return value of called method</LongMessage>
+        <Class classname="io.github.gregwhitaker.awsemulator.aws.sqs.SqsMessageReader" primary="true" />
+        <Method classname="io.github.gregwhitaker.awsemulator.aws.sqs.SqsMessageReader" name="file" signature="(Ljava/nio/file/Path;Ljava/util/function/Consumer;)V" isStatic="false" primary="true" />
+        <Method classname="java.nio.file.Path" name="getFileName" signature="()Ljava/nio/file/Path;" isStatic="false" role="METHOD_CALLED" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.aws.sqs.SqsMessageReader" primary="true" start="61" end="61" sourcefile="SqsMessageReader.java" sourcepath="io/github/gregwhitaker/awsemulator/aws/sqs/SqsMessageReader.java" role="SOURCE_LINE_DEREF" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.aws.sqs.SqsMessageReader" start="61" end="61" sourcefile="SqsMessageReader.java" sourcepath="io/github/gregwhitaker/awsemulator/aws/sqs/SqsMessageReader.java" role="SOURCE_LINE_KNOWN_NULL" />
+    </BugInstance>
+    <BugInstance type="CT_CONSTRUCTOR_THROW" priority="2" rank="16" abbrev="CT" category="BAD_PRACTICE" instanceHash="ea4229b979f5555ce4bdb3f276dd532a" instanceOccurrenceNum="0" instanceOccurrenceMax="0">
+        <LongMessage>Exception thrown in class io.github.gregwhitaker.awsemulator.emulator.EmulatorResourceSet at new io.github.gregwhitaker.awsemulator.emulator.EmulatorResourceSet(String) will leave the constructor. The object under construction remains partially initialized and may be vulnerable to Finalizer attacks.</LongMessage>
+        <Class classname="io.github.gregwhitaker.awsemulator.emulator.EmulatorResourceSet" primary="true" />
+        <Method classname="io.github.gregwhitaker.awsemulator.emulator.EmulatorResourceSet" name="&lt;init&gt;" signature="(Ljava/lang/String;)V" isStatic="false" primary="true" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.emulator.EmulatorResourceSet" primary="true" start="44" end="44" sourcefile="EmulatorResourceSet.java" sourcepath="io/github/gregwhitaker/awsemulator/emulator/EmulatorResourceSet.java" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.emulator.EmulatorResourceSet" start="44" end="44" sourcefile="EmulatorResourceSet.java" sourcepath="io/github/gregwhitaker/awsemulator/emulator/EmulatorResourceSet.java" />
+    </BugInstance>
+    <BugInstance type="CT_CONSTRUCTOR_THROW" priority="2" rank="16" abbrev="CT" category="BAD_PRACTICE" instanceHash="21fe97ee18ba624ef36c24b04c2cc8ba" instanceOccurrenceNum="0" instanceOccurrenceMax="0">
+        <LongMessage>Exception thrown in class io.github.gregwhitaker.awsemulator.emulator.EmulatorRuntimeConfiguration at new io.github.gregwhitaker.awsemulator.emulator.EmulatorRuntimeConfiguration() will leave the constructor. The object under construction remains partially initialized and may be vulnerable to Finalizer attacks.</LongMessage>
+        <Class classname="io.github.gregwhitaker.awsemulator.emulator.EmulatorRuntimeConfiguration" primary="true" />
+        <Method classname="io.github.gregwhitaker.awsemulator.emulator.EmulatorRuntimeConfiguration" name="&lt;init&gt;" signature="()V" isStatic="false" primary="true" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.emulator.EmulatorRuntimeConfiguration" primary="true" start="27" end="27" sourcefile="EmulatorRuntimeConfiguration.java" sourcepath="io/github/gregwhitaker/awsemulator/emulator/EmulatorRuntimeConfiguration.java" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.emulator.EmulatorRuntimeConfiguration" start="27" end="27" sourcefile="EmulatorRuntimeConfiguration.java" sourcepath="io/github/gregwhitaker/awsemulator/emulator/EmulatorRuntimeConfiguration.java" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.emulator.EmulatorRuntimeConfiguration" start="28" end="28" sourcefile="EmulatorRuntimeConfiguration.java" sourcepath="io/github/gregwhitaker/awsemulator/emulator/EmulatorRuntimeConfiguration.java" role="SOURCE_LINE_ANOTHER_INSTANCE" />
+    </BugInstance>
+    <BugInstance type="EI_EXPOSE_REP" priority="2" rank="18" abbrev="EI" category="MALICIOUS_CODE" instanceHash="b449e6ac21877a7859ab4e515c08822d" instanceOccurrenceNum="0" instanceOccurrenceMax="0" cweid="374">
+        <LongMessage>io.github.gregwhitaker.awsemulator.emulator.EmulatorScenario.getRuntimeName() may expose internal representation by returning EmulatorScenario.runtimeName</LongMessage>
+        <Class classname="io.github.gregwhitaker.awsemulator.emulator.EmulatorScenario" primary="true" />
+        <Method classname="io.github.gregwhitaker.awsemulator.emulator.EmulatorScenario" name="getRuntimeName" signature="()Lorg/gradle/api/provider/Property;" isStatic="false" primary="true" />
+        <Field classname="io.github.gregwhitaker.awsemulator.emulator.EmulatorScenario" name="runtimeName" signature="Lorg/gradle/api/provider/Property;" isStatic="false" primary="true" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.emulator.EmulatorScenario" primary="true" start="45" end="45" sourcefile="EmulatorScenario.java" sourcepath="io/github/gregwhitaker/awsemulator/emulator/EmulatorScenario.java" />
+    </BugInstance>
+    <BugInstance type="CT_CONSTRUCTOR_THROW" priority="2" rank="16" abbrev="CT" category="BAD_PRACTICE" instanceHash="b9be0aea9720576c49bdbacb4e02656c" instanceOccurrenceNum="0" instanceOccurrenceMax="0">
+        <LongMessage>Exception thrown in class io.github.gregwhitaker.awsemulator.emulator.NamedEmulatorRuntime at new io.github.gregwhitaker.awsemulator.emulator.NamedEmulatorRuntime(String) will leave the constructor. The object under construction remains partially initialized and may be vulnerable to Finalizer attacks.</LongMessage>
+        <Class classname="io.github.gregwhitaker.awsemulator.emulator.NamedEmulatorRuntime" primary="true" />
+        <Method classname="io.github.gregwhitaker.awsemulator.emulator.NamedEmulatorRuntime" name="&lt;init&gt;" signature="(Ljava/lang/String;)V" isStatic="false" primary="true" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.emulator.NamedEmulatorRuntime" primary="true" start="33" end="33" sourcefile="NamedEmulatorRuntime.java" sourcepath="io/github/gregwhitaker/awsemulator/emulator/NamedEmulatorRuntime.java" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.emulator.NamedEmulatorRuntime" start="33" end="33" sourcefile="NamedEmulatorRuntime.java" sourcepath="io/github/gregwhitaker/awsemulator/emulator/NamedEmulatorRuntime.java" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.emulator.NamedEmulatorRuntime" start="36" end="36" sourcefile="NamedEmulatorRuntime.java" sourcepath="io/github/gregwhitaker/awsemulator/emulator/NamedEmulatorRuntime.java" role="SOURCE_LINE_ANOTHER_INSTANCE" />
+    </BugInstance>
+    <BugInstance type="SE_BAD_FIELD" priority="2" rank="16" abbrev="Se" category="BAD_PRACTICE" instanceHash="a017371a9c1698e1fd84f14e52047db" instanceOccurrenceNum="0" instanceOccurrenceMax="0">
+        <LongMessage>Class io.github.gregwhitaker.awsemulator.internal.ConfigureEmulatorAction defines non-transient non-serializable instance field mode</LongMessage>
+        <Class classname="io.github.gregwhitaker.awsemulator.internal.ConfigureEmulatorAction" primary="true" />
+        <Field classname="io.github.gregwhitaker.awsemulator.internal.ConfigureEmulatorAction" name="mode" signature="Lorg/gradle/api/provider/Provider;" isStatic="false" primary="true" />
+        <Type descriptor="Lorg/gradle/api/provider/Provider;" role="TYPE_FOUND" typeParameters="&lt;io.github.gregwhitaker.awsemulator.model.EmulatorMode&gt;" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.internal.ConfigureEmulatorAction" sourcefile="ConfigureEmulatorAction.java" sourcepath="io/github/gregwhitaker/awsemulator/internal/ConfigureEmulatorAction.java" synthetic="true" />
+    </BugInstance>
+    <BugInstance type="SE_BAD_FIELD" priority="2" rank="16" abbrev="Se" category="BAD_PRACTICE" instanceHash="49ae7a9896ab1ce72101011fc17fcf6d" instanceOccurrenceNum="0" instanceOccurrenceMax="0">
+        <LongMessage>Class io.github.gregwhitaker.awsemulator.internal.ConfigureEmulatorAction defines non-transient non-serializable instance field runtime</LongMessage>
+        <Class classname="io.github.gregwhitaker.awsemulator.internal.ConfigureEmulatorAction" primary="true" />
+        <Field classname="io.github.gregwhitaker.awsemulator.internal.ConfigureEmulatorAction" name="runtime" signature="Lorg/gradle/api/provider/Provider;" isStatic="false" primary="true" />
+        <Type descriptor="Lorg/gradle/api/provider/Provider;" role="TYPE_FOUND" typeParameters="&lt;io.github.gregwhitaker.awsemulator.emulator.AwsEmulatorService&gt;" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.internal.ConfigureEmulatorAction" sourcefile="ConfigureEmulatorAction.java" sourcepath="io/github/gregwhitaker/awsemulator/internal/ConfigureEmulatorAction.java" synthetic="true" />
+    </BugInstance>
+    <BugInstance type="VA_FORMAT_STRING_USES_NEWLINE" priority="2" rank="20" abbrev="FS" category="BAD_PRACTICE" instanceHash="a9a794ceb7a749aebb9c0c34352073fb" instanceOccurrenceNum="0" instanceOccurrenceMax="0">
+        <LongMessage>Format string should use %n rather than \n in io.github.gregwhitaker.awsemulator.internal.docker.DockerClient.openTunnel(DockerClient$Container)</LongMessage>
+        <Class classname="io.github.gregwhitaker.awsemulator.internal.docker.DockerClient" primary="true" />
+        <Method classname="io.github.gregwhitaker.awsemulator.internal.docker.DockerClient" name="openTunnel" signature="(Lio/github/gregwhitaker/awsemulator/internal/docker/DockerClient$Container;)Ljava/lang/Process;" isStatic="false" primary="true" />
+        <Method classname="java.lang.String" name="formatted" signature="([Ljava/lang/Object;)Ljava/lang/String;" isStatic="false" role="METHOD_CALLED" />
+        <String value="set -e\nexec 3&lt;&gt;/dev/tcp/127.0.0.1/%d\nexec 4&lt;&amp;0\ncat &lt;&amp;3 &amp;\nreceiver=$!\ncat &lt;&amp;4 &gt;&amp;3 &amp;\nsender=$!\ntrap 'kill &quot;$receiver&quot; &quot;$sender&quot; 2&gt;/dev/null || true' EXIT\nwait -n &quot;$receiver&quot; &quot;$sender&quot; || true\n" role="STRING_FORMAT_STRING" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.internal.docker.DockerClient" primary="true" start="218" end="218" sourcefile="DockerClient.java" sourcepath="io/github/gregwhitaker/awsemulator/internal/docker/DockerClient.java" />
+    </BugInstance>
+    <BugInstance type="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE" priority="2" rank="13" abbrev="NP" category="STYLE" instanceHash="b23f7e430ee22b09023fea9d5f0df8fb" instanceOccurrenceNum="0" instanceOccurrenceMax="0" cweid="476">
+        <LongMessage>Possible null pointer dereference in io.github.gregwhitaker.awsemulator.internal.docker.DockerClient$Container.managed() due to return value of called method</LongMessage>
+        <Class classname="io.github.gregwhitaker.awsemulator.internal.docker.DockerClient$Container" primary="true" />
+        <Method classname="io.github.gregwhitaker.awsemulator.internal.docker.DockerClient$Container" name="managed" signature="()Z" isStatic="false" primary="true" />
+        <Method classname="java.nio.file.Path" name="getFileName" signature="()Ljava/nio/file/Path;" isStatic="false" role="METHOD_CALLED" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.internal.docker.DockerClient$Container" primary="true" start="244" end="244" sourcefile="DockerClient.java" sourcepath="io/github/gregwhitaker/awsemulator/internal/docker/DockerClient.java" role="SOURCE_LINE_DEREF" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.internal.docker.DockerClient$Container" start="244" end="244" sourcefile="DockerClient.java" sourcepath="io/github/gregwhitaker/awsemulator/internal/docker/DockerClient.java" role="SOURCE_LINE_KNOWN_NULL" />
+    </BugInstance>
+    <BugInstance type="EI_EXPOSE_REP2" priority="2" rank="18" abbrev="EI2" category="MALICIOUS_CODE" instanceHash="f6a035a0d709df0e3dad2520d7044d09" instanceOccurrenceNum="0" instanceOccurrenceMax="0" cweid="374">
+        <LongMessage>new io.github.gregwhitaker.awsemulator.internal.docker.DockerImageBuilder(EmulatorSettings, EmulatorWorkspace, DockerClient) may expose internal representation by storing an externally mutable object into DockerImageBuilder.docker</LongMessage>
+        <Class classname="io.github.gregwhitaker.awsemulator.internal.docker.DockerImageBuilder" primary="true" />
+        <Method classname="io.github.gregwhitaker.awsemulator.internal.docker.DockerImageBuilder" name="&lt;init&gt;" signature="(Lio/github/gregwhitaker/awsemulator/internal/runtime/EmulatorSettings;Lio/github/gregwhitaker/awsemulator/internal/runtime/EmulatorWorkspace;Lio/github/gregwhitaker/awsemulator/internal/docker/DockerClient;)V" isStatic="false" primary="true" />
+        <Field classname="io.github.gregwhitaker.awsemulator.internal.docker.DockerImageBuilder" name="docker" signature="Lio/github/gregwhitaker/awsemulator/internal/docker/DockerClient;" isStatic="false" primary="true" />
+        <LocalVariable name="docker" register="3" pc="16" role="LOCAL_VARIABLE_NAMED" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.internal.docker.DockerImageBuilder" primary="true" start="37" end="37" sourcefile="DockerImageBuilder.java" sourcepath="io/github/gregwhitaker/awsemulator/internal/docker/DockerImageBuilder.java" />
+    </BugInstance>
+    <BugInstance type="EI_EXPOSE_REP2" priority="2" rank="18" abbrev="EI2" category="MALICIOUS_CODE" instanceHash="b84360c0de585a40b936a067b65f36ac" instanceOccurrenceNum="0" instanceOccurrenceMax="0" cweid="374">
+        <LongMessage>new io.github.gregwhitaker.awsemulator.internal.docker.DockerImageBuilder(EmulatorSettings, EmulatorWorkspace, DockerClient) may expose internal representation by storing an externally mutable object into DockerImageBuilder.workspace</LongMessage>
+        <Class classname="io.github.gregwhitaker.awsemulator.internal.docker.DockerImageBuilder" primary="true" />
+        <Method classname="io.github.gregwhitaker.awsemulator.internal.docker.DockerImageBuilder" name="&lt;init&gt;" signature="(Lio/github/gregwhitaker/awsemulator/internal/runtime/EmulatorSettings;Lio/github/gregwhitaker/awsemulator/internal/runtime/EmulatorWorkspace;Lio/github/gregwhitaker/awsemulator/internal/docker/DockerClient;)V" isStatic="false" primary="true" />
+        <Field classname="io.github.gregwhitaker.awsemulator.internal.docker.DockerImageBuilder" name="workspace" signature="Lio/github/gregwhitaker/awsemulator/internal/runtime/EmulatorWorkspace;" isStatic="false" primary="true" />
+        <LocalVariable name="workspace" register="2" pc="11" role="LOCAL_VARIABLE_NAMED" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.internal.docker.DockerImageBuilder" primary="true" start="36" end="36" sourcefile="DockerImageBuilder.java" sourcepath="io/github/gregwhitaker/awsemulator/internal/docker/DockerImageBuilder.java" />
+    </BugInstance>
+    <BugInstance type="DE_MIGHT_IGNORE" priority="2" rank="16" abbrev="DE" category="BAD_PRACTICE" instanceHash="5912bd0a2fe27302918302109660a430" instanceOccurrenceNum="0" instanceOccurrenceMax="0" cweid="754">
+        <LongMessage>io.github.gregwhitaker.awsemulator.internal.docker.DockerTunnel.close() might ignore java.io.IOException</LongMessage>
+        <Class classname="io.github.gregwhitaker.awsemulator.internal.docker.DockerTunnel" primary="true" />
+        <Method classname="io.github.gregwhitaker.awsemulator.internal.docker.DockerTunnel" name="close" signature="()V" isStatic="false" primary="true" />
+        <Class classname="java.io.IOException" role="CLASS_EXCEPTION" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.internal.docker.DockerTunnel" primary="true" start="166" end="166" sourcefile="DockerTunnel.java" sourcepath="io/github/gregwhitaker/awsemulator/internal/docker/DockerTunnel.java" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.internal.docker.DockerTunnel" primary="true" start="166" end="166" sourcefile="DockerTunnel.java" sourcepath="io/github/gregwhitaker/awsemulator/internal/docker/DockerTunnel.java" />
+    </BugInstance>
+    <BugInstance type="DE_MIGHT_IGNORE" priority="2" rank="16" abbrev="DE" category="BAD_PRACTICE" instanceHash="dabcd725890c5c5620d20d667d688534" instanceOccurrenceNum="0" instanceOccurrenceMax="0" cweid="754">
+        <LongMessage>io.github.gregwhitaker.awsemulator.internal.docker.DockerTunnel$Session.close() might ignore java.io.IOException</LongMessage>
+        <Class classname="io.github.gregwhitaker.awsemulator.internal.docker.DockerTunnel$Session" primary="true" />
+        <Method classname="io.github.gregwhitaker.awsemulator.internal.docker.DockerTunnel$Session" name="close" signature="()V" isStatic="false" primary="true" />
+        <Class classname="java.io.IOException" role="CLASS_EXCEPTION" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.internal.docker.DockerTunnel$Session" primary="true" start="145" end="145" sourcefile="DockerTunnel.java" sourcepath="io/github/gregwhitaker/awsemulator/internal/docker/DockerTunnel.java" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.internal.docker.DockerTunnel$Session" primary="true" start="145" end="145" sourcefile="DockerTunnel.java" sourcepath="io/github/gregwhitaker/awsemulator/internal/docker/DockerTunnel.java" />
+    </BugInstance>
+    <BugInstance type="REC_CATCH_EXCEPTION" priority="2" rank="17" abbrev="REC" category="STYLE" instanceHash="f55c258a603a09c3dae2447ad066c2e" instanceOccurrenceNum="0" instanceOccurrenceMax="0" cweid="396">
+        <LongMessage>Exception is caught when Exception is not thrown in io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorRuntime.doctor()</LongMessage>
+        <Class classname="io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorRuntime" primary="true" />
+        <Method classname="io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorRuntime" name="doctor" signature="()Ljava/lang/String;" isStatic="false" primary="true" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorRuntime" primary="true" start="201" end="201" sourcefile="EmulatorRuntime.java" sourcepath="io/github/gregwhitaker/awsemulator/internal/runtime/EmulatorRuntime.java" />
+    </BugInstance>
+    <BugInstance type="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE" priority="2" rank="13" abbrev="NP" category="STYLE" instanceHash="6bc95489ffd8715e96317e3e948ea7ae" instanceOccurrenceNum="0" instanceOccurrenceMax="0" cweid="476">
+        <LongMessage>Possible null pointer dereference in io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorWorkspace.managedLock(Path) due to return value of called method</LongMessage>
+        <Class classname="io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorWorkspace" primary="true" />
+        <Method classname="io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorWorkspace" name="managedLock" signature="(Ljava/nio/file/Path;)Ljava/nio/file/Path;" isStatic="false" primary="true" />
+        <Method classname="java.nio.file.Path" name="getParent" signature="()Ljava/nio/file/Path;" isStatic="false" role="METHOD_CALLED" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorWorkspace" primary="true" start="47" end="47" sourcefile="EmulatorWorkspace.java" sourcepath="io/github/gregwhitaker/awsemulator/internal/runtime/EmulatorWorkspace.java" role="SOURCE_LINE_DEREF" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorWorkspace" start="47" end="47" sourcefile="EmulatorWorkspace.java" sourcepath="io/github/gregwhitaker/awsemulator/internal/runtime/EmulatorWorkspace.java" role="SOURCE_LINE_KNOWN_NULL" />
+    </BugInstance>
+    <BugInstance type="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE" priority="2" rank="13" abbrev="NP" category="STYLE" instanceHash="62d15140825bbeb35a7ac9f4f02d62b5" instanceOccurrenceNum="0" instanceOccurrenceMax="2" cweid="476">
+        <LongMessage>Possible null pointer dereference in io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorWorkspace.tryLease(Path, boolean) due to return value of called method</LongMessage>
+        <Class classname="io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorWorkspace" primary="true" />
+        <Method classname="io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorWorkspace" name="tryLease" signature="(Ljava/nio/file/Path;Z)Lio/github/gregwhitaker/awsemulator/internal/runtime/EmulatorWorkspace$Lease;" isStatic="false" primary="true" />
+        <Method classname="java.nio.file.Path" name="getParent" signature="()Ljava/nio/file/Path;" isStatic="false" role="METHOD_CALLED" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorWorkspace" primary="true" start="60" end="60" sourcefile="EmulatorWorkspace.java" sourcepath="io/github/gregwhitaker/awsemulator/internal/runtime/EmulatorWorkspace.java" role="SOURCE_LINE_INVOKED" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorWorkspace" start="60" end="60" sourcefile="EmulatorWorkspace.java" sourcepath="io/github/gregwhitaker/awsemulator/internal/runtime/EmulatorWorkspace.java" role="SOURCE_LINE_KNOWN_NULL" />
+    </BugInstance>
+    <BugInstance type="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE" priority="2" rank="13" abbrev="NP" category="STYLE" instanceHash="62d15140825bbeb35a7ac9f4f02d62b5" instanceOccurrenceNum="1" instanceOccurrenceMax="2" cweid="476">
+        <LongMessage>Possible null pointer dereference in io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorWorkspace.tryLease(Path, boolean) due to return value of called method</LongMessage>
+        <Class classname="io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorWorkspace" primary="true" />
+        <Method classname="io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorWorkspace" name="tryLease" signature="(Ljava/nio/file/Path;Z)Lio/github/gregwhitaker/awsemulator/internal/runtime/EmulatorWorkspace$Lease;" isStatic="false" primary="true" />
+        <Method classname="java.nio.file.Path" name="getParent" signature="()Ljava/nio/file/Path;" isStatic="false" role="METHOD_CALLED" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorWorkspace" primary="true" start="61" end="61" sourcefile="EmulatorWorkspace.java" sourcepath="io/github/gregwhitaker/awsemulator/internal/runtime/EmulatorWorkspace.java" role="SOURCE_LINE_INVOKED" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorWorkspace" start="61" end="61" sourcefile="EmulatorWorkspace.java" sourcepath="io/github/gregwhitaker/awsemulator/internal/runtime/EmulatorWorkspace.java" role="SOURCE_LINE_KNOWN_NULL" />
+    </BugInstance>
+    <BugInstance type="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE" priority="2" rank="13" abbrev="NP" category="STYLE" instanceHash="62d15140825bbeb35a7ac9f4f02d62b5" instanceOccurrenceNum="2" instanceOccurrenceMax="2" cweid="476">
+        <LongMessage>Possible null pointer dereference in io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorWorkspace.tryLease(Path, boolean) due to return value of called method</LongMessage>
+        <Class classname="io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorWorkspace" primary="true" />
+        <Method classname="io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorWorkspace" name="tryLease" signature="(Ljava/nio/file/Path;Z)Lio/github/gregwhitaker/awsemulator/internal/runtime/EmulatorWorkspace$Lease;" isStatic="false" primary="true" />
+        <Method classname="java.nio.file.Path" name="getParent" signature="()Ljava/nio/file/Path;" isStatic="false" role="METHOD_CALLED" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorWorkspace" primary="true" start="64" end="64" sourcefile="EmulatorWorkspace.java" sourcepath="io/github/gregwhitaker/awsemulator/internal/runtime/EmulatorWorkspace.java" role="SOURCE_LINE_DEREF" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorWorkspace" start="64" end="64" sourcefile="EmulatorWorkspace.java" sourcepath="io/github/gregwhitaker/awsemulator/internal/runtime/EmulatorWorkspace.java" role="SOURCE_LINE_KNOWN_NULL" />
+    </BugInstance>
+    <BugInstance type="EI_EXPOSE_REP" priority="2" rank="18" abbrev="EI" category="MALICIOUS_CODE" instanceHash="ca451fbdd35e9ae479f7893dbc3ce4ee" instanceOccurrenceNum="0" instanceOccurrenceMax="0" cweid="374">
+        <LongMessage>io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorWorkspace$Lease.channel() may expose internal representation by returning EmulatorWorkspace$Lease.channel</LongMessage>
+        <Class classname="io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorWorkspace$Lease" primary="true" />
+        <Method classname="io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorWorkspace$Lease" name="channel" signature="()Ljava/nio/channels/FileChannel;" isStatic="false" primary="true" />
+        <Field classname="io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorWorkspace$Lease" name="channel" signature="Ljava/nio/channels/FileChannel;" isStatic="false" primary="true" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorWorkspace$Lease" primary="true" start="90" end="90" sourcefile="EmulatorWorkspace.java" sourcepath="io/github/gregwhitaker/awsemulator/internal/runtime/EmulatorWorkspace.java" />
+    </BugInstance>
+    <BugInstance type="EI_EXPOSE_REP2" priority="2" rank="18" abbrev="EI2" category="MALICIOUS_CODE" instanceHash="5d5ca0f36252e15ee5baf814713797ae" instanceOccurrenceNum="0" instanceOccurrenceMax="0" cweid="374">
+        <LongMessage>new io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorWorkspace$Lease(Path, FileChannel, FileLock) may expose internal representation by storing an externally mutable object into EmulatorWorkspace$Lease.channel</LongMessage>
+        <Class classname="io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorWorkspace$Lease" primary="true" />
+        <Method classname="io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorWorkspace$Lease" name="&lt;init&gt;" signature="(Ljava/nio/file/Path;Ljava/nio/channels/FileChannel;Ljava/nio/channels/FileLock;)V" isStatic="false" primary="true" />
+        <Field classname="io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorWorkspace$Lease" name="channel" signature="Ljava/nio/channels/FileChannel;" isStatic="false" primary="true" />
+        <LocalVariable name="channel" register="2" pc="11" role="LOCAL_VARIABLE_NAMED" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorWorkspace$Lease" primary="true" start="90" end="90" sourcefile="EmulatorWorkspace.java" sourcepath="io/github/gregwhitaker/awsemulator/internal/runtime/EmulatorWorkspace.java" />
+    </BugInstance>
+    <BugInstance type="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE" priority="2" rank="13" abbrev="NP" category="STYLE" instanceHash="3504d032d7f9c9b19343d5e606e2f351" instanceOccurrenceNum="0" instanceOccurrenceMax="0" cweid="476">
+        <LongMessage>Possible null pointer dereference in io.github.gregwhitaker.awsemulator.emulator.AwsEmulatorExtension.lambda$useWithRuntime$8(Provider, Provider, Object[], ObjectFactory, Task) due to return value of called method</LongMessage>
+        <Class classname="io.github.gregwhitaker.awsemulator.emulator.AwsEmulatorExtension" primary="true" />
+        <Method classname="io.github.gregwhitaker.awsemulator.emulator.AwsEmulatorExtension" name="lambda$useWithRuntime$8" signature="(Lorg/gradle/api/provider/Provider;Lorg/gradle/api/provider/Provider;[Ljava/lang/Object;Lorg/gradle/api/model/ObjectFactory;Lorg/gradle/api/Task;)V" isStatic="false" primary="true" />
+        <LocalVariable name="selected" register="6" pc="144" role="LOCAL_VARIABLE_VALUE_OF" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.emulator.AwsEmulatorExtension" primary="true" start="287" end="287" sourcefile="AwsEmulatorExtension.java" sourcepath="io/github/gregwhitaker/awsemulator/emulator/AwsEmulatorExtension.java" role="SOURCE_LINE_DEREF" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.emulator.AwsEmulatorExtension" start="281" end="281" sourcefile="AwsEmulatorExtension.java" sourcepath="io/github/gregwhitaker/awsemulator/emulator/AwsEmulatorExtension.java" role="SOURCE_LINE_KNOWN_NULL" />
+    </BugInstance>
+    <BugInstance type="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE" priority="2" rank="13" abbrev="NP" category="STYLE" instanceHash="597cd0f8d5c135bf461d60042e000691" instanceOccurrenceNum="0" instanceOccurrenceMax="0" cweid="476">
+        <LongMessage>Possible null pointer dereference in io.github.gregwhitaker.awsemulator.emulator.AwsEmulatorExtension.lambda$useWithRuntime$8(Provider, Provider, Object[], ObjectFactory, Task) due to return value of called method</LongMessage>
+        <Class classname="io.github.gregwhitaker.awsemulator.emulator.AwsEmulatorExtension" primary="true" />
+        <Method classname="io.github.gregwhitaker.awsemulator.emulator.AwsEmulatorExtension" name="lambda$useWithRuntime$8" signature="(Lorg/gradle/api/provider/Provider;Lorg/gradle/api/provider/Provider;[Ljava/lang/Object;Lorg/gradle/api/model/ObjectFactory;Lorg/gradle/api/Task;)V" isStatic="false" primary="true" />
+        <LocalVariable name="selectedName" register="7" pc="152" role="LOCAL_VARIABLE_VALUE_OF" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.emulator.AwsEmulatorExtension" primary="true" start="288" end="288" sourcefile="AwsEmulatorExtension.java" sourcepath="io/github/gregwhitaker/awsemulator/emulator/AwsEmulatorExtension.java" role="SOURCE_LINE_DEREF" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.emulator.AwsEmulatorExtension" start="283" end="283" sourcefile="AwsEmulatorExtension.java" sourcepath="io/github/gregwhitaker/awsemulator/emulator/AwsEmulatorExtension.java" role="SOURCE_LINE_KNOWN_NULL" />
+    </BugInstance>
+    <BugInstance type="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE" priority="2" rank="13" abbrev="NP" category="STYLE" instanceHash="2cb6b06bd799d4e84f258614e8b050e0" instanceOccurrenceNum="0" instanceOccurrenceMax="0" cweid="476">
+        <LongMessage>Possible null pointer dereference in io.github.gregwhitaker.awsemulator.emulator.SharedRuntimeModule.owner() due to return value of called method</LongMessage>
+        <Class classname="io.github.gregwhitaker.awsemulator.emulator.SharedRuntimeModule" primary="true" />
+        <Method classname="io.github.gregwhitaker.awsemulator.emulator.SharedRuntimeModule" name="owner" signature="()Lio/github/gregwhitaker/awsemulator/emulator/SharedRuntimeModule$Owner;" isStatic="false" primary="true" />
+        <LocalVariable name="resources" register="8" pc="289" role="LOCAL_VARIABLE_VALUE_OF" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.emulator.SharedRuntimeModule" primary="true" start="108" end="108" sourcefile="SharedRuntimeModule.java" sourcepath="io/github/gregwhitaker/awsemulator/emulator/SharedRuntimeModule.java" role="SOURCE_LINE_DEREF" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.emulator.SharedRuntimeModule" start="107" end="107" sourcefile="SharedRuntimeModule.java" sourcepath="io/github/gregwhitaker/awsemulator/emulator/SharedRuntimeModule.java" role="SOURCE_LINE_KNOWN_NULL" />
+    </BugInstance>
+    <BugInstance type="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE" priority="2" rank="13" abbrev="NP" category="STYLE" instanceHash="c62057ceb6de365aa35daaaa2b437f5f" instanceOccurrenceNum="0" instanceOccurrenceMax="0" cweid="476">
+        <LongMessage>Possible null pointer dereference in io.github.gregwhitaker.awsemulator.emulator.SharedRuntimeModule.owner() due to return value of called method</LongMessage>
+        <Class classname="io.github.gregwhitaker.awsemulator.emulator.SharedRuntimeModule" primary="true" />
+        <Method classname="io.github.gregwhitaker.awsemulator.emulator.SharedRuntimeModule" name="owner" signature="()Lio/github/gregwhitaker/awsemulator/emulator/SharedRuntimeModule$Owner;" isStatic="false" primary="true" />
+        <Method classname="org.gradle.api.attributes.AttributeContainer" name="getAttribute" signature="(Lorg/gradle/api/attributes/Attribute;)Ljava/lang/Object;" isStatic="false" role="METHOD_CALLED" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.emulator.SharedRuntimeModule" primary="true" start="103" end="103" sourcefile="SharedRuntimeModule.java" sourcepath="io/github/gregwhitaker/awsemulator/emulator/SharedRuntimeModule.java" role="SOURCE_LINE_DEREF" />
+        <SourceLine classname="io.github.gregwhitaker.awsemulator.emulator.SharedRuntimeModule" start="103" end="103" sourcefile="SharedRuntimeModule.java" sourcepath="io/github/gregwhitaker/awsemulator/emulator/SharedRuntimeModule.java" role="SOURCE_LINE_KNOWN_NULL" />
+    </BugInstance>
+</BugCollection>

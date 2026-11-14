@@ -18,6 +18,8 @@ Run these commands from the repository root with Docker running:
 
 The example uses an automatically allocated port. Connection files are under `.aws-emulator/development/.aws/emulator/<port>/`.
 
+The build sets `awsEmulator.defaultMode` to `EmulatorMode.DEVELOPMENT`, so custom resource tasks such as `downloadAsset` use the persistent instance without setting their own `mode`. Individual tasks can override this default. Resource sets use the mode selected by their consumer or scenario, so `verifyFixtures` still uses managed resources.
+
 To check the data tasks in an isolated managed runtime that is cleaned up automatically:
 
 ```shell

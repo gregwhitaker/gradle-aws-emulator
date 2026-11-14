@@ -148,7 +148,7 @@ final class SharedRuntimeModule {
             task.setGroup("AWS Emulator - Resources");
             task.setDescription("Applies shared resource set '" + selection[2] + "' to " + selection[0] + " / " + mode + ".");
             task.dependsOn(project.provider(() ->
-                extension.resolveSetup(extension.getResourceSets().named(selection[2]), selection[0], mode)));
+                extension.resolveSetup(extension.getResourceSets().named(selection[2]), selection[0], mode, task.getPath())));
         }).get();
     }
 

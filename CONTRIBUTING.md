@@ -32,10 +32,11 @@ Use the checked-in Gradle wrapper (`gradlew.bat` on Windows). It pins Gradle
 8.14.3; consumers of the plugins require Gradle 8.14 or newer. Production code
 targets Java 17, and build scripts use the Gradle Kotlin DSL.
 
-The standard build runs both plugins' unit and functional checks, plugin
-validation, and documentation generation, verification, and packaging. Docker is
-only required for real-emulator integration tests and examples. Those require the
-`docker` CLI and a running local engine using Linux containers; the first run
+The standard build runs both plugins' unit and functional checks, code quality
+checks, plugin validation, and documentation generation, verification, and
+packaging. Docker is only required for real-emulator integration tests and
+examples. Those require the `docker` CLI and a running local engine using Linux
+containers; the first run
 downloads or builds the emulator image. No AWS account or AWS CLI is required.
 
 The containerized-runtime integration test also builds a Gradle runner image and
@@ -48,7 +49,7 @@ separate TCP endpoint, including configuration-cache reuse and failure cleanup.
 
 | Location | Purpose |
 | --- | --- |
-| `build-logic/` | Internal build convention plugins for Java, license headers, publishing, JaCoCo coverage, and test logging. |
+| `build-logic/` | Internal build convention plugins for Java, code quality, license headers, publishing, JaCoCo coverage, and test logging. |
 | `plugin/` | Core plugin, lifecycle management, resource tasks, and consumer integration. |
 | `spring-boot-plugin/` | Optional Spring Boot companion plugin. |
 | `docs/` | AsciiDoc user guide, site assets, Java API reference assembly, and link checker. |
@@ -72,10 +73,10 @@ and the functional and integration test suites. Functional tests participate in
 use the JDK selected by the developer or CI, with `--release 17` enforcing the
 compiled code's Java compatibility.
 
-The Java convention also applies `build.test-logger`. Both modules also apply
-`build.jacoco` and `build.publishing`. Module build scripts supply production
-dependencies, Gradle plugin declarations, artifact IDs and POM names, TestKit
-setup, and example-specific test inputs.
+The Java convention also applies `build.spotbugs` and `build.test-logger`. Both
+modules also apply `build.jacoco` and `build.publishing`. Module build scripts
+supply production dependencies, Gradle plugin declarations, artifact IDs and POM
+names, TestKit setup, and example-specific test inputs.
 
 Tests that reuse runnable examples declare them with `useExample(...)` or
 `useFrameworkExamples(...)`. These helpers live in
@@ -124,6 +125,9 @@ Run checks appropriate to the change from the repository root:
 | `./gradlew :plugin:functionalTest :spring-boot-plugin:functionalTest` | Gradle TestKit checks without Docker. |
 | `./gradlew dockerTest` | Both plugins' integration suites against a real emulator. |
 | `./gradlew :docs:check` | Generated site links, anchors, assets, and theme controls. |
+| `./gradlew qualityCheck` | Formatting, license headers, and production Java analysis without running tests or Docker. |
+| `./gradlew spotlessCheck` | Repository source whitespace and final newlines. |
+| `./gradlew spotbugsMain` | Static bug analysis of both plugins' production code. |
 | `./gradlew licenseCheck` | Apache 2.0 headers across the repository. |
 | `./gradlew jacocoTestReport` | Combined and per-plugin unit/functional coverage in HTML and XML. |
 | `./gradlew jacocoIntegrationTestReport` | Combined and per-plugin integration coverage; requires Docker. |
@@ -191,6 +195,45 @@ that the second run reuses the configuration cache:
 ```sh
 ./gradlew -p examples/basic integrationTest --configuration-cache
 ```
+
+### Code quality checks
+
+The root `check` and `build` tasks include `qualityCheck`, so the existing CI build
+enforces these checks. Run `./gradlew qualityCheck --configuration-cache` for a
+focused check without tests or Docker; run it again to verify cache reuse.
+
+The root applies [Spotless](https://github.com/diffplug/spotless) through
+`build-logic/spotless/src/main/kotlin/build.spotless.gradle.kts`. It checks Java,
+Kotlin, Gradle scripts, scripts/configuration files, and documentation site code,
+including the independent examples and smoke consumers. It removes trailing
+whitespace, adds final newlines, and converts leading tabs to four spaces in Java
+and Kotlin sources. Existing line wrapping, import order, and brace style are
+preserved. Prose, fixture payloads, wrapper files, and generated directories are
+excluded. License headers remain the responsibility of `build.license`.
+
+Run `./gradlew spotlessApply` to fix formatting and `./gradlew spotlessCheck` to
+verify it. The check tasks never rewrite source files.
+
+Both plugin modules receive [SpotBugs](https://github.com/spotbugs/spotbugs-gradle-plugin)
+through `build.spotbugs`, configured in
+`build-logic/spotbugs/src/main/kotlin/build.spotbugs.gradle.kts`. Analysis uses
+maximum effort and reports medium- and high-confidence findings as build failures.
+`check` analyzes production classes only: test code and TestKit fixtures deliberately
+exercise invalid inputs and failure paths. Other source-set tasks, such as
+`:plugin:spotbugsTest`, remain available for explicit analysis. SpotBugs compiles
+the selected sources but does not execute them.
+
+HTML and XML reports are written to `build/reports/spotbugs/main.html` and
+`main.xml` in each plugin module. Existing core plugin findings are recorded in
+`plugin/config/spotbugs/baseline.xml`; the Spring Boot plugin has no baseline.
+These are existing warnings pending review and fixes. New findings fail the build.
+
+Run `./gradlew spotbugsMain -PspotbugsBaseline=false` to include existing findings
+in the reports; this command fails while findings remain. Fix actionable warnings
+and remove their entries from the baseline. Do not regenerate the baseline to
+accept new warnings, or enable `ignoreFailures` to bypass the quality gate. Any
+necessary false-positive exclusion must identify the specific bug and affected
+code and explain why it is safe.
 
 ### Coverage reports
 

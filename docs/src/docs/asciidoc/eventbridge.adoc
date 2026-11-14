@@ -46,7 +46,7 @@ val tests = tasks.named<Test>("test") { dependsOn(events) }
 awsEmulator { useWith(tests) }
 ----
 
-The target task configures delivery to the queue. See the xref:sqs.adoc[SQS guide] for queue creation and message consumption setup.
+The target task configures delivery to the queue. See the xref:sqs.adoc[SQS guide] for queue settings and message fixtures.
 
 == Task properties
 

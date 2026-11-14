@@ -1,0 +1,108 @@
+= Resource reports
+include::_partials/attributes.adoc[]
+:description: Capture live S3, SQS, SNS, DynamoDB, and CloudFormation configuration as standalone HTML and JSON.
+
+toc::[]
+
+`reportAwsEmulator` captures resources currently present in an existing emulator, including resources created by Gradle tasks, CloudFormation, application code, or SDK calls. It uses the selected runtime's region, credentials, and verified HTTPS connection.
+
+== Inspect a development instance
+
+[source,shell]
+----
+./gradlew reportAwsEmulator
+./gradlew reportAwsEmulator --runtime integration
+----
+
+Start or provision the selected development instance first. Reporting never builds an image, starts or restarts an owned container, seeds resources, or changes resource state. An absent, stopped, or unhealthy instance fails the task with a connection diagnostic. An instance whose settings no longer match the build must be restarted before reporting.
+
+When setup and reporting share a Gradle invocation, declare the intended order with `dependsOn`, `mustRunAfter`, or a finalizer so the snapshot runs after provisioning.
+
+Each named runtime also has a fixed task, such as `reportAwsEmulatorIntegration`. With xref:shared-runtimes.adoc[shared ownership], the report inspects the owner's selected runtime and writes artifacts in the invoking project. With an xref:external-emulators.adoc[external connection], it connects using the supplied files without invoking Docker or managing lifecycle.
+
+== Output and coverage
+
+Both formats are written from the same snapshot:
+
+* `index.html`: a standalone, offline report with service navigation, expandable configuration, and collection issues.
+* `report.json`: machine-readable data with `schemaVersion: 1`, `capturedAt`, `runtime`, and `services`.
+
+The default directory is `build/reports/aws-emulator/<runtime>/<mode>/<taskName>/`, where mode is lowercase. For the default task, open `build/reports/aws-emulator/default/development/reportAwsEmulator/index.html`. The task prints both paths. Distinct runtime, mode, and task directories allow several snapshots in one build.
+
+[cols="1,4",options="header"]
+|===
+|Service |Collected metadata
+|S3 |Bucket names, ARNs, creation dates, regions, and versioning/MFA-delete settings.
+|SQS |Queue names and URLs, ARNs, visibility/delay/retention settings, FIFO and deduplication attributes, encryption identifiers, redrive policies, and approximate message counts.
+|SNS |Topic ARNs and settings, subscription counts, and subscription ARNs, protocols, and SQS/Lambda target endpoints. Other endpoint values are omitted.
+|DynamoDB |Table ARNs and status, key schemas and attribute types, billing mode and table throughput, secondary indexes and projections, stream settings, and service-reported item/size counts.
+|CloudFormation |Non-deleted stack names, IDs, status and timestamps, parameter/output names, and logical-to-physical resource mappings with resource types and statuses.
+|===
+
+The report queries each service's list/describe APIs and follows all response pages. It includes the selected region's results and service-global resources returned by those APIs; it does not scan other regions. Service resource counts refer to buckets, queues, topics, tables, and stacks; subscriptions and stack members are nested configuration details.
+
+Object contents, message bodies, table items, credentials, CloudFormation templates, and parameter/output values are excluded. Reporting does not receive SQS messages or scan DynamoDB items. Collection happens over several requests, so concurrently changing resources may produce an incomplete snapshot. Message and item counts may be approximate or delayed.
+
+== Collection errors
+
+Each service has a status:
+
+* `COMPLETE`: all attempted queries succeeded, including an empty inventory.
+* `PARTIAL`: some resources were captured, but one or more queries failed.
+* `FAILED`: collection failed before any resource was captured.
+
+Issues include the operation, affected resource when known, error category (`ERROR` or `UNSUPPORTED`), and exception type or service error code. Raw response bodies and exception messages are omitted. A repeated pagination token stops that listing and records an issue. Other service sections and resource metadata queries continue.
+
+By default, partial reports are written with a warning and the task succeeds. To fail the build after writing both files:
+
+[source,shell]
+----
+./gradlew reportAwsEmulator --fail-on-error
+----
+
+Connection and filesystem errors always fail the task. Previous `index.html` and `report.json` files in the task's report directory are removed before connecting, so a failed connection cannot leave a previous successful report at those paths. Archive reports elsewhere when retaining multiple runs.
+
+== Capture a managed test instance
+
+Register a typed report and attach it as a finalizer to the existing participating test task. Select the same runtime and `MANAGED` mode:
+
+[source,kotlin]
+----
+import io.github.gregwhitaker.awsemulator.emulator.ReportAwsEmulatorTask
+import io.github.gregwhitaker.awsemulator.model.EmulatorMode
+
+val reportIntegrationEmulator = tasks.register<ReportAwsEmulatorTask>("reportIntegrationEmulator") {
+    runtimeName.set("integration")
+    mode.set(EmulatorMode.MANAGED)
+}
+tasks.named<Test>("integrationTest") {
+    finalizedBy(reportIntegrationEmulator)
+}
+----
+
+This assumes `integrationTest` already participates in the named `integration` runtime through `awsEmulator.useWith(...)`. The finalizer captures state after ordinary test successes and failures, before the shared build service removes its managed instance. It keeps resource setup and test execution explicit. If the runtime was never started, reporting fails with a diagnostic and does not start an empty instance. A hard-killed Gradle process cannot run finalizers.
+
+A managed report can only inspect the instance owned by the current build. Running `reportAwsEmulator --mode MANAGED` in a later invocation cannot recover a previous build's removed resources.
+
+The {repo-url}/tree/main/examples/basic[basic example] offers this finalizer with `-PemulatorReport`:
+
+[source,shell]
+----
+./gradlew -p examples/basic integrationTest -PemulatorReport --configuration-cache
+----
+
+== Task configuration
+
+`io.github.gregwhitaker.awsemulator.emulator.ReportAwsEmulatorTask` supports:
+
+[cols="1,2,3",options="header"]
+|===
+|Property |Default |Purpose
+|`runtimeName` |`default` |Select a named runtime; CLI `--runtime <name>`.
+|`mode` |`DEVELOPMENT` on convenience tasks; `awsEmulator.defaultMode` on custom tasks (initially `MANAGED`) |Select lifecycle; CLI `--mode MANAGED` or `--mode DEVELOPMENT`.
+|`reportDirectory` |`build/reports/aws-emulator/<runtime>/<mode>/<taskName>/` |Directory containing `index.html` and `report.json`. Give independently scheduled reports distinct directories.
+|`failOnError` |`false` |Fail after writing incomplete reports; CLI `--fail-on-error`.
+|`apiCallTimeoutSeconds` |`30` |Deadline for each SDK operation, including retries.
+|===
+
+Reports always query live state. Up-to-date skipping and build-cache reuse are disabled; configuration-cache reuse and Isolated Projects are supported.

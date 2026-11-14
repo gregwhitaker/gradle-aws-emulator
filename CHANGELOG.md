@@ -2,6 +2,9 @@
 
 ## 0.2.0 — Unreleased
 
+- Add `reportAwsEmulator` and custom `ReportAwsEmulatorTask` snapshots with standalone HTML and versioned JSON for S3, SQS, SNS, DynamoDB, and CloudFormation; support existing development, managed, external, named, and shared runtimes, partial collection results, and test finalizers before cleanup.
+- Validate that resource setup passed to `useWith` and its local prerequisites use the consumer's lifecycle mode; report mismatches before execution while preserving lazy selection and configuration-cache reuse.
+- Add `awsEmulator.defaultMode` as a lazy default for custom resource tasks, retaining `MANAGED` as the initial value and allowing task-level and command-line mode overrides.
 - Add CloudFormation template validation, stack deployment/update, listing, deletion, and JSON output exports. Reject declaration-only or unknown resource types using an emulator 1.0.322 provisioning catalogue before connecting; reject uninspectable transforms, nested stacks, and custom providers. Include a real-service example and lifecycle/configuration-cache tests.
 - Default to automatic port selection for managed and development runtimes, preserving explicit ports and `-PawsEmulator.port` overrides. Keep consumer task selection explicit through `useWith`.
 - Support managed runtimes in containerized CI and on remote Docker engines with `docker.host`, `docker.context`, and `DockerTransport.TUNNEL`; preserve verified HTTPS without shared bind mounts or published emulator ports, including named/shared ownership, configuration-cache reuse, and Isolated Projects.

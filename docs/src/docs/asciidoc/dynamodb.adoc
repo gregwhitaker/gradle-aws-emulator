@@ -18,7 +18,7 @@ toc::[]
 |`DeleteDynamoDbTableTask` |`deleteDynamoDbTable` |Delete one explicitly named table and its items; wait for deletion to complete.
 |===
 
-The two registered commands default to `EmulatorMode.DEVELOPMENT`. Custom task instances default to `EmulatorMode.MANAGED`, sharing the instance used by `awsEmulator.useWith(...)`. All three accept `--mode=MANAGED` or `--mode=DEVELOPMENT`.
+The two registered commands default to `EmulatorMode.DEVELOPMENT`. Custom task instances inherit `awsEmulator.defaultMode`, initially `EmulatorMode.MANAGED`, sharing the instance used by `awsEmulator.useWith(...)` when their modes match. All three accept `--mode=MANAGED` or `--mode=DEVELOPMENT`.
 
 [source,shell]
 ----

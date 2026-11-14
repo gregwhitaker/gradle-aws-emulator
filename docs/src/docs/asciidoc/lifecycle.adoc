@@ -18,6 +18,7 @@ With an xref:external-emulators.adoc[external connection], the plugin owns no li
 |`stopAwsEmulator` |Gracefully stop and remove the development container and its generated connection files. Safe to repeat.
 |`restartAwsEmulator` |Stop and start the development instance with the current settings and empty resource state.
 |`statusAwsEmulator` |Report the development container's state, health, and endpoint.
+|`reportAwsEmulator` |Write HTML and JSON inventories of an existing instance's S3, SQS, SNS, DynamoDB, and CloudFormation resources. Does not start an instance. See xref:reports.adoc[resource reports].
 |`logsAwsEmulator` |Print the last 100 lines of development-container logs.
 |`doctorAwsEmulator` |Inspect Docker, image availability, ports, all project-owned containers, connection files, and HTTPS health. Does not build, pull, or start an instance. Reports failures with corrective hints.
 |`cleanupAwsEmulator` |Archive logs and remove stale managed containers for the runtime owner. `--report-only` previews eligibility; active managed builds and development instances are skipped.
@@ -59,7 +60,25 @@ To recreate resources and load a dataset after restarting, define a xref:scenari
 
 == Provision development resources
 
-Set the mode on each typed provisioning task:
+Set the default for custom resource tasks once on the extension:
+
+[source,kotlin]
+----
+import io.github.gregwhitaker.awsemulator.model.EmulatorMode
+import io.github.gregwhitaker.awsemulator.aws.s3.CreateS3BucketTask
+
+awsEmulator {
+    defaultMode.set(EmulatorMode.DEVELOPMENT)
+}
+
+tasks.register<CreateS3BucketTask>("createDevelopmentBucket") {
+    bucketName.set("application-development-data")
+}
+----
+
+The default applies lazily to custom resource tasks across this project's runtime names. Tasks can override it with their own `mode`; consumers select their mode separately. See xref:configuration.adoc#resource-task-configuration[resource task configuration] for precedence and consumer alignment.
+
+Alternatively, set the mode on an individual typed provisioning task:
 
 [source,kotlin]
 ----

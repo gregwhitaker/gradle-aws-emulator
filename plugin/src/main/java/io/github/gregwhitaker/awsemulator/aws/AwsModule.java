@@ -29,6 +29,7 @@ import io.github.gregwhitaker.awsemulator.aws.cloudwatchlogs.CloudWatchLogsModul
 import io.github.gregwhitaker.awsemulator.aws.cognito.CognitoModule;
 import io.github.gregwhitaker.awsemulator.aws.ses.SesModule;
 import io.github.gregwhitaker.awsemulator.aws.cloudformation.CloudFormationModule;
+import io.github.gregwhitaker.awsemulator.emulator.AwsEmulatorExtension;
 import org.gradle.api.Project;
 
 /** Loads the AWS service modules and their task configuration. */
@@ -36,6 +37,8 @@ public final class AwsModule {
     private AwsModule() {}
 
     public static void load(Project project) {
+        var defaultMode = project.getExtensions().getByType(AwsEmulatorExtension.class).getDefaultMode();
+        project.getTasks().withType(AbstractAwsResourceTask.class).configureEach(task -> task.getMode().convention(defaultMode));
         CloudFormationModule.load(project);
         SesModule.load(project);
         CognitoModule.load(project);

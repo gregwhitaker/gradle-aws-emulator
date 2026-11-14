@@ -62,6 +62,14 @@ public abstract class AwsEmulatorExtension extends EmulatorRuntimeConfiguration 
         EmulatorResourceSet.class, name -> getObjects().newInstance(EmulatorResourceSet.class, name));
 
     /**
+     * Default lifecycle mode for custom resource tasks in this project, across all runtime names.
+     * Defaults to {@link EmulatorMode#MANAGED}; task-level modes and command-line overrides take precedence.
+     * Convenience tasks, resource-set attachments, {@code useWith} consumers, and Spring Boot
+     * retain their own mode selection.
+     */
+    public abstract Property<EmulatorMode> getDefaultMode();
+
+    /**
      * Independent runtimes in this project. The reserved default runtime is configured on this extension.
      * Named runtimes inherit common settings, use automatic ports and separate working directories,
      * and configure external connections independently.
@@ -162,6 +170,11 @@ public abstract class AwsEmulatorExtension extends EmulatorRuntimeConfiguration 
         return resourceSetModule.resolve(setup, runtimeName, mode);
     }
 
+    Object resolveSetup(Object setup, String runtimeName, EmulatorMode mode, String consumerPath) {
+        requireRuntime(runtimeName);
+        return resourceSetModule.resolve(setup, runtimeName, mode, consumerPath);
+    }
+
     /**
      * Uses an explicitly selected project's runtime and optional named resource sets in this build.
      * The owner must apply the core plugin and own its runtime directly. Its runtime settings,
@@ -204,14 +217,14 @@ public abstract class AwsEmulatorExtension extends EmulatorRuntimeConfiguration 
         sharedResourceSets.addAll(java.util.List.of(resourceSets));
     }
 
-    private Object resolveConsumerSetup(Object setup, String runtimeName, EmulatorMode mode) {
+    private Object resolveConsumerSetup(Task consumer, Object setup, String runtimeName, EmulatorMode mode) {
         var dependencies = new ArrayList<Object>();
         if (sharedProjectPath != null) {
             for (String name : sharedResourceSets) {
                 dependencies.add(sharedRuntimeModule.resourceTaskPath(name, runtimeName, mode));
             }
         }
-        dependencies.add(resolveSetup(setup, runtimeName, mode));
+        dependencies.add(resolveSetup(setup, runtimeName, mode, consumer.getPath()));
         return dependencies;
     }
 
@@ -227,7 +240,10 @@ public abstract class AwsEmulatorExtension extends EmulatorRuntimeConfiguration 
      * Connects a consumer to the selected runtime after its setup tasks complete.
      * Setup accepts resource sets (including providers) and Gradle dependency notation.
      * Resource sets create separate task instances for each runtime name and mode and run their fixtures in order.
-     * Resource setup tasks must use the same mode as the consumer. When an external connection
+     * Resource setup tasks and their local prerequisites must use the same mode as the consumer;
+     * mismatches fail while resolving the selected task graph, before setup executes. Ordinary task modes
+     * are validated rather than reassigned; resource sets select the mode for their generated tasks.
+     * When an external connection
      * is enabled, both modes use that endpoint without lifecycle management or state isolation.
      */
     public void useWith(TaskProvider<? extends Task> taskProvider, EmulatorMode mode, Object... setupTasks) {
@@ -277,7 +293,7 @@ public abstract class AwsEmulatorExtension extends EmulatorRuntimeConfiguration 
                 selectedName.set(runtimeName);
                 task.dependsOn(project.provider(() -> {
                     bindRuntime(task, selectedName, runtime);
-                    return resolveConsumerSetup(setupTasks, selectedName.get(), selected.get());
+                    return resolveConsumerSetup(task, setupTasks, selectedName.get(), selected.get());
                 }));
                 return;
             }
@@ -286,7 +302,7 @@ public abstract class AwsEmulatorExtension extends EmulatorRuntimeConfiguration 
             Property<AwsEmulatorService> runtime = objects.property(AwsEmulatorService.class).convention(service);
             task.dependsOn(project.provider(() -> {
                 bindRuntime(task, selectedName, runtime);
-                return resolveConsumerSetup(setupTasks, selectedName.get(), selected.get());
+                return resolveConsumerSetup(task, setupTasks, selectedName.get(), selected.get());
             }));
             task.getExtensions().getExtraProperties().set(MODE_EXTENSION, selected);
             task.getExtensions().getExtraProperties().set(RUNTIME_NAME_EXTENSION, selectedName);

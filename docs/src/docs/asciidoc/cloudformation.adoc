@@ -132,7 +132,7 @@ Create/update/delete waits use `waitTimeoutSeconds` (default 120). Each SDK call
 
 == Lifetimes and Spring Boot
 
-Custom deployment, deletion, and listing tasks default to `MANAGED`. They use the existing `mode`, `runtimeName`, verified TLS, and credential handling. Tasks that access live stack state always execute, even if template inputs and output files are unchanged; build-cache reuse is disabled.
+Custom deployment, deletion, and listing tasks inherit `awsEmulator.defaultMode`, initially `MANAGED`. They use the existing `mode`, `runtimeName`, verified TLS, and credential handling. Tasks that access live stack state always execute, even if template inputs and output files are unchanged; build-cache reuse is disabled.
 
 Register deployment tasks explicitly with a template and stack name, as above. The registered `deleteCloudFormationStack` and `listCloudFormationStacks` convenience tasks use `DEVELOPMENT`. To deploy the earlier task into the persistent runtime:
 

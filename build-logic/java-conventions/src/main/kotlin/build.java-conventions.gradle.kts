@@ -18,6 +18,7 @@ import org.gradle.external.javadoc.StandardJavadocDocletOptions
 
 plugins {
     java
+    id("build.spotbugs")
     id("build.test-logger")
 }
 

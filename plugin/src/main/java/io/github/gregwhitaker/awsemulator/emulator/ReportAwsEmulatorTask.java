@@ -34,7 +34,7 @@ import java.time.Instant;
 /**
  * Captures S3, SQS, SNS, DynamoDB, and CloudFormation metadata from an existing emulator.
  * Writes index.html and report.json, including collection errors. Never starts an owned runtime.
- * Custom tasks default to MANAGED; the reportAwsEmulator convenience tasks use DEVELOPMENT.
+ * Custom tasks inherit awsEmulator.defaultMode (initially MANAGED); convenience tasks use DEVELOPMENT.
  */
 @DisableCachingByDefault(because = "Reads live emulator state on every invocation")
 public abstract class ReportAwsEmulatorTask extends AbstractAwsResourceTask {

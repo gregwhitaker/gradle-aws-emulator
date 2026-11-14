@@ -19,6 +19,7 @@ package io.github.gregwhitaker.awsemulator.internal.report;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -30,16 +31,14 @@ import java.util.function.Function;
 /** Collects partial service results, preserving successful reads when another request fails. */
 public final class ReportSection {
     private final String service;
-    private final List<Resource> resources = new ArrayList<>();
+    private final Map<ResourceKey, Map<String, Object>> resources = new LinkedHashMap<>();
     private final List<Issue> issues = new ArrayList<>();
 
     public ReportSection(String service) { this.service = service; }
 
     /** Adds a resource immediately, allowing subsequent metadata reads to fail independently. */
     public Map<String, Object> resource(String type, String id) {
-        var details = new TreeMap<String, Object>();
-        resources.add(new Resource(type, id, details));
-        return details;
+        return resources.computeIfAbsent(new ResourceKey(type, id), ignored -> new TreeMap<>());
     }
 
     /** Captures failures without retaining exception messages, which may echo sensitive response data. */
@@ -63,7 +62,9 @@ public final class ReportSection {
     }
 
     public Result result() {
-        var sorted = resources.stream().sorted(Comparator.comparing(Resource::type).thenComparing(Resource::id)).toList();
+        var sorted = resources.entrySet().stream()
+            .map(entry -> new Resource(entry.getKey().type(), entry.getKey().id(), entry.getValue()))
+            .sorted(Comparator.comparing(Resource::type).thenComparing(Resource::id)).toList();
         return new Result(service, issues.isEmpty() ? "COMPLETE" : resources.isEmpty() ? "FAILED" : "PARTIAL",
             sorted, List.copyOf(issues));
     }
@@ -92,8 +93,25 @@ public final class ReportSection {
         return result;
     }
 
-    public record Resource(String type, String id, Map<String, Object> configuration) {}
+    private static Map<String, Object> copyConfiguration(Map<?, ?> source) {
+        var copy = new TreeMap<String, Object>();
+        source.forEach((key, value) -> copy.put(String.valueOf(key), snapshot(value)));
+        return copy;
+    }
+
+    private static Object snapshot(Object value) {
+        if (value instanceof Map<?, ?> map) return Collections.unmodifiableMap(copyConfiguration(map));
+        if (value instanceof List<?> list) return list.stream().map(ReportSection::snapshot).toList();
+        return value;
+    }
+
+    private record ResourceKey(String type, String id) {}
+    public record Resource(String type, String id, Map<String, Object> configuration) {
+        public Resource { configuration = Collections.unmodifiableMap(copyConfiguration(configuration)); }
+    }
     public record Issue(String operation, String resource, String kind, String message) {}
-    public record Result(String service, String status, List<Resource> resources, List<Issue> issues) {}
+    public record Result(String service, String status, List<Resource> resources, List<Issue> issues) {
+        public Result { resources = List.copyOf(resources); issues = List.copyOf(issues); }
+    }
     private static final class RepeatedTokenException extends RuntimeException {}
 }

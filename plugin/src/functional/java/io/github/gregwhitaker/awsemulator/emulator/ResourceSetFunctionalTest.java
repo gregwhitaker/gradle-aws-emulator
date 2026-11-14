@@ -80,6 +80,17 @@ class ResourceSetFunctionalTest {
         assertFalse(output.contains("PROBE:MANAGED"), output);
     }
 
+    @Test void resourceSetsUseTheirConsumersModeWhenTheResourceDefaultIsDevelopment() throws Exception {
+        fixture(false);
+        append("awsEmulator.defaultMode.set(EmulatorMode.DEVELOPMENT)\n");
+        for (int run = 0; run < 2; run++) {
+            String output = runner(project, "test").build().getOutput();
+            ordered(output, "PROBE:MANAGED:base", "PROBE:MANAGED:create", "PROBE:MANAGED:seed");
+            assertFalse(output.contains("PROBE:DEVELOPMENT"), output);
+            if (run > 0) assertTrue(output.contains("Reusing configuration cache"), output);
+        }
+    }
+
     @Test void definitionsCannotOverrideTheirAttachmentsMode() throws Exception {
         fixture(false);
         append("""

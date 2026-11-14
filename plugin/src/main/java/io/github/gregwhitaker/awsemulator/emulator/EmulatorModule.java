@@ -18,6 +18,7 @@ package io.github.gregwhitaker.awsemulator.emulator;
 
 import io.github.gregwhitaker.awsemulator.core.AbstractAwsEmulatorTask;
 import io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorSettings;
+import io.github.gregwhitaker.awsemulator.model.EmulatorMode;
 import org.gradle.api.Project;
 import org.gradle.api.provider.Provider;
 
@@ -59,11 +60,12 @@ public final class EmulatorModule {
         register(project, runtimeName, "exportAwsEmulatorConnection", ExportAwsEmulatorConnectionTask.class, "Exports development connection settings for POSIX shells and PowerShell.");
         register(project, runtimeName, "reportAwsEmulator", ReportAwsEmulatorTask.class, "Writes HTML and JSON inventories of an existing AWS Emulator.");
         project.getTasks().named("reportAwsEmulator" + NamedEmulatorRuntime.taskSuffix(runtimeName), ReportAwsEmulatorTask.class)
-            .configure(task -> task.getMode().convention(io.github.gregwhitaker.awsemulator.model.EmulatorMode.DEVELOPMENT));
+            .configure(task -> task.getMode().set(EmulatorMode.DEVELOPMENT));
     }
 
     private static AwsEmulatorExtension registerExtension(Project project) {
         AwsEmulatorExtension extension = project.getExtensions().create("awsEmulator", AwsEmulatorExtension.class);
+        extension.getDefaultMode().convention(EmulatorMode.MANAGED);
         extension.getEmulatorVersion().convention("1.0.322");
         extension.getPlatform().convention("auto");
         extension.getPort().convention(project.getProviders().gradleProperty("awsEmulator.port").map(Integer::parseInt).orElse(0));

@@ -11,6 +11,7 @@ toc::[]
 [cols="1,1,3",options="header"]
 |===
 |Property |Default |Meaning
+|`defaultMode` |`EmulatorMode.MANAGED` |Default lifecycle mode for custom resource tasks in this project, including named runtimes. Explicit task modes and `--mode` take precedence. Consumers, resource-set attachments, convenience tasks, and Spring Boot select their own modes.
 |`emulatorVersion` |`1.0.322` |Pinned AWS Emulator package used when building an image.
 |`image` |Unset |Use this Docker image instead of building one. Pull it if it is missing locally.
 |`platform` |`auto` |Detect the Docker engine architecture, or select `linux/amd64` or `linux/arm64`.
@@ -84,6 +85,21 @@ The plugin does not modify your personal AWS configuration. See xref:connections
 
 == Resource task configuration
 
-`runtimeName`, `mode`, and `apiCallTimeoutSeconds` belong to individual provisioning tasks. The defaults are `default`, `EmulatorMode.MANAGED`, and `30` seconds per SDK operation. Select another declared runtime with `runtimeName.set("integration")` or `--runtime integration`.
+`runtimeName`, `mode`, and `apiCallTimeoutSeconds` belong to individual provisioning tasks. Custom tasks default to runtime `default`, mode `awsEmulator.defaultMode` (initially `EmulatorMode.MANAGED`), and `30` seconds per SDK operation. Select another declared runtime with `runtimeName.set("integration")` or `--runtime integration`.
+
+Set the shared resource-task default once for a development project:
+
+[source,kotlin]
+----
+import io.github.gregwhitaker.awsemulator.model.EmulatorMode
+
+awsEmulator {
+    defaultMode.set(EmulatorMode.DEVELOPMENT)
+}
+----
+
+In Groovy, use the same import and `awsEmulator { defaultMode.set(EmulatorMode.DEVELOPMENT) }`. Tasks registered before or after the extension block inherit the property lazily. A task's explicit `mode.set(...)` or `--mode=MANAGED` overrides it. Development resources remain available until `stopAwsEmulator`.
+
+This property applies to custom resource tasks in the current project, across all runtime names. Module convenience tasks use `DEVELOPMENT`; resource sets use their consumer or scenario's mode. `useWith(task)` continues to select `MANAGED`. To align a consumer with the resource-task default, pass the property explicitly: `awsEmulator { useWith(tasks.named<Test>("test"), defaultMode) }`. The Spring Boot companion uses its own `awsEmulator.springBoot.mode` setting.
 
 Each service guide lists its task properties. See xref:s3.adoc#task-properties[S3 task properties] for buckets and objects, or xref:sqs.adoc#task-properties[SQS task properties] for queues and message fixtures.

@@ -51,6 +51,33 @@ class EmulatorRuntimeTest {
     }
 
     @Test
+    void inspectionNeverStartsAnInstanceAndOnlyReusesThisBuildsManagedRuntime() throws Exception {
+        FakeDocker docker = new FakeDocker();
+        try (var runtime = new EmulatorRuntime(settings(), docker, (port, store) -> true)) {
+            assertTrue(assertThrows(GradleException.class, () -> runtime.inspectionConnection(false)).getMessage().contains("not running"));
+            assertTrue(assertThrows(GradleException.class, () -> runtime.inspectionConnection(true)).getMessage().contains("No managed"));
+            assertTrue(docker.calls.stream().allMatch(call -> call.contains("ls")));
+            var development = runtime.developmentConnection();
+            var managed = runtime.managedConnection();
+            docker.calls.clear();
+            assertEquals(development, runtime.inspectionConnection(false));
+            assertSame(managed, runtime.inspectionConnection(true));
+            assertTrue(docker.calls.stream().allMatch(call -> call.contains("ls") || call.contains("inspect")));
+            try (var other = new EmulatorRuntime(settings(), docker, (port, store) -> true)) {
+                assertThrows(GradleException.class, () -> other.inspectionConnection(true));
+                assertEquals(development, other.inspectionConnection(false));
+            }
+            docker.containers.get(settings().developmentName()).state = "exited";
+            assertThrows(GradleException.class, () -> runtime.inspectionConnection(false));
+            assertEquals(2, docker.containers.size());
+            Files.delete(managed.credentials());
+            assertTrue(assertThrows(GradleException.class, () -> runtime.inspectionConnection(true)).getMessage().contains("files are missing"));
+            runtime.stopDevelopment();
+        }
+        assertTrue(docker.containers.isEmpty());
+    }
+
+    @Test
     void tunnelCopiesPrivateConnectionFilesAndReleasesItsPortAndHome() throws Exception {
         FakeDocker docker = new FakeDocker();
         EmulatorConnection connection;
@@ -64,6 +91,7 @@ class EmulatorRuntimeTest {
                     Files.getPosixFilePermissions(connection.credentials()));
             }
             assertSame(connection, runtime.managedConnection());
+            assertSame(connection, runtime.inspectionConnection(true));
         }
         assertTrue(docker.containers.isEmpty());
         assertFalse(Files.exists(connection.directory()));

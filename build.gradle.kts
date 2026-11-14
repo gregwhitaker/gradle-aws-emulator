@@ -18,13 +18,20 @@ plugins {
     base
     id("build.jacoco")
     id("build.license")
+    id("build.spotless")
 }
 
 description = "Build, verification, and documentation for the AWS Emulator Gradle plugin"
 
 tasks.named("assemble") { dependsOn(":plugin:assemble", ":spring-boot-plugin:assemble", ":docs:assemble") }
-tasks.named("check") { dependsOn(":plugin:check", ":spring-boot-plugin:check", ":docs:check") }
+tasks.named("check") { dependsOn("qualityCheck", ":plugin:check", ":spring-boot-plugin:check", ":docs:check") }
 tasks.named("clean") { dependsOn(":plugin:clean", ":spring-boot-plugin:clean", ":docs:clean") }
+
+tasks.register("qualityCheck") {
+    group = "verification"
+    description = "Checks source formatting, license headers, and production Java code without running tests."
+    dependsOn("spotlessCheck", "licenseCheck", ":plugin:spotbugsMain", ":spring-boot-plugin:spotbugsMain")
+}
 
 // Preserve the 0.1 command while keeping real-emulator tests in their own source set.
 tasks.register("dockerTest") {

@@ -23,5 +23,6 @@ repositories {
 }
 
 dependencies {
+    implementation(project(":spotbugs"))
     implementation(project(":test-logger"))
 }

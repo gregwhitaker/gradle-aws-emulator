@@ -46,10 +46,12 @@ An explicit `port.set(...)` takes precedence over `-PawsEmulator.port=...`. Leav
 
 Check both pieces of wiring:
 
-. The test depends on the provisioning tasks with `dependsOn(...)`.
-. The same test provider is passed to `awsEmulator.useWith(...)`.
+. The test provider is passed to `awsEmulator.useWith(...)`.
+. The required provisioning tasks or resource sets are passed as setup arguments to that call.
 
 Keep provisioning tasks in the default `MANAGED` mode to share the test runtime. A `DEVELOPMENT` task creates resources in a separate instance. A standalone managed provisioning build removes its resources at the end; run setup and consumers in the same build.
+
+Pass provisioning tasks or their wrapper task as setup arguments to `useWith`, for example `useWith(tests, EmulatorMode.MANAGED, createQueue)`. The plugin checks those tasks and their local prerequisites before execution. An error such as `setup task :createQueue uses DEVELOPMENT but consumer :test uses MANAGED` means the setup and consumer would use separate instances. Set matching modes, or use a reusable resource set to create independent managed and development task graphs.
 
 Tests that are skipped or have no sources do not start the emulator themselves, but their provisioning dependencies can still execute.
 

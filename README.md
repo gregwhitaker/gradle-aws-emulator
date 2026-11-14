@@ -39,6 +39,7 @@ In `build.gradle.kts`, apply the plugin and create a queue before your existing 
 
 ```kotlin
 import io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueueTask
+import io.github.gregwhitaker.awsemulator.model.EmulatorMode
 
 plugins {
     java
@@ -49,16 +50,16 @@ val createQueue = tasks.register<CreateSqsQueueTask>("createTestQueue") {
     queueName.set("application-events")
 }
 
-val tests = tasks.named<Test>("test") {
-    dependsOn(createQueue)
-}
+val tests = tasks.named<Test>("test")
 
 awsEmulator {
-    useWith(tests)
+    useWith(tests, EmulatorMode.MANAGED, createQueue)
 }
 ```
 
 Add `.aws-emulator/` to your application's `.gitignore`, then run `./gradlew test`. The queue and tests share one managed instance, which is cleaned up after the build. An available port is selected automatically; set `-PawsEmulator.port=9297` to use a fixed port.
+
+Setup tasks passed to `useWith`, including their local resource prerequisites, must use the consumer's mode. A mismatch fails before setup runs and identifies both tasks and modes. Use resource sets to reuse definitions across managed tests and development consumers.
 
 For a separate integration suite, attach its existing `integrationTest` task with `useWith` so ordinary unit tests run independently of the emulator. The basic example uses this arrangement.
 
@@ -91,6 +92,18 @@ awsEmulator { useWith(tasks.named<Test>("test")) }
 | **Development** | `startAwsEmulator`, module convenience tasks, or `EmulatorMode.DEVELOPMENT`. | Explicit `stopAwsEmulator`; the instance survives Gradle and application exits. |
 
 Managed instances start fresh and are shared by participating tasks selecting the same runtime name in each project. Development instances are separate. **Stopping or restarting either instance discards its in-memory AWS resources.** Managed cleanup saves container logs under the selected runtime's working directory.
+
+To make custom resource tasks use the persistent development instance by default:
+
+```kotlin
+import io.github.gregwhitaker.awsemulator.model.EmulatorMode
+
+awsEmulator {
+    defaultMode.set(EmulatorMode.DEVELOPMENT)
+}
+```
+
+`defaultMode` defaults to `MANAGED` and applies to custom resource tasks across this project's runtime names. Explicit task `mode` values and `--mode` override it. Convenience tasks use development mode; resource sets use their attachment's mode. Configure consumers separately with `useWith(task, EmulatorMode.DEVELOPMENT)` or `useWith(task, defaultMode)` to share those development resources. Spring Boot selects its mode through `awsEmulator.springBoot.mode`.
 
 `useWith` accepts existing `Test`, `JavaExec`, and `Exec` tasks. Configuration-cache reuse is supported. Tasks that access emulator state opt out of up-to-date checks and build-cache reuse; see [tests and process execution](docs/src/docs/asciidoc/testing.adoc) for setup dependencies and execution rules.
 
@@ -173,6 +186,14 @@ In your own application, omit `-p examples/basic`. Use `restartAwsEmulator` afte
 
 For applications launched outside Gradle, use [shell and IDE connection exports](docs/src/docs/asciidoc/connections.adoc#shell-exports). For startup failures or containers left after an interrupted build, see [troubleshooting](docs/src/docs/asciidoc/troubleshooting.adoc).
 
+### Resource reports
+
+Inspect an existing development instance with `./gradlew reportAwsEmulator`. The task writes a standalone HTML report and JSON inventory for S3, SQS, SNS, DynamoDB, and CloudFormation, including resource configuration, subscriptions, and stack membership.
+
+Reports are saved under `build/reports/aws-emulator/default/development/reportAwsEmulator/` as `index.html` and `report.json`. Select a named runtime with `--runtime integration`. The report never starts an owned emulator; start or provision the selected instance first.
+
+For managed test snapshots, register a `ReportAwsEmulatorTask` as a test finalizer. The [basic example](examples/basic/README.md#resource-reports) demonstrates this with `-PemulatorReport`, including capture after test failures. See the [report guide](docs/src/docs/asciidoc/reports.adoc) for configuration, coverage, and collection errors.
+
 ### Spring Boot
 
 The optional **`io.github.gregwhitaker.aws-emulator.spring-boot`** companion adds `bootRunLocal` and `bootRunLocalDebug`, with automatic resource creation before startup. Apply it alongside your chosen `org.springframework.boot` version; it applies the core emulator plugin for you.
@@ -200,11 +221,15 @@ See the [documentation website](https://gregwhitaker.github.io/gradle-aws-emulat
 ```sh
 ./gradlew build       # Unit/functional tests, plugin validation, and documentation
 ./gradlew dockerTest  # Integration tests against Docker
+./gradlew qualityCheck  # Formatting, license headers, and SpotBugs; no tests or Docker
+./gradlew spotlessApply  # Fix source whitespace and final newlines
 ./gradlew licenseFormat  # Apply Apache 2.0 headers to project-owned source files
 ./gradlew jacocoTestReport  # Unit/functional coverage for both plugins
 ```
 
-`build` also checks license headers. Run `./gradlew licenseCheck` to check them separately.
+`build` also checks source formatting and license headers, and runs SpotBugs on both
+plugins' production code. See [code quality checks](CONTRIBUTING.md#code-quality-checks)
+for individual commands, formatting rules, and analysis reports.
 
 `build` generates JaCoCo HTML and XML reports for each plugin and a combined report.
 Open `build/reports/jacoco/test/html/index.html` for combined unit and functional

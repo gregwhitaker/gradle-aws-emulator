@@ -244,21 +244,21 @@ body:has(.search-dialog[open]) { overflow: hidden; }
   :root { --sidebar: 220px; --article-left: calc(var(--sidebar) + 32px); --article-width: calc(100vw - var(--sidebar) - 64px); }
   .docs-home { --article-width: calc(100vw - var(--sidebar) - 64px); --article-left: calc(var(--sidebar) + 32px); }
   .site-header { gap: 12px; padding-right: 22px; }
-  .header-sections > a:not(.is-current) { display: none; }
+  .header-sections > a:not(.is-current):not(.header-resources) { display: none; }
   .header-links > a { display: none; }
+  .search-toggle { width: 34px; height: 36px; padding: 8px; border-color: transparent; background: transparent; }
+  .search-toggle > span, .search-toggle kbd { display: none; }
   .site-nav { padding-left: 16px; padding-right: 16px; }
   .runtime-flow { grid-template-columns: 1fr; gap: 20px; }
   .lifecycle-grid { grid-template-columns: 1fr; }
 }
 @media (min-width: 761px) { .menu-toggle { display: none; } }
 @media (max-width: 760px) {
-  :root { --header: 68px; --article-width: auto; --article-left: 26px; }
-  .site-header { padding: 0 22px; gap: 10px; }
+  :root { --header: 108px; --article-width: auto; --article-left: 26px; }
+  .site-header { display: grid; grid-template-columns: 1fr auto; grid-template-rows: 68px 40px; padding: 0 22px; gap: 0 10px; }
   .site-header .brand { width: auto; }
-  .header-links { gap: 12px; }
-  .header-links > a, .header-sections { display: none; }
-  .search-toggle { width: 34px; height: 36px; padding: 8px; border-color: transparent; background: transparent; }
-  .search-toggle > span, .search-toggle kbd { display: none; }
+  .header-links { grid-column: 2; grid-row: 1; gap: 12px; }
+  .header-sections { grid-column: 1 / -1; grid-row: 2; gap: 24px; }
   .site-nav { position: relative; inset: auto; width: auto; margin-top: var(--header); border-right: 0; border-bottom: 1px solid var(--line); padding: 24px 26px; }
   .js .site-nav { display: none; position: fixed; inset: var(--header) 0 0; margin: 0; width: 100%; z-index: 9; }
   .js .site-nav.is-open { display: block; }

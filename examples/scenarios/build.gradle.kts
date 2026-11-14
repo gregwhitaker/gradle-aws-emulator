@@ -76,6 +76,7 @@ val failedOrders = awsEmulator.resourceSets.register("failed-orders") {
 }
 
 awsEmulator {
+    defaultMode.set(EmulatorMode.DEVELOPMENT)
     defaultScenario.set("demo")
     scenarios {
         register("demo") { resources(demo) }
@@ -85,7 +86,6 @@ awsEmulator {
 }
 
 tasks.register<DownloadS3ObjectTask>("downloadAsset") {
-    mode.set(EmulatorMode.DEVELOPMENT)
     bucketName.set("scenario-assets")
     objectKey.set("assets/nested/message.txt")
     outputFile.set(layout.buildDirectory.file("downloads/message.txt"))

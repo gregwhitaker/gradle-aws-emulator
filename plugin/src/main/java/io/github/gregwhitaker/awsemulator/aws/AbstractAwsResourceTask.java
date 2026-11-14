@@ -35,7 +35,10 @@ public abstract class AbstractAwsResourceTask extends AbstractAwsEmulatorTask {
         getOutputs().doNotCacheIf("Uses live emulator resources", ignored -> true);
     }
 
-    /** Selects the lifecycle mode within runtimeName. Custom instances default to MANAGED; convenience tasks use DEVELOPMENT. */
+    /**
+     * Selects the lifecycle mode within runtimeName. Custom instances inherit awsEmulator.defaultMode
+     * (MANAGED by default); convenience tasks use DEVELOPMENT. Explicit task values take precedence.
+     */
     @Input
     public abstract Property<EmulatorMode> getMode();
 

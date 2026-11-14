@@ -60,6 +60,40 @@ class ProvisioningIntegrationTest {
     }
 
     @Test
+    void developmentDefaultStartsPersistentResourcesAndAllowsAManagedOverride() throws Exception {
+        fixture();
+        Files.writeString(project.resolve("build.gradle"), "\nawsEmulator.defaultMode.set(EmulatorMode.DEVELOPMENT)\n",
+            java.nio.file.StandardOpenOption.APPEND);
+        try {
+            isolated("createBucket", "createQueue").build();
+            String original = containers();
+            assertFalse(original.isBlank());
+            EmulatorConnection connection;
+            try (var directories = Files.list(project.resolve(".aws-emulator/development/.aws/emulator"))) {
+                Path directory = directories.filter(Files::isDirectory).findFirst().orElseThrow();
+                connection = new EmulatorConnection(Integer.parseInt(directory.getFileName().toString()), "eu-west-1", directory);
+            }
+            var clients = new AwsClientFactory(connection, 30);
+            try (var s3 = clients.s3(); var sqs = clients.sqs()) {
+                s3.putObject(request -> request.bucket("fixture-bucket").key("keep"), RequestBody.fromString("persistent data"));
+                String repeat = isolated("createBucket", "createQueue").build().getOutput();
+                assertTrue(repeat.contains("Reusing configuration cache"), repeat);
+                assertEquals(original, containers());
+                assertEquals("persistent data", s3.getObjectAsBytes(request -> request.bucket("fixture-bucket").key("keep")).asUtf8String());
+                assertTrue(sqs.getQueueUrl(request -> request.queueName("fixture-events")).queueUrl().endsWith("/fixture-events"));
+
+                isolated("createFifo", "--mode=MANAGED").build();
+                assertEquals(original, containers(), "Managed override must clean up only its own instance");
+                assertTrue(sqs.listQueues().queueUrls().stream().noneMatch(url -> url.endsWith("/fixture-events.fifo")));
+            }
+        } finally {
+            runner(project, "stopAwsEmulator").build();
+        }
+        assertEquals("", containers());
+        assertFalse(Files.exists(project.resolve(".aws-emulator/development")));
+    }
+
+    @Test
     void developmentResourcesPersistAndAttributeDriftFailsWithoutChangingData() throws Exception {
         fixture();
         try {

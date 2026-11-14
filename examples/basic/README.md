@@ -59,9 +59,22 @@ To create buckets and a standard queue that remain available between Gradle invo
 ./gradlew -p examples/basic createExampleQueue --mode=DEVELOPMENT
 ./gradlew -p examples/basic listS3Buckets listSqsQueues
 ./gradlew -p examples/basic statusAwsEmulator
+./gradlew -p examples/basic reportAwsEmulator
 ./gradlew -p examples/basic stopAwsEmulator
 ```
 
 The development instance is separate from the managed test instance. Stopping or restarting it discards its resources. Run `stopAwsEmulator` when finished.
+
+## Resource reports
+
+The development command above writes `index.html` and `report.json` under `examples/basic/build/reports/aws-emulator/default/development/reportAwsEmulator/`. It inspects existing resources without starting an emulator or changing resource state.
+
+To capture the managed instance after integration tests, including ordinary test failures:
+
+```sh
+./gradlew -p examples/basic integrationTest -PemulatorReport --configuration-cache
+```
+
+The optional `reportIntegrationEmulator` finalizer writes both formats under `examples/basic/build/reports/aws-emulator/default/managed/reportIntegrationEmulator/` before cleanup. Repeat the command to check configuration-cache reuse; add `-PfailExample=true` to exercise failure capture. Reports cover S3, SQS, SNS, DynamoDB, and CloudFormation; this example provisions S3 and SQS, so the remaining sections are empty. See the [report guide](../../docs/src/docs/asciidoc/reports.adoc) for fields and collection errors.
 
 See the [S3 guide](../../docs/src/docs/asciidoc/s3.adoc) and [SQS guide](../../docs/src/docs/asciidoc/sqs.adoc) for their task references. The [main README](../../README.md) covers lifecycle commands and SDK connection details.

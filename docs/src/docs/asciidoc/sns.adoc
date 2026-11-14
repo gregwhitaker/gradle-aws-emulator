@@ -66,7 +66,7 @@ awsEmulator {
 
 == Task properties
 
-All properties use Gradle's lazy property API. Every task also accepts `mode` (custom instances default to `MANAGED`) and `apiCallTimeoutSeconds` (default `30`, positive). Tasks always execute against live emulator state, including on configuration-cache reuse, and never use the build cache.
+All properties use Gradle's lazy property API. Every task also accepts `mode` (custom instances inherit `awsEmulator.defaultMode`, initially `MANAGED`) and `apiCallTimeoutSeconds` (default `30`, positive). Tasks always execute against live emulator state, including on configuration-cache reuse, and never use the build cache.
 
 [cols="1,1,2",options="header"]
 |===

@@ -55,7 +55,7 @@ Uploads replace objects at matching keys and preserve other objects. They do not
 |`DownloadS3ObjectTask` |`bucketName`, `objectKey`, `outputFile` |None
 |===
 
-All four types also accept `mode` and `apiCallTimeoutSeconds`. Custom instances default to `MANAGED`. Buckets must exist before object tasks execute; declare `dependsOn` on their creation tasks.
+All four types also accept `mode` and `apiCallTimeoutSeconds`. Custom instances inherit `awsEmulator.defaultMode`, initially `MANAGED`. Buckets must exist before object tasks execute; declare `dependsOn` on their creation tasks.
 
 The registered `listS3Objects` command defaults to `DEVELOPMENT`, follows all response pages, and prints keys and sizes:
 
@@ -108,7 +108,7 @@ Imports replace the entire existing item when its primary key matches; other ite
 ./gradlew purgeDynamoDbTable --tableName=application-products
 ----
 
-Both item task types accept `tableName`, `mode`, `apiCallTimeoutSeconds`, `maxRetries`, and `retryDelayMillis`. `PutDynamoDbItemsTask` additionally requires `itemsFile`. Custom instances use `MANAGED`; the registered purge command uses `DEVELOPMENT`.
+Both item task types accept `tableName`, `mode`, `apiCallTimeoutSeconds`, `maxRetries`, and `retryDelayMillis`. `PutDynamoDbItemsTask` additionally requires `itemsFile`. Custom instances inherit `awsEmulator.defaultMode`, initially `MANAGED`; the registered purge command uses `DEVELOPMENT`.
 
 [[resource-sets]]
 == Reuse resources across tests and development

@@ -23,7 +23,7 @@ Supported workflows are User Pool provisioning, public clients, administrative u
 
 == Tasks and defaults
 
-All task types share `mode` (default `MANAGED`) and `apiCallTimeoutSeconds` (default `30`). They always execute against live state, with up-to-date skipping and build-cache reuse disabled. Configuration-cache reuse is supported. Applying the plugin or listing tasks does not start Docker.
+All task types share `mode` (custom instances inherit `awsEmulator.defaultMode`, initially `MANAGED`) and `apiCallTimeoutSeconds` (default `30`). They always execute against live state, with up-to-date skipping and build-cache reuse disabled. Configuration-cache reuse is supported. Applying the plugin or listing tasks does not start Docker.
 
 [cols="2,3",options="header"]
 |===

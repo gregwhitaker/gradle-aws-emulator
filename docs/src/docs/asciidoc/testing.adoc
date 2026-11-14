@@ -82,22 +82,25 @@ The plugin does not install external commands or SDKs. Use compatible SDKs with 
 
 == Provision before consumers run
 
-Make the consumer depend on the required resource tasks. Their default `MANAGED` mode uses the same instance as `useWith` in that project.
+Pass the required resource tasks as setup arguments to `useWith`; it adds their task dependencies and checks their runtime selection. Their initial `MANAGED` default uses the same instance as `useWith` in that project. If you change `awsEmulator.defaultMode`, align each consumer with its resources by passing that property to `useWith`, or explicitly set the provisioning tasks to `MANAGED` for managed tests.
 
 [source,kotlin]
 ----
 import io.github.gregwhitaker.awsemulator.aws.s3.CreateS3BucketTask
+import io.github.gregwhitaker.awsemulator.model.EmulatorMode
 
 val createBucket = tasks.register<CreateS3BucketTask>("createTestBucket") {
     bucketName.set("application-test-data")
 }
-val tests = tasks.named<Test>("test") {
-    dependsOn(createBucket)
-}
+val tests = tasks.named<Test>("test")
 awsEmulator {
-    useWith(tests)
+    useWith(tests, EmulatorMode.MANAGED, createBucket)
 }
 ----
+
+Resource setup tasks must use the same `MANAGED` or `DEVELOPMENT` mode as their consumer. Validation follows local prerequisites, including wrapper tasks and file-producing providers, and reports both task paths and modes before any selected task executes. It uses the final lazy mode selection and preserves configuration-cache reuse. Ordinary setup task modes are not changed automatically. A resource set creates separate tasks with the correct mode for each attachment.
+
+Declare emulator setup through `useWith` to get this validation; unrelated Gradle `dependsOn` edges are not treated as setup declarations. Keep shared owner setup in xref:shared-runtimes.adoc[shared resource sets].
 
 See xref:s3.adoc#s3-bucket-behavior[S3 bucket behavior] for region selection and reuse. To provision queues before tests, see the xref:sqs.adoc[SQS guide].
 

@@ -89,8 +89,10 @@
       menu.focus();
     }
   });
-  nav.addEventListener('click', event => {
-    if (event.target.closest('a')) setMenu(false);
+  document.querySelectorAll('.site-nav, .site-header').forEach(region => {
+    region.addEventListener('click', event => {
+      if (event.target.closest('a')) setMenu(false);
+    });
   });
   // Keep the current page in view within long desktop navigation lists.
   if (current && !mobile.matches) nav.scrollTop = Math.max(0, current.offsetTop - nav.clientHeight / 2);

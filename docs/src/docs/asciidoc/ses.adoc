@@ -99,7 +99,7 @@ tasks.register<PutSesEmailTemplateTask>("putWelcomeTemplate") {
 
 == Lifetimes and Spring Boot
 
-Custom tasks default to `MANAGED`. All live SES tasks execute each time and are excluded from up-to-date skipping and the build cache; configuration-cache reuse is supported. Send tasks submit a new message on each invocation. Their message IDs are valid only within the runtime that accepted them.
+Custom tasks inherit `awsEmulator.defaultMode`, initially `MANAGED`. All live SES tasks execute each time and are excluded from up-to-date skipping and the build cache; configuration-cache reuse is supported. Send tasks submit a new message on each invocation. Their message IDs are valid only within the runtime that accepted them.
 
 The module registers development convenience tasks `listSesEmailIdentities`, `deleteSesEmailIdentity`, `deleteSesEmailTemplate`, `listSesConfigurationSets`, `deleteSesConfigurationSet`, `sendSesEmail`, and `getSesMessageInsights`. Use `--mode=MANAGED` to override their mode. The delete tasks accept `--emailIdentity`, `--templateName`, or `--configurationSetName`, as appropriate. The send command accepts `--fromAddress`, comma-separated `--toAddresses`, `--subject`, `--textBody`, and `--configurationSetName`. Inspection accepts `--messageId`.
 

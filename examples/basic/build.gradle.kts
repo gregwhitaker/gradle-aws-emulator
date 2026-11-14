@@ -19,6 +19,8 @@ import io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueueTask
 import io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueuesTask
 import io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueueWithDlqTask
 import io.github.gregwhitaker.awsemulator.aws.sqs.PublishSqsTask
+import io.github.gregwhitaker.awsemulator.emulator.ReportAwsEmulatorTask
+import io.github.gregwhitaker.awsemulator.model.EmulatorMode
 
 plugins {
     java
@@ -64,7 +66,6 @@ val publishFixtures = tasks.register<PublishSqsTask>("publishFixtures") {
 
 val integrationTest = tasks.register<Test>("integrationTest") {
     description = "Verifies provisioned S3 and SQS resources using signed AWS SDK requests."
-    dependsOn(createBuckets, createQueue, createFifoQueue, publishFixtures)
     group = "verification"
     testClassesDirs = integrationSourceSet.output.classesDirs
     classpath = integrationSourceSet.runtimeClasspath
@@ -87,5 +88,13 @@ val integrationTest = tasks.register<Test>("integrationTest") {
 }
 
 awsEmulator {
-    useWith(integrationTest)
+    useWith(integrationTest, EmulatorMode.MANAGED, createBuckets, createQueue, createFifoQueue, publishFixtures)
+}
+
+// Opt in to a snapshot after successful or failed tests, before the managed instance is removed.
+val reportIntegrationEmulator = tasks.register<ReportAwsEmulatorTask>("reportIntegrationEmulator") {
+    mode.set(EmulatorMode.MANAGED)
+}
+if (providers.gradleProperty("emulatorReport").isPresent) {
+    integrationTest.configure { finalizedBy(reportIntegrationEmulator) }
 }

@@ -20,6 +20,8 @@ import java.util.List;
 
 /** Versioned, execution-time inventory shared by the HTML and JSON renderers. */
 public record EmulatorReport(int schemaVersion, String capturedAt, RuntimeInfo runtime, List<ReportSection.Result> services) {
+    public EmulatorReport { services = List.copyOf(services); }
+
     /** Connection metadata only; credentials and TLS file contents are never included. */
     public record RuntimeInfo(String name, String mode, boolean external, String endpoint, String region) {}
 
