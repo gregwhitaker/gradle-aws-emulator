@@ -59,6 +59,10 @@ class FrameworkCompatibilityFunctionalTest {
             """, StandardOpenOption.APPEND);
         String help = runner(project, "help", "-Pdevelopment=true").build().getOutput();
         assertFalse(help.contains("AWS Emulator for"), help);
+        // Micronaut's GraalVM plugin creates a shared agent access-filter file the first
+        // time run/test JVM arguments are queried. Warm it before measuring cache reuse,
+        // so the result does not depend on another framework test having run first.
+        runner(project, "test", "run", "--debug-jvm", "--dry-run", "-Pdevelopment=true").build();
         for (int run = 0; run < 2; run++) {
             String output = runner(project, "test", "run", "--debug-jvm", "--dry-run", "-Pdevelopment=true").build().getOutput();
             assertBefore(output, ":createTestQueue SKIPPED", ":test SKIPPED");

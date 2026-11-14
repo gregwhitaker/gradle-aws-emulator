@@ -2,7 +2,7 @@ Conditions:
   Disabled: !Equals [one, two]
 Resources:
   Alarm:
-    Type: AWS::CloudWatch::Alarm
+    Type: AWS::CloudWatch::CompositeAlarm
     Condition: Disabled
     Properties:
       AlarmName: never-created

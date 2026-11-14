@@ -121,7 +121,7 @@ The runnable example verifies simulated `Send` and `Bounce` notifications for `b
 
 == MailHog, Mailpit, And SMTP
 
-AWS Emulator `1.0.322` records SES messages internally and does not relay them to an SMTP server. There is no `SMTP_HOST` or MailHog/Mailpit relay setting in this plugin. This is based on the pinned release's https://github.com/aws/aws-emulator/blob/v1.0.322/services/service-com-amazonaws-sesv2-simpleemailservice-v2/src/ops/send_email.rs[SendEmail implementation] and https://github.com/aws/aws-emulator/blob/v1.0.322/services/service-com-amazonaws-sesv2-simpleemailservice-v2/src/state.rs[message state]. Stored message bodies are not available through `GetMessageInsights`.
+AWS Emulator `1.0.367` records SES messages internally and does not relay them to an SMTP server. There is no `SMTP_HOST` or MailHog/Mailpit relay setting in this plugin. This is based on the pinned release's https://github.com/aws/aws-emulator/blob/v1.0.367/services/service-com-amazonaws-sesv2-simpleemailservice-v2/src/ops/send_email.rs[SendEmail implementation] and https://github.com/aws/aws-emulator/blob/v1.0.367/services/service-com-amazonaws-sesv2-simpleemailservice-v2/src/state.rs[message state]. Stored message bodies are not available through `GetMessageInsights`.
 
 For a browser inbox showing HTML, MIME, and attachments, configure your application's local SMTP mail sender to use https://github.com/mailhog/MailHog[MailHog] or https://mailpit.axllent.org/docs/configuration/smtp/[Mailpit], usually at `localhost:1025`. For example, an application using Spring Boot's mail starter and `JavaMailSender` can select a local profile with:
 

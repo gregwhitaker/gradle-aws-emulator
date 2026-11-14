@@ -92,6 +92,55 @@ class CloudFormationTasksIntegrationTest {
         assertNoContainers();
     }
 
+    @Test void newlyAuditedCognitoHandlersCreateUpdateAndDeleteRealServiceResources() throws Exception {
+        fixture();
+        Files.writeString(project.resolve("fixtures/stack.yaml"), """
+            Parameters:
+              QueueName: {Type: String}
+            Resources:
+              Pool:
+                Type: AWS::Cognito::UserPool
+                Properties:
+                  UserPoolName: !Ref QueueName
+              Client:
+                Type: AWS::Cognito::UserPoolClient
+                Properties:
+                  UserPoolId: !Ref Pool
+                  ClientName: audited-client
+                  ExplicitAuthFlows: [ALLOW_USER_PASSWORD_AUTH, ALLOW_REFRESH_TOKEN_AUTH]
+              ResourceServer:
+                Type: AWS::Cognito::UserPoolResourceServer
+                Properties:
+                  UserPoolId: !Ref Pool
+                  Identifier: audited-api
+                  Name: audited-api
+                  Scopes: [{ScopeName: read, ScopeDescription: Read access}]
+            Outputs:
+              PoolId: {Value: !Ref Pool}
+              ClientId: {Value: !Ref Client}
+            """);
+        try {
+            runner(project, "deployExampleStack", "-Pdevelopment=true").build();
+            try (var cognito = new AwsClientFactory(connection(), 30).cognitoIdentityProvider()) {
+                String pool = outputs().path("PoolId").asText();
+                String client = outputs().path("ClientId").asText();
+                assertEquals("cloudformation-example-events",
+                    cognito.describeUserPool(r -> r.userPoolId(pool)).userPool().name());
+                assertEquals("audited-client",
+                    cognito.describeUserPoolClient(r -> r.userPoolId(pool).clientId(client)).userPoolClient().clientName());
+                assertEquals("read", cognito.describeResourceServer(r -> r.userPoolId(pool).identifier("audited-api"))
+                    .resourceServer().scopes().get(0).scopeName());
+                runner(project, "deployExampleStack", "-Pdevelopment=true", "-PqueueName=audited-updated-pool").build();
+                assertEquals(pool, outputs().path("PoolId").asText());
+                assertEquals("audited-updated-pool", cognito.describeUserPool(r -> r.userPoolId(pool)).userPool().name());
+                runner(project, "deleteCloudFormationStack", "--stackName=cloudformation-example").build();
+                assertThrows(software.amazon.awssdk.services.cognitoidentityprovider.model.ResourceNotFoundException.class,
+                    () -> cognito.describeUserPool(r -> r.userPoolId(pool)));
+            }
+        } finally { runner(project, "stopAwsEmulator").build(); }
+        assertNoContainers();
+    }
+
     @Test void provisioningFailureFailsTheTaskAndCleansUpItsManagedRuntime() throws Exception {
         fixture();
         Files.writeString(project.resolve("fixtures/stack.yaml"), """

@@ -75,7 +75,7 @@ The [S3 tasks](docs/src/docs/asciidoc/s3.adoc) also replace bucket policies, ena
 
 ## CloudFormation
 
-Deploy local JSON or YAML templates with `DeployCloudFormationStackTask`. The plugin checks every resource declaration against the provisioning handlers audited for emulator **1.0.322**, rejecting types that merely report success before the task connects. It creates or updates the stack, waits for completion, and exports stack outputs as JSON.
+Deploy local JSON or YAML templates with `DeployCloudFormationStackTask`. The plugin checks every resource declaration against the provisioning handlers audited for emulator **1.0.367**, rejecting types that merely report success before the task connects. It creates or updates the stack, waits for completion, and exports stack outputs as JSON.
 
 ```kotlin
 import io.github.gregwhitaker.awsemulator.aws.cloudformation.DeployCloudFormationStackTask
