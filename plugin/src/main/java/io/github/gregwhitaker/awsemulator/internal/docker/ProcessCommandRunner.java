@@ -100,13 +100,21 @@ public final class ProcessCommandRunner implements CommandRunner {
             } finally {
                 process.destroyForcibly();
             }
-            // destroyForcibly is asynchronous. Wait for redirected files and other
-            // process handles to be released before callers clean up their workspace.
+            // On Windows, isAlive() and timed waitFor() can observe an exit code
+            // before native cleanup releases redirected files. The untimed
+            // waitFor() waits on the process handle itself. Bound that wait with
+            // a daemon thread so cleanup still has a deadline on every platform.
+            Thread waiter = new Thread(() -> {
+                try { process.waitFor(); }
+                catch (InterruptedException ignored) { /* The cleanup deadline expired. */ }
+            }, "aws-emulator-command-exit");
+            waiter.setDaemon(true);
+            waiter.start();
             long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
-            while (process.isAlive()) {
+            while (waiter.isAlive()) {
                 long remaining = deadline - System.nanoTime();
-                if (remaining <= 0) break;
-                try { process.waitFor(remaining, TimeUnit.NANOSECONDS); }
+                if (remaining <= 0) { waiter.interrupt(); break; }
+                try { TimeUnit.NANOSECONDS.timedJoin(waiter, remaining); }
                 catch (InterruptedException e) { interrupted = true; }
             }
         } finally {

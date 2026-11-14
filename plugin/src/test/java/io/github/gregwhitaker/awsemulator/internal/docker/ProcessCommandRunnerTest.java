@@ -19,10 +19,13 @@ package io.github.gregwhitaker.awsemulator.internal.docker;
 import org.gradle.api.GradleException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
+import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ProcessCommandRunnerTest {
@@ -60,11 +63,47 @@ class ProcessCommandRunnerTest {
         assertTrue(Duration.ofNanos(System.nanoTime() - start).toSeconds() < 5);
     }
 
+    @Test
+    void waitsForNativeCleanupEvenWhenTheExitCodeIsAlreadyVisible() {
+        CleanupProcess process = new CleanupProcess();
+
+        ProcessCommandRunner.terminate(process);
+
+        assertTrue(process.nativeCleanupComplete, "An exit code does not prove native file handles have been released");
+    }
+
+    @Test
+    void interruptedCleanupStillWaitsAndRestoresTheInterruptFlag() {
+        CleanupProcess process = new CleanupProcess();
+
+        Thread.currentThread().interrupt();
+        try {
+            ProcessCommandRunner.terminate(process);
+            assertTrue(process.nativeCleanupComplete, "Interrupted callers must still wait for native cleanup");
+            assertTrue(Thread.currentThread().isInterrupted(), "Cleanup must preserve the caller's interrupt flag");
+        } finally {
+            Thread.interrupted();
+        }
+    }
+
     private static List<String> command(String mode) throws Exception {
         String executable = System.getProperty("os.name").startsWith("Windows") ? "java.exe" : "java";
         String java = Path.of(System.getProperty("java.home"), "bin", executable).toString();
         String classes = Path.of(Probe.class.getProtectionDomain().getCodeSource().getLocation().toURI()).toString();
         return List.of(java, "-cp", classes, Probe.class.getName(), mode);
+    }
+
+    /** Models Windows exposing the exit code before the process handle is signaled. */
+    private static final class CleanupProcess extends Process {
+        private volatile boolean nativeCleanupComplete;
+
+        @Override public OutputStream getOutputStream() { return OutputStream.nullOutputStream(); }
+        @Override public InputStream getInputStream() { return InputStream.nullInputStream(); }
+        @Override public InputStream getErrorStream() { return InputStream.nullInputStream(); }
+        @Override public int exitValue() { return 1; }
+        @Override public void destroy() { }
+        @Override public Stream<ProcessHandle> descendants() { return Stream.empty(); }
+        @Override public int waitFor() { nativeCleanupComplete = true; return 1; }
     }
 
     public static class Probe {
