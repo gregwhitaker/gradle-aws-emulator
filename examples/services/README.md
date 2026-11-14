@@ -54,6 +54,18 @@ To deliberately fail the test and demonstrate managed cleanup:
 
 This command is expected to fail; the managed container is still removed. Omit `-PfailExample=true` for normal runs.
 
+## Resource reports
+
+Capture resource metadata after the integration test and before managed cleanup:
+
+```sh
+./gradlew -p examples/services verifyServices -PemulatorReport --configuration-cache
+```
+
+The optional finalizer writes `index.html` and `report.json` under `examples/services/build/reports/aws-emulator/default/managed/reportIntegrationEmulator/`. Repeat the command to verify configuration-cache reuse, or add `-PfailExample=true` to capture state after a deliberate test failure.
+
+Reports include all 13 service sections. This example populates SQS, SSM, Secrets Manager, EventBridge, Kinesis, KMS, and CloudWatch Logs, including rule targets, key aliases, and log stream metadata. Parameter/secret values, event payloads, Kinesis records, and log event contents are excluded. Services can also expose default resources, such as predefined KMS aliases. See the [report guide](../../docs/src/docs/asciidoc/reports.adoc) for exact fields and partial-error behavior.
+
 ## Persistent development instance
 
 To provision resources that remain available between Gradle invocations:
@@ -61,6 +73,7 @@ To provision resources that remain available between Gradle invocations:
 ```sh
 ./gradlew -p examples/services provisionServices -Pdevelopment=true
 ./gradlew -p examples/services listSsmParameters listSecrets listEventBuses listKinesisStreams listKmsKeys listLogGroups
+./gradlew -p examples/services reportAwsEmulator
 ./gradlew -p examples/services statusAwsEmulator
 ./gradlew -p examples/services stopAwsEmulator
 ```

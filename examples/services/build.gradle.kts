@@ -23,6 +23,7 @@ import io.github.gregwhitaker.awsemulator.aws.cloudwatchlogs.*
 import io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueueTask
 import io.github.gregwhitaker.awsemulator.aws.AbstractAwsResourceTask
 import io.github.gregwhitaker.awsemulator.model.EmulatorMode
+import io.github.gregwhitaker.awsemulator.emulator.ReportAwsEmulatorTask
 
 plugins { java; id("io.github.gregwhitaker.aws-emulator") }
 repositories { mavenCentral() }
@@ -111,3 +112,10 @@ tasks.register("verifyServices") { dependsOn(filtered, retrieved); group = "veri
 tasks.named("deleteEventBus") { mustRunAfter("deleteEventBridgeRule") }
 tasks.named("deleteLogGroup") { mustRunAfter("deleteLogStream") }
 awsEmulator { useWith(integrationTest) }
+
+if (providers.gradleProperty("emulatorReport").isPresent) {
+    val report = tasks.register<ReportAwsEmulatorTask>("reportIntegrationEmulator") {
+        mode.set(EmulatorMode.MANAGED)
+    }
+    integrationTest.configure { finalizedBy(report) }
+}

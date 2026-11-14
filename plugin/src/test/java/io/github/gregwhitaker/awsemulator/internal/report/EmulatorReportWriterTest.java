@@ -41,7 +41,8 @@ class EmulatorReportWriterTest {
             .message("private-response-body").awsErrorDetails(AwsErrorDetails.builder().errorCode("NotImplemented").build()).build(); });
         var report = new EmulatorReport(1, "2026-11-14T10:00:00Z",
             new EmulatorReport.RuntimeInfo("default", "DEVELOPMENT", false, "https://localhost:9297", "us-east-1"),
-            List.of(section.result(), new ReportSection("SQS").result()));
+            List.of(section.result(), new ReportSection("SQS").result(), new ReportSection("Secrets Manager").result(),
+                new ReportSection("CloudWatch Logs").result()));
         configuration.put("versioning", "later-change");
         metadata.add("later-change");
         EmulatorReportWriter.write(report, directory);
@@ -53,6 +54,10 @@ class EmulatorReportWriterTest {
         String html = Files.readString(directory.resolve("index.html"));
         assertTrue(html.contains("Incomplete snapshot"));
         assertTrue(html.contains("No resources found."));
+        assertTrue(html.contains("href=\"#Secrets-Manager\""));
+        assertTrue(html.contains("id=\"Secrets-Manager\""));
+        assertTrue(html.contains("href=\"#CloudWatch-Logs\""));
+        assertTrue(html.contains("id=\"CloudWatch-Logs\""));
         assertTrue(html.contains("&lt;script&gt;alert(&#39;resource&#39;)&lt;/script&gt;&amp;&quot;"));
         assertFalse(html.contains("<script>"));
         assertFalse(html.contains("private-response-body"));

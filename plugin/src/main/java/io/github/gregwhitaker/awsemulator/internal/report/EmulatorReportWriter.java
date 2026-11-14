@@ -82,11 +82,11 @@ public final class EmulatorReportWriter {
             html.append("<dt>").append(escape(entry.getKey())).append("</dt><dd>").append(escape(entry.getValue())).append("</dd>");
         }
         html.append("</dl></div><nav aria-label=\"Services\">");
-        for (var section : report.services()) html.append("<a href=\"#").append(escape(section.service())).append("\">")
+        for (var section : report.services()) html.append("<a href=\"#").append(escape(anchor(section.service()))).append("\">")
             .append(escape(section.service())).append(" <span class=\"muted\">(").append(section.resources().size()).append(")</span></a>");
         html.append("</nav>");
         for (var section : report.services()) {
-            html.append("<section id=\"").append(escape(section.service())).append("\"><div class=\"section-head\"><h2>")
+            html.append("<section id=\"").append(escape(anchor(section.service()))).append("\"><div class=\"section-head\"><h2>")
                 .append(escape(section.service())).append("</h2><span class=\"badge\">").append(escape(section.status())).append("</span></div>");
             html.append("<p class=\"muted\">").append(section.resources().size()).append(" resources collected</p>");
             if (section.resources().isEmpty()) html.append(section.status().equals("COMPLETE")
@@ -112,7 +112,8 @@ public final class EmulatorReportWriter {
             html.append("</section>");
         }
         return html.append("<footer>Live metadata snapshot; resources may change during collection. Counts are service-reported and may be approximate. "
-            + "Object contents, message bodies, table items, credentials, and CloudFormation parameter/output values are omitted. "
+            + "Object contents, message bodies, table items, stream records, log events, credentials, parameter/secret values, "
+            + "Cognito users and client secrets, email/template content, EventBridge payloads/patterns, and CloudFormation parameter/output values are omitted. "
             + "SNS subscription endpoints are shown for SQS and Lambda only. JSON schema version ")
             .append(report.schemaVersion()).append(".</footer></main></body></html>").toString();
     }
@@ -137,4 +138,6 @@ public final class EmulatorReportWriter {
         return String.valueOf(value).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
             .replace("\"", "&quot;").replace("'", "&#39;");
     }
+
+    private static String anchor(String service) { return service.replace(' ', '-'); }
 }

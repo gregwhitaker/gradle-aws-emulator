@@ -101,7 +101,7 @@ class ReportAwsEmulatorFunctionalTest {
                 var document = new ObjectMapper().readTree(json);
                 assertTrue(document.path("runtime").path("external").asBoolean());
                 assertEquals("integration", document.path("runtime").path("name").asText());
-                assertEquals(5, document.path("services").size());
+                assertEquals(13, document.path("services").size());
                 for (var section : document.path("services")) {
                     assertEquals("FAILED", section.path("status").asText());
                     assertFalse(section.path("issues").isEmpty());

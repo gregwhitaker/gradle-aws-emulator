@@ -194,11 +194,11 @@ For applications launched outside Gradle, use [shell and IDE connection exports]
 
 ### Resource reports
 
-Inspect an existing development instance with `./gradlew reportAwsEmulator`. The task writes a standalone HTML report and JSON inventory for S3, SQS, SNS, DynamoDB, and CloudFormation, including resource configuration, subscriptions, and stack membership.
+Inspect an existing development instance with `./gradlew reportAwsEmulator`. The task writes a standalone HTML report and JSON inventory for all 13 service modules: S3, SQS, SNS, DynamoDB, CloudFormation, EventBridge, Kinesis, SSM, Secrets Manager, KMS, CloudWatch Logs, Cognito, and SES. Reports include resource settings and relationships while omitting payloads, secret values, log events, Cognito users/client secrets, and email/template contents.
 
 Reports are saved under `build/reports/aws-emulator/default/development/reportAwsEmulator/` as `index.html` and `report.json`. Select a named runtime with `--runtime integration`. The report never starts an owned emulator; start or provision the selected instance first.
 
-For managed test snapshots, register a `ReportAwsEmulatorTask` as a test finalizer. The [basic example](examples/basic/README.md#resource-reports) demonstrates this with `-PemulatorReport`, including capture after test failures. See the [report guide](docs/src/docs/asciidoc/reports.adoc) for configuration, coverage, and collection errors.
+For managed test snapshots, register a `ReportAwsEmulatorTask` as a test finalizer. The [basic example](examples/basic/README.md#resource-reports) and [services example](examples/services/README.md#resource-reports) demonstrate this with `-PemulatorReport`, including capture after test failures. See the [report guide](docs/src/docs/asciidoc/reports.adoc) for configuration, coverage, and collection errors.
 
 ### Spring Boot
 

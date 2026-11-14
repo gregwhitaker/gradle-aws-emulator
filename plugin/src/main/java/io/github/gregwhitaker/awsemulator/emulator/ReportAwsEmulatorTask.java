@@ -32,7 +32,9 @@ import org.gradle.work.DisableCachingByDefault;
 import java.time.Instant;
 
 /**
- * Captures S3, SQS, SNS, DynamoDB, and CloudFormation metadata from an existing emulator.
+ * Captures metadata for all thirteen provisioned service families from an existing emulator:
+ * S3, SQS, SNS, DynamoDB, CloudFormation, EventBridge, Kinesis, SSM, Secrets Manager, KMS,
+ * CloudWatch Logs, Cognito User Pools, and SES. Omits resource payloads and secret values.
  * Writes index.html and report.json, including collection errors. Never starts an owned runtime.
  * Custom tasks inherit awsEmulator.defaultMode (initially MANAGED); convenience tasks use DEVELOPMENT.
  */
