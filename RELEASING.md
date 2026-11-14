@@ -1,7 +1,8 @@
 # Releasing
 
 Both plugins are released together from a `v<version>` tag. GitHub Actions runs
-the checks and publishes them to the Gradle Plugin Portal.
+the checks, publishes them to the Gradle Plugin Portal, and then publishes a
+GitHub Release with notes from the changelog.
 
 ## Make a release
 
@@ -40,7 +41,9 @@ or tags. The release command rejects uncommitted work, conflicting tags,
 Follow the [Publish to Gradle Plugin Portal run](https://github.com/gregwhitaker/gradle-aws-emulator/actions/workflows/publish.yml).
 It validates the release metadata, builds the plugins and docs, runs tests
 including Docker integration and publication smoke checks, and uploads both
-plugins. CI handles these checks; local verification is optional.
+plugins. After both uploads succeed, the separate **Create GitHub Release** job
+publishes the release from the existing tag, using only that version's changelog
+section for its notes. CI handles these checks; local verification is optional.
 
 When the run succeeds, confirm the version is available on both Portal pages:
 [core](https://plugins.gradle.org/plugin/io.github.gregwhitaker.aws-emulator) and
@@ -48,10 +51,16 @@ When the run succeeds, confirm the version is available on both Portal pages:
 Initial publication requires [Portal approval](https://plugins.gradle.org/docs/publish-plugin#approval),
 so the first upload may be pending review.
 
+GitHub Releases are marked as prereleases when the version has a prerelease
+suffix. The workflow verifies that the remote tag still identifies the built
+commit. Reruns preserve an existing published release; a prepared draft is
+published with its title, notes, and assets intact.
+
 ## After publishing
 
-- If you want GitHub release notes, create a release from the existing tag using
-  the changelog entry. Mark prereleases accordingly.
+- Confirm the [GitHub Release](https://github.com/gregwhitaker/gradle-aws-emulator/releases)
+  was published by the workflow. You can edit its notes afterward; rerunning the
+  release job will preserve those edits.
 - After the first public release, replace the checkout-only installation text in
   the [README](README.md), [companion README](spring-boot-plugin/README.md),
   [getting-started guide](docs/src/docs/asciidoc/getting-started.adoc), and
@@ -75,6 +84,8 @@ then authenticate with `gh auth login`. Configure your Git commit identity.
 Enable GitHub Actions and use an account allowed to push metadata commits to
 `main` and release tags to `origin`. Existing branch protection still applies;
 the command cannot push directly to a branch that requires a pull request.
+GitHub Release creation uses the workflow's built-in `GITHUB_TOKEN`, with
+`contents: write` granted only to the release job; no extra secret is needed.
 For website hosting, follow [GitHub Pages setup](docs/README.md#github-pages).
 Java, Docker, and Portal publishing credentials are provided by the workflow.
 
@@ -116,6 +127,10 @@ Check the failed Actions step and both plugins' Portal status before retrying.
 - **Approval pending:** wait for Portal review; do not upload the version again.
 - **Only one plugin uploaded:** publish only the missing module from the same
   clean tagged checkout. The two uploads are not atomic.
+- **Both plugins uploaded, but GitHub Release creation failed:** fix the reported
+  issue and choose **Re-run failed jobs** for that run. This retries only the
+  release job, leaving the successful Portal publication job untouched. Do not
+  rerun all jobs or dispatch the whole workflow for an already uploaded version.
 
 For example, if the core uploaded but the companion failed, provide
 `GRADLE_PUBLISH_KEY` and `GRADLE_PUBLISH_SECRET` locally and run:
@@ -129,3 +144,6 @@ git switch --detach v0.2.0
 Wait for the Actions run to finish before publishing locally. Use
 `:plugin:publishPlugins` if only the core is missing. Never replace an uploaded
 version with different artifacts; release a new version for fixes.
+If you complete a partial Portal publication manually, create the GitHub Release
+from the same tag and its changelog notes afterward; the automatic release job
+only runs when the Portal publication job succeeds.

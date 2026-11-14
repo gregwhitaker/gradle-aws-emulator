@@ -2,6 +2,7 @@
 
 ## 0.2.0 — Unreleased
 
+- Wait for native process cleanup after terminating commands so Windows releases redirected log files before workspace cleanup.
 - Upgrade the shared AWS Emulator default to 1.0.367 after auditing 212 CloudFormation provisioning types; add lifecycle verification for newly supported Cognito resources, omit empty DynamoDB index lists, and validate Cognito RS256 tokens.
 - Add a one-command release driver that updates the plugin version and changelog date, commits and pushes the metadata, waits for CI, and pushes the release tag. Include dry-run previews and recovery after interrupted releases.
 - Add explicit resource-set/scenario cleanup and `RESOURCES` reset scope to preserve running emulators and unrelated resources. Add `cleanAwsEmulator` commands, failure-safe cleanup ordering, and portable S3 object/DynamoDB item export and replay with binary/type preservation, pagination, bounded atomic exports, configuration-cache coverage, and a runnable scenario example. Allow empty DynamoDB fixtures and opt-in missing-table tolerance for repeatable cleanup.

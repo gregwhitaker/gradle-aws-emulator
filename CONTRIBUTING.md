@@ -413,7 +413,8 @@ build local publications, and run smoke or Docker tests before pushing.
 Run `python3 scripts/release.py <version>` from a clean, synchronized `main`
 checkout. It updates the version and changelog date, pushes the release commit,
 waits for CI, and pushes the matching tag. See [make a release](RELEASING.md#make-a-release)
-for setup, dry runs, and resuming. The workflow tests and publishes both plugins.
+for setup, dry runs, and resuming. The workflow tests and publishes both plugins,
+then creates a GitHub Release using the tagged changelog section.
 See [after publishing](RELEASING.md#after-publishing) for release
 notes, first-publication documentation updates, and the next development version.
 
