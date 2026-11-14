@@ -22,6 +22,14 @@ import io.github.gregwhitaker.awsemulator.aws.sqs.internal.SqsReportCollector;
 import io.github.gregwhitaker.awsemulator.aws.sns.internal.SnsReportCollector;
 import io.github.gregwhitaker.awsemulator.aws.dynamodb.internal.DynamoDbReportCollector;
 import io.github.gregwhitaker.awsemulator.aws.cloudformation.internal.CloudFormationReportCollector;
+import io.github.gregwhitaker.awsemulator.aws.eventbridge.internal.EventBridgeReportCollector;
+import io.github.gregwhitaker.awsemulator.aws.kinesis.internal.KinesisReportCollector;
+import io.github.gregwhitaker.awsemulator.aws.ssm.internal.SsmReportCollector;
+import io.github.gregwhitaker.awsemulator.aws.secretsmanager.internal.SecretsManagerReportCollector;
+import io.github.gregwhitaker.awsemulator.aws.kms.internal.KmsReportCollector;
+import io.github.gregwhitaker.awsemulator.aws.cloudwatchlogs.internal.CloudWatchLogsReportCollector;
+import io.github.gregwhitaker.awsemulator.aws.cognito.internal.CognitoReportCollector;
+import io.github.gregwhitaker.awsemulator.aws.ses.internal.SesReportCollector;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -33,7 +41,15 @@ public final class EmulatorReportCollector {
             collect("SQS", section -> { try (var client = clients.sqs()) { new SqsReportCollector().collect(client, section); } }),
             collect("SNS", section -> { try (var client = clients.sns()) { new SnsReportCollector().collect(client, section); } }),
             collect("DynamoDB", section -> { try (var client = clients.dynamoDb()) { new DynamoDbReportCollector().collect(client, section); } }),
-            collect("CloudFormation", section -> { try (var client = clients.cloudFormation()) { new CloudFormationReportCollector().collect(client, section); } })
+            collect("CloudFormation", section -> { try (var client = clients.cloudFormation()) { new CloudFormationReportCollector().collect(client, section); } }),
+            collect("EventBridge", section -> { try (var client = clients.eventBridge()) { new EventBridgeReportCollector().collect(client, section); } }),
+            collect("Kinesis", section -> { try (var client = clients.kinesis()) { new KinesisReportCollector().collect(client, section); } }),
+            collect("SSM", section -> { try (var client = clients.ssm()) { new SsmReportCollector().collect(client, section); } }),
+            collect("Secrets Manager", section -> { try (var client = clients.secretsManager()) { new SecretsManagerReportCollector().collect(client, section); } }),
+            collect("KMS", section -> { try (var client = clients.kms()) { new KmsReportCollector().collect(client, section); } }),
+            collect("CloudWatch Logs", section -> { try (var client = clients.cloudWatchLogs()) { new CloudWatchLogsReportCollector().collect(client, section); } }),
+            collect("Cognito", section -> { try (var client = clients.cognitoIdentityProvider()) { new CognitoReportCollector().collect(client, section); } }),
+            collect("SES", section -> { try (var client = clients.sesV2()) { new SesReportCollector().collect(client, section); } })
         );
     }
 

@@ -132,7 +132,7 @@ def ensure_ci(repository, pr):
     print(f"Dispatched Build compatibility checks for {pr['html_url']}.")
 
 
-def pr_body(current, latest):
+def pr_body(current, latest, repository, default_branch):
     return f"""Updates the shared AWS Emulator default from `{current}` to `{latest}`.
 
 [Release notes]({UPSTREAM}/releases/tag/v{latest}) · [Upstream changes]({UPSTREAM}/compare/v{current}...v{latest})
@@ -150,7 +150,7 @@ This PR stays a draft until a maintainer completes the review. The bot never app
 - [ ] Obtain a maintainer's approving review before merging. Mark ready only after completing the audit.
 
 The initial CloudFormation audit check is expected to fail: a version bump does not establish provisioning support.
-See [the upgrade procedure](../blob/main/CONTRIBUTING.md#aws-emulator-upgrades) for audit steps and required branch protection.
+See [the upgrade procedure](https://github.com/{repository}/blob/{urllib.parse.quote(default_branch, safe='')}/CONTRIBUTING.md#aws-emulator-upgrades) for audit steps and required branch protection.
 """
 
 
@@ -210,7 +210,7 @@ def create_pr(root):
         "title": f"Update AWS Emulator to {latest}",
         "head": branch,
         "base": default_branch,
-        "body": pr_body(current, latest),
+        "body": pr_body(current, latest, repository, default_branch),
         "draft": True,
         "maintainer_can_modify": True,
     })

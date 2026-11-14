@@ -14,6 +14,8 @@ From the **repository root**:
 
 Run the same command again to exercise configuration-cache reuse. Each run provisions fresh resources and executes the integration tests. Open `examples/basic/build/reports/tests/integrationTest/index.html` for the test report.
 
+The example uses this checkout's shared [emulator version](../../gradle/emulator.properties). Upgrade PRs run it twice on AMD64 and ARM64 as part of the required compatibility checks.
+
 The plugin starts a managed emulator on an automatically selected port and supplies the test JVM with the endpoint, region, credentials, and TLS trust. It removes the managed container and connection files after its consumers finish, including after an ordinary test failure.
 
 TLS trust includes the selected JDK's default roots and the emulator certificate. To add a custom JKS or PKCS12 store, set `EXAMPLE_TRUST_STORE_PASSWORD` when the store needs a password and run:
@@ -81,6 +83,6 @@ To capture the managed instance after integration tests, including ordinary test
 ./gradlew -p examples/basic integrationTest -PemulatorReport --configuration-cache
 ```
 
-The optional `reportIntegrationEmulator` finalizer writes both formats under `examples/basic/build/reports/aws-emulator/default/managed/reportIntegrationEmulator/` before cleanup. Repeat the command to check configuration-cache reuse; add `-PfailExample=true` to exercise failure capture. Reports cover S3, SQS, SNS, DynamoDB, and CloudFormation; this example provisions S3 and SQS, so the remaining sections are empty. See the [report guide](../../docs/src/docs/asciidoc/reports.adoc) for fields and collection errors.
+The optional `reportIntegrationEmulator` finalizer writes both formats under `examples/basic/build/reports/aws-emulator/default/managed/reportIntegrationEmulator/` before cleanup. Repeat the command to check configuration-cache reuse; add `-PfailExample=true` to exercise failure capture. Reports cover all 13 service modules; this example provisions S3 and SQS, while other sections can contain service defaults such as EventBridge's default bus and predefined KMS aliases. The [services example](../services/README.md#resource-reports) populates more service sections. See the [report guide](../../docs/src/docs/asciidoc/reports.adoc) for fields and collection errors.
 
 See the [S3 guide](../../docs/src/docs/asciidoc/s3.adoc) and [SQS guide](../../docs/src/docs/asciidoc/sqs.adoc) for their task references. The [main README](../../README.md) covers lifecycle commands and SDK connection details.

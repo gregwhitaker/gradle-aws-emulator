@@ -29,7 +29,10 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class DynamoDbTableOperationsTest {
     private final DynamoDbTableOperations operations = new DynamoDbTableOperations();
-    private final CreateTableRequest request = CreateTableRequest.builder().tableName("catalog.products").build();
+    private final CreateTableRequest request = CreateTableRequest.builder().tableName("catalog.products")
+        .keySchema(KeySchemaElement.builder().attributeName("id").keyType(KeyType.HASH).build())
+        .attributeDefinitions(AttributeDefinition.builder().attributeName("id").attributeType(ScalarAttributeType.S).build())
+        .provisionedThroughput(ProvisionedThroughput.builder().readCapacityUnits(100L).writeCapacityUnits(100L).build()).build();
 
     @Test
     void createsAMissingTableAndWaitsForActiveWithoutClosingTheSharedClient() {
@@ -49,7 +52,7 @@ class DynamoDbTableOperationsTest {
             }
             default -> throw new AssertionError("Unexpected call: " + method.getName());
         });
-        assertTrue(operations.create(client, request, 5));
+        assertTrue(create(client, 5));
         assertEquals(3, describes.get());
         assertEquals(1, creates.get());
     }
@@ -60,7 +63,7 @@ class DynamoDbTableOperationsTest {
             assertEquals("describeTable", method.getName());
             return table(TableStatus.ACTIVE);
         });
-        assertFalse(operations.create(client, request, 5));
+        assertFalse(create(client, 5));
     }
 
     @Test
@@ -70,7 +73,7 @@ class DynamoDbTableOperationsTest {
             assertEquals("describeTable", method.getName());
             return table(describes.incrementAndGet() == 1 ? TableStatus.UPDATING : TableStatus.ACTIVE);
         });
-        assertFalse(operations.create(client, request, 5));
+        assertFalse(create(client, 5));
         assertEquals(2, describes.get());
     }
 
@@ -85,7 +88,7 @@ class DynamoDbTableOperationsTest {
             case "createTable" -> throw ResourceInUseException.builder().build();
             default -> throw new AssertionError(method.getName());
         });
-        assertFalse(operations.create(client, request, 5));
+        assertFalse(create(client, 5));
         assertEquals(2, describes.get());
     }
 
@@ -96,7 +99,7 @@ class DynamoDbTableOperationsTest {
             assertEquals("describeTable", method.getName());
             throw failure;
         });
-        assertSame(failure, assertThrows(DynamoDbException.class, () -> operations.create(client, request, 5)));
+        assertSame(failure, assertThrows(DynamoDbException.class, () -> create(client, 5)));
     }
 
     @Test
@@ -105,14 +108,62 @@ class DynamoDbTableOperationsTest {
             assertEquals("describeTable", method.getName());
             return table(TableStatus.DELETING);
         });
-        assertThrows(RuntimeException.class, () -> operations.create(client, request, 1));
+        assertThrows(RuntimeException.class, () -> create(client, 1));
     }
 
     @Test
     void boundsTheWaitForATableThatNeverBecomesActive() {
         var client = SdkStub.client(DynamoDbClient.class, (proxy, method, args) -> table(TableStatus.CREATING));
         assertTimeoutPreemptively(Duration.ofSeconds(5), () ->
-            assertThrows(RuntimeException.class, () -> operations.create(client, request, 1)));
+            assertThrows(RuntimeException.class, () -> create(client, 1)));
+    }
+
+    @Test
+    void refusesToReuseAnActiveTableWithDriftWithoutMutatingIt() {
+        var client = SdkStub.client(DynamoDbClient.class, (proxy, method, args) -> {
+            assertEquals("describeTable", method.getName());
+            return driftedTable(TableStatus.ACTIVE);
+        });
+        String message = assertThrows(GradleException.class, () -> create(client, 5)).getMessage();
+        assertTrue(message.contains("DynamoDB table 'catalog.products' configuration mismatch"), message);
+        assertTrue(message.contains("provisionedThroughput.readCapacityUnits: requested 100, existing 5"), message);
+    }
+
+    @Test
+    void comparesTheFinalActiveDescriptionAfterWaiting() {
+        var describes = new AtomicInteger();
+        var client = SdkStub.client(DynamoDbClient.class, (proxy, method, args) -> {
+            assertEquals("describeTable", method.getName());
+            return describes.incrementAndGet() == 1 ? driftedTable(TableStatus.UPDATING) : table(TableStatus.ACTIVE);
+        });
+        assertFalse(create(client, 5));
+        assertEquals(2, describes.get());
+    }
+
+    @Test
+    void detectsDriftIntroducedWhileWaiting() {
+        var describes = new AtomicInteger();
+        var client = SdkStub.client(DynamoDbClient.class, (proxy, method, args) -> {
+            assertEquals("describeTable", method.getName());
+            return describes.incrementAndGet() == 1 ? table(TableStatus.UPDATING) : driftedTable(TableStatus.ACTIVE);
+        });
+        assertTrue(assertThrows(GradleException.class, () -> create(client, 5)).getMessage().contains("configuration mismatch"));
+        assertEquals(2, describes.get());
+    }
+
+    @Test
+    void detectsDriftInATableCreatedByAConcurrentTask() {
+        var describes = new AtomicInteger();
+        var client = SdkStub.client(DynamoDbClient.class, (proxy, method, args) -> switch (method.getName()) {
+            case "describeTable" -> {
+                if (describes.incrementAndGet() == 1) throw missing();
+                yield driftedTable(TableStatus.ACTIVE);
+            }
+            case "createTable" -> throw ResourceInUseException.builder().build();
+            default -> throw new AssertionError("Unexpected mutation: " + method.getName());
+        });
+        assertTrue(assertThrows(GradleException.class, () -> create(client, 5)).getMessage().contains("configuration mismatch"));
+        assertEquals(2, describes.get());
     }
 
     @Test
@@ -184,6 +235,17 @@ class DynamoDbTableOperationsTest {
     }
 
     private DescribeTableResponse table(TableStatus status) {
-        return DescribeTableResponse.builder().table(TableDescription.builder().tableName(request.tableName()).tableStatus(status).build()).build();
+        return DescribeTableResponse.builder().table(TableDescription.builder().tableName(request.tableName()).tableStatus(status)
+            .keySchema(request.keySchema()).attributeDefinitions(request.attributeDefinitions())
+            .provisionedThroughput(ProvisionedThroughputDescription.builder().readCapacityUnits(100L).writeCapacityUnits(100L).build()).build()).build();
+    }
+
+    private DescribeTableResponse driftedTable(TableStatus status) {
+        return DescribeTableResponse.builder().table(table(status).table().toBuilder()
+            .provisionedThroughput(ProvisionedThroughputDescription.builder().readCapacityUnits(5L).writeCapacityUnits(100L).build()).build()).build();
+    }
+
+    private boolean create(DynamoDbClient client, int timeoutSeconds) {
+        return operations.create(client, request, timeoutSeconds, key -> { throw new AssertionError("Unexpected KMS lookup: " + key); });
     }
 }

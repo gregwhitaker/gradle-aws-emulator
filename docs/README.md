@@ -30,7 +30,7 @@ The overview pairs an introduction with a real build example on wide screens and
 
 The guide has grouped navigation, a page outline that stays beside the article on wide screens and collapses on smaller screens, and copyable code examples. Search opens from the header or with **⌘ K / Ctrl K**, matches guide text and code, and links directly to sections. Use the arrow keys to move through results, Enter to open one, and Escape to close. The generated index is a local script, so search also works when opening the site directly from disk. The Java API retains its own Javadoc search.
 
-The guide's GitHub badges link to the repository and show its star count from GitHub's public API. Counts are cached in the browser tab for 15 minutes. Offline, without JavaScript, or when the API is unavailable, the badges remain usable links labeled **Star**. This optional request does not affect documentation content or search.
+The guide's header has a GitHub badge linking to the repository and showing its star count from GitHub's public API. Counts are cached in the browser tab for 15 minutes. Offline, without JavaScript, or when the API is unavailable, the badge remains a usable link labeled **Star**. This optional request does not affect documentation content or search.
 
 ## GitHub Pages
 
@@ -60,6 +60,7 @@ After a successful deployment, the site is available at <https://gregwhitaker.gi
 - `theme.css` and `theme.js` define the shared palette, toggle, and preference. `api.css` adapts Javadoc's tables, navigation, search results, and method filters to that palette.
 - `site` injects `src/templates/api-head.html` and `api-header.html` into copied Javadoc pages, resolving asset and guide links relative to each page's depth. The plugin's standalone Javadoc output and Javadoc JAR are unchanged. The link checker requires shared theme assets on every page and a toggle on every page with content; Javadoc's redirect pages do not need a header.
 - `pluginVersion` in the root `gradle.properties` is shared with the plugin artifact and injected as the AsciiDoc `revnumber` attribute. Update publication-status text when the plugin is released.
+- `emulatorVersion` in `gradle/emulator.properties` is shared with the runtime and injected as `{emulator-version}`. Use this attribute when describing the current default. Keep version-specific audit evidence explicit until it has been reviewed for a new release; see [AWS Emulator upgrades](../CONTRIBUTING.md#aws-emulator-upgrades).
 - Asciidoctor warnings, missing includes, and unresolved attributes fail generation. `src/tools/CheckSite.java` checks the output using only the JDK.
 
 The output is ignored by Git. `site` uses Gradle `Sync` and copies only current source pages, removing obsolete pages from the final site. The ZIP uses stable file ordering and omits file timestamps. Javadoc output follows the JDK used by Gradle; for byte-identical builds, keep the JDK and dependency versions fixed.

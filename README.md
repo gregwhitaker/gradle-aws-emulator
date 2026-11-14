@@ -13,6 +13,8 @@ Run [AWS Emulator](https://github.com/aws/aws-emulator) from your Gradle build. 
 
 No AWS account or AWS CLI is required. The first emulator run builds the pinned image; subsequent runs reuse it. Applying the plugin alone does not start Docker or opt existing tasks into the emulator.
 
+The tested emulator default is shared in [`gradle/emulator.properties`](gradle/emulator.properties). Daily upgrade PRs run compatibility checks and require maintainer review, including a separate CloudFormation provisioning audit; see the [upgrade procedure](CONTRIBUTING.md#aws-emulator-upgrades).
+
 ## Quick start
 
 ### Try the included example
@@ -68,6 +70,8 @@ Keep your application's AWS SDK and test dependencies. Use an SDK that supports 
 For Groovy DSL setup, see [getting started](docs/src/docs/asciidoc/getting-started.adoc). For regions, ports, images, and timeouts, see [configuration](docs/src/docs/asciidoc/configuration.adoc).
 
 The [S3 tasks](docs/src/docs/asciidoc/s3.adoc) also replace bucket policies, enable or suspend versioning, and configure bucket notifications. Use `deleteS3BucketPolicy --bucketName=<name>` to remove a development bucket's policy and `deleteSqsQueues --queueNames=<name1>,<name2>` to delete selected development queues and their messages. The [basic example](examples/basic/README.md) verifies versioned objects, S3-to-SQS notifications, and explicit queue deletion.
+
+[DynamoDB table creation](docs/src/docs/asciidoc/dynamodb.adoc#configuration-drift) checks an existing table's schema, indexes, capacity, encryption, and streams before reuse. Configuration drift fails with requested and existing values, preserving the table and its items. See the [DynamoDB example](examples/dynamodb/README.md) for initialization, reuse, and a runnable mismatch example.
 
 ## CloudFormation
 
@@ -190,11 +194,11 @@ For applications launched outside Gradle, use [shell and IDE connection exports]
 
 ### Resource reports
 
-Inspect an existing development instance with `./gradlew reportAwsEmulator`. The task writes a standalone HTML report and JSON inventory for S3, SQS, SNS, DynamoDB, and CloudFormation, including resource configuration, subscriptions, and stack membership.
+Inspect an existing development instance with `./gradlew reportAwsEmulator`. The task writes a standalone HTML report and JSON inventory for all 13 service modules: S3, SQS, SNS, DynamoDB, CloudFormation, EventBridge, Kinesis, SSM, Secrets Manager, KMS, CloudWatch Logs, Cognito, and SES. Reports include resource settings and relationships while omitting payloads, secret values, log events, Cognito users/client secrets, and email/template contents.
 
 Reports are saved under `build/reports/aws-emulator/default/development/reportAwsEmulator/` as `index.html` and `report.json`. Select a named runtime with `--runtime integration`. The report never starts an owned emulator; start or provision the selected instance first.
 
-For managed test snapshots, register a `ReportAwsEmulatorTask` as a test finalizer. The [basic example](examples/basic/README.md#resource-reports) demonstrates this with `-PemulatorReport`, including capture after test failures. See the [report guide](docs/src/docs/asciidoc/reports.adoc) for configuration, coverage, and collection errors.
+For managed test snapshots, register a `ReportAwsEmulatorTask` as a test finalizer. The [basic example](examples/basic/README.md#resource-reports) and [services example](examples/services/README.md#resource-reports) demonstrate this with `-PemulatorReport`, including capture after test failures. See the [report guide](docs/src/docs/asciidoc/reports.adoc) for configuration, coverage, and collection errors.
 
 ### Spring Boot
 

@@ -21,7 +21,7 @@
   const repository = new URL(badges[0].href).pathname.replace(/^\/|\/$/g, '');
   const cacheKey = `github-stars:${repository}`;
   const validCount = count => Number.isSafeInteger(count) && count >= 0;
-  const format = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
+  const format = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 0 });
   const renderCount = count => badges.forEach(badge => {
     badge.querySelector('.github-stars-count').textContent = format.format(count).toLowerCase();
     const label = `Star on GitHub (${count.toLocaleString('en')} ${count === 1 ? 'star' : 'stars'})`;

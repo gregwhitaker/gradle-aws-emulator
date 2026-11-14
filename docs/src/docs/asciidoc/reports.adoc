@@ -1,6 +1,6 @@
 = Resource Reports
 include::_partials/attributes.adoc[]
-:description: Capture live S3, SQS, SNS, DynamoDB, and CloudFormation configuration as standalone HTML and JSON.
+:description: Capture live metadata for all thirteen provisioned AWS service families as standalone HTML and JSON.
 
 toc::[]
 
@@ -27,6 +27,8 @@ Both formats are written from the same snapshot:
 * `index.html`: a standalone, offline report with service navigation, expandable configuration, and collection issues.
 * `report.json`: machine-readable data with `schemaVersion: 1`, `capturedAt`, `runtime`, and `services`.
 
+All 13 service sections are included on every report. The eight additional sections extend schema version 1 without changing the existing sections. JSON consumers should select sections by `service` name rather than array position or a fixed section count. The service names in the table below are the exact JSON names.
+
 The default directory is `build/reports/aws-emulator/<runtime>/<mode>/<taskName>/`, where mode is lowercase. For the default task, open `build/reports/aws-emulator/default/development/reportAwsEmulator/index.html`. The task prints both paths. Distinct runtime, mode, and task directories allow several snapshots in one build.
 
 [cols="1,4",options="header"]
@@ -37,11 +39,25 @@ The default directory is `build/reports/aws-emulator/<runtime>/<mode>/<taskName>
 |SNS |Topic ARNs and settings, subscription counts, and subscription ARNs, protocols, and SQS/Lambda target endpoints. Other endpoint values are omitted.
 |DynamoDB |Table ARNs and status, key schemas and attribute types, billing mode and table throughput, secondary indexes and projections, stream settings, and service-reported item/size counts.
 |CloudFormation |Non-deleted stack names, IDs, status and timestamps, parameter/output names, and logical-to-physical resource mappings with resource types and statuses.
+|EventBridge |Event bus names and ARNs; nested rule names, ARNs, state, schedules, roles, and managed-by identifiers; target IDs, ARNs, roles, retry settings, and dead-letter ARNs.
+|Kinesis |Stream names, ARNs, status, creation times, capacity mode, open shard/consumer counts, retention hours, and encryption type/key identifiers.
+|SSM |Parameter names, types, tiers, data types, versions, encryption key identifiers, and modification times from `DescribeParameters`.
+|Secrets Manager |Secret names and ARNs, encryption key identifiers, rotation status/Lambda ARNs, primary region, owning service, and creation/change/rotation/deletion times from `ListSecrets`.
+|KMS |Key IDs, ARNs, state, enabled status, specification, usage, manager, origin, multi-region flag, and creation/deletion times; alias names, ARNs, target key IDs, and timestamps.
+|CloudWatch Logs |Log group names, ARNs, creation times, retention, stored bytes, encryption keys, and class; nested log stream names, ARNs, creation/event/ingestion times, and stored bytes.
+|Cognito |User pool IDs, names, ARNs, status, MFA/deletion-protection settings, username/alias attributes, and estimated user counts; app client IDs/names, auth/OAuth settings and token validity; group names, roles, precedence, and timestamps.
+|SES |Email identity names/types, sending/verification status, feedback-forwarding setting, DKIM status, and MAIL FROM domains; configuration sets with event destination names, enabled state, event types, and SNS/EventBridge/Firehose ARNs; template names and creation times.
 |===
 
-The report queries each service's list/describe APIs and follows all response pages. It includes the selected region's results and service-global resources returned by those APIs; it does not scan other regions. Service resource counts refer to buckets, queues, topics, tables, and stacks; subscriptions and stack members are nested configuration details.
+The report queries each service's metadata APIs and follows all response pages, including nested rule, target, log stream, client, and group listings. It includes the selected region's results and service-global resources returned by those APIs; it does not scan other regions. Counts refer to top-level resources: buckets, queues, topics, tables, stacks, event buses, streams, parameters, secrets, KMS keys and aliases, log groups, user pools, and SES identities/configuration sets/templates. Nested relationships do not increase the section's resource count.
 
-Object contents, message bodies, table items, credentials, CloudFormation templates, and parameter/output values are excluded. Reporting does not receive SQS messages or scan DynamoDB items. Collection happens over several requests, so concurrently changing resources may produce an incomplete snapshot. Message and item counts may be approximate or delayed.
+Services can return default resources that no task explicitly created, such as the default EventBridge bus and predefined KMS aliases. KMS aliases without a target key are included as returned; the report never resolves those aliases with `DescribeKey`, which could materialize a default key. Existing KMS keys are described only by IDs obtained from `ListKeys`.
+
+Object contents, message bodies, table items, Kinesis records, log events, credentials, parameter/secret values, CloudFormation templates and parameter/output values, Cognito users/passwords/client secrets/tokens, and SES email/template contents are excluded. EventBridge event patterns, target inputs/input paths/transforms, arbitrary tags/descriptions/policies, Cognito callback/logout URLs, and log upload tokens are also omitted by the new collectors. Resource names, identifiers, group names, and SES identity addresses remain visible.
+
+Reporting never receives SQS messages, scans DynamoDB items, opens Kinesis shard iterators, reads log events, fetches or decrypts parameter/secret values, lists Cognito users, retrieves SES template contents, or sends email. Collection happens over several requests, so concurrently changing resources may produce an incomplete snapshot. Counts and timestamps may be approximate or delayed.
+
+The selected connection must allow the metadata operations in the coverage table. Cognito client details use `DescribeUserPoolClient` with an explicit output field list; its client secret and callback/logout URLs are discarded. SES uses `GetEmailIdentity` and `GetConfigurationSetEventDestinations` alongside the list APIs. Missing permissions or unsupported operations use the same partial-report behavior as the original five services.
 
 == Collection Errors
 
@@ -90,6 +106,15 @@ The {repo-url}/tree/main/examples/basic[basic example] offers this finalizer wit
 ----
 ./gradlew -p examples/basic integrationTest -PemulatorReport --configuration-cache
 ----
+
+The {repo-url}/tree/main/examples/services[services example] exercises SSM, Secrets Manager, EventBridge, Kinesis, KMS, and CloudWatch Logs reporting after its SDK integration test:
+
+[source,shell]
+----
+./gradlew -p examples/services verifyServices -PemulatorReport --configuration-cache
+----
+
+Open `examples/services/build/reports/aws-emulator/default/managed/reportIntegrationEmulator/index.html`. Run the same command again to check configuration-cache reuse. Add `-PfailExample=true` to capture the managed instance after a deliberate test failure and before cleanup.
 
 == Task Configuration
 

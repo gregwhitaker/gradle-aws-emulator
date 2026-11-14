@@ -61,6 +61,99 @@ subprojects. The shared plugin and documentation version is `pluginVersion` in
 `gradle.properties`. See the [CI workflow](.github/workflows/ci.yml) for the Java,
 Gradle, operating system, and architecture combinations checked in CI.
 
+## AWS Emulator upgrades
+
+The tested runtime default lives in [`gradle/emulator.properties`](gradle/emulator.properties).
+The core plugin bundles this manifest in its JAR; its default runtime, external
+emulator test fixtures, and the generated guide read the same version. Consumers
+can still set `awsEmulator.emulatorVersion` explicitly. CloudFormation's audited
+version and catalogue are maintained separately, so changing the default cannot
+automatically claim support for a new release.
+
+The [AWS Emulator upgrade workflow](.github/workflows/emulator-update.yml) checks
+daily at **11:23 UTC** and supports manual dispatch from the default branch. It
+reads AWS's [published-version index](https://downloads.aws.com/aws-emulator/packages/aws-emulator/LTS/versions.json),
+checks for a stable GitHub release and both AMD64 and ARM64 RPM packages, then
+opens a **draft** PR changing only the shared manifest. It explicitly dispatches
+the Build workflow on the upgrade branch using `GITHUB_TOKEN`; no PAT is needed.
+Token-created pushes do not themselves start push workflows, and token-created
+PR workflows can require approval, so the explicit dispatch is intentional.
+
+Only one upgrade PR is active at a time. An existing PR's branch, checklist, and
+review commits are preserved, even if a newer release appears. If dispatch failed
+after creation, the next daily run retries it. Existing checks are not repeatedly
+rerun for the same commit; rerun failed checks in Actions or push a correction.
+Closing an upgrade PR declines that version; reopen it to reconsider. A later
+version can create a new PR once no upgrade PR is open. The updater never
+approves, merges, or enables auto-merge.
+
+Check for updates locally without changing files or GitHub:
+
+```sh
+python3 scripts/update-emulator.py
+```
+
+The index currently identifies packages as `MAJOR.MINOR.PATCH.REVISION`. The
+updater requires revision `1`, matching the RPM filename built by
+`DockerImageBuilder`. A future revision or feed-format change requires a tooling
+review; it is not silently treated as the currently supported package.
+
+### Required CloudFormation audit
+
+Every candidate initially fails **CloudFormation audit** until a maintainer
+completes these steps:
+
+1. Review the new release notes and compare upstream CloudFormation
+   `src/state/provisioner.rs` and `src/state/provisioning.rs`, following delegated
+   handlers as needed. Distinguish actual service provisioning from handlers
+   that only record success. Preserve the validator's restrictions on nested
+   stacks, transforms, and custom providers.
+2. Create `plugin/src/main/resources/io/github/gregwhitaker/awsemulator/aws/cloudformation/provisioned-types-<version>.txt`
+   from the reviewed handlers. Record the exact upstream commit and source URLs
+   in its header. Copying the old list and changing its version is not an audit.
+3. Update `CloudFormationTemplate.EMULATOR_VERSION` after reviewing the catalogue,
+   and update affected unit, functional, and real-service provisioning tests.
+   `CloudFormationAuditTest` requires the default and audited versions to agree
+   and checks the catalogue's source references. These checks validate the audit
+   record; the approving maintainer must assess the audit's correctness.
+4. Review version-specific claims in the README, guides, and examples, including
+   CloudFormation, SES, and Cognito. Update their evidence and compatibility
+   notes. Keep historical changelog entries tied to their original versions.
+5. Require **Emulator compatibility** to pass. It aggregates every supported
+   Java/Gradle build, publication smoke checks, updater tests, the CloudFormation
+   audit, both plugins' Docker suites on AMD64/ARM64, and two basic-example runs
+   that verify configuration-cache reuse. Review failures before changing test
+   expectations; upstream fidelity fixes can change behavior in patch releases.
+
+For a focused audit check, run:
+
+```sh
+./gradlew :plugin:test --tests 'io.github.gregwhitaker.awsemulator.aws.cloudformation.CloudFormationAuditTest'
+```
+
+Run `./gradlew build dockerTest` and the basic example twice for local
+compatibility verification. The full CI matrix runs on the candidate branch.
+After the audit, documentation, and checks are complete, mark the PR ready and
+obtain an approving maintainer review before merging. Publish a plugin release
+to deliver the new tested default to consumers.
+
+### GitHub setup
+
+Enable both **AWS Emulator upgrade** and **Build** under Actions. The upgrade
+workflow must be on the default branch for scheduled runs. Enable
+**Settings → Actions → General → Allow GitHub Actions to create and approve pull
+requests**; the updater uses only PR creation, not approval. Its job requests
+`contents: write`, `pull-requests: write`, and `actions: write` for branch creation,
+draft PR creation, and explicit CI dispatch.
+
+Protect the default branch with at least **one approving review**, **dismiss
+stale approvals when new commits are pushed**, and required status checks
+**CloudFormation audit** and **Emulator compatibility**. Require the branch to be
+up to date before merging. Drafts and the unchecked checklist guide the process;
+branch protection enforces review and passing checks in GitHub. These settings
+apply to all PRs targeting that branch. The workflow does not change repository
+settings or bypass review.
+
 ## Implementation conventions
 
 Both plugin modules apply `build.java-conventions` from the `java-conventions`

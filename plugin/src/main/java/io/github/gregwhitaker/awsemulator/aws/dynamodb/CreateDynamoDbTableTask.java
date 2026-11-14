@@ -27,7 +27,11 @@ import org.gradle.work.DisableCachingByDefault;
 import software.amazon.awssdk.services.dynamodb.model.*;
 import java.util.List;
 
-/** Creates a table, waits for ACTIVE, and optionally initializes a newly created table. */
+/**
+ * Creates a table, waits for ACTIVE, and optionally initializes a newly created table.
+ * Reuses existing tables only when their schema, indexes, capacity, encryption, and streams
+ * match the requested definition; configuration drift fails without modifying the table.
+ */
 @DisableCachingByDefault(because = "Provisions live emulator resources")
 @AwsEmulatorSetupTask
 public abstract class CreateDynamoDbTableTask extends AbstractDynamoDbTableTask {
@@ -38,14 +42,22 @@ public abstract class CreateDynamoDbTableTask extends AbstractDynamoDbTableTask 
         getSseSpecification().convention(SSESpecification.builder().enabled(true).build());
     }
 
+    /** Required primary key schema; compared by key role when reusing a table. */
     @Input public abstract ListProperty<KeySchemaElement> getKeySchema();
+    /** Required key attribute types; compared by attribute name when reusing a table. */
     @Input public abstract ListProperty<AttributeDefinition> getAttributeDefinitions();
+    /** Complete set of global indexes, including projections and capacity. Defaults to empty. */
     @Input public abstract ListProperty<GlobalSecondaryIndex> getGlobalSecondaryIndexes();
+    /** Complete set of local indexes, including projections. Defaults to empty. */
     @Input public abstract ListProperty<LocalSecondaryIndex> getLocalSecondaryIndexes();
     /** Provisioned read/write capacity. Defaults to 100 units each. */
     @Input public abstract Property<ProvisionedThroughput> getProvisionedThroughput();
-    /** SDK encryption settings sent when creating the table. Defaults to enabled=true. */
+    /**
+     * Encryption settings for creation and reuse. Defaults to enabled=true (KMS with alias/aws/dynamodb).
+     * Key IDs and aliases are resolved through the selected emulator's KMS client when checking reuse.
+     */
     @Input public abstract Property<SSESpecification> getSseSpecification();
+    /** Stream settings for creation and reuse. Unset means streams must be disabled. */
     @Input @Optional public abstract Property<StreamSpecification> getStreamSpecification();
     /** Build-classpath class with a public DynamoDbClient constructor and a public void run() method. */
     @Input @Optional public abstract Property<String> getInitializer();
@@ -60,8 +72,14 @@ public abstract class CreateDynamoDbTableTask extends AbstractDynamoDbTableTask 
         DynamoDbTableDefinition.validate(request);
         var initializer = getInitializer().isPresent()
             ? DynamoDbInitializerExecutor.resolve(getInitializer().get(), getClass().getClassLoader()) : null;
-        try (var client = new AwsClientFactory(connection(), getApiCallTimeoutSeconds().get()).dynamoDb()) {
-            boolean created = new DynamoDbTableOperations().create(client, request, getWaitTimeoutSeconds().get());
+        var clients = new AwsClientFactory(connection(), getApiCallTimeoutSeconds().get());
+        try (var client = clients.dynamoDb()) {
+            boolean created = new DynamoDbTableOperations().create(client, request, getWaitTimeoutSeconds().get(), key -> {
+                try (var kms = clients.kms()) {
+                    var metadata = kms.describeKey(builder -> builder.keyId(key)).keyMetadata();
+                    return metadata == null ? null : metadata.arn();
+                }
+            });
             if (created && initializer != null) {
                 initializer.invoke(client);
                 getLogger().lifecycle("Initialized DynamoDB table: {}", name);

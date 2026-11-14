@@ -13,7 +13,7 @@ toc::[]
 [cols="2,2,3",options="header"]
 |===
 |Task type |Registration |Behavior
-|`CreateDynamoDbTableTask` |Register a named task in your build |Create or reuse a table, wait for `ACTIVE`, and optionally initialize a new table.
+|`CreateDynamoDbTableTask` |Register a named task in your build |Create a table or verify its configuration before reuse, wait for `ACTIVE`, and optionally initialize a new table.
 |`ListDynamoDBTablesTask` |`listDynamoDbTables` |List all table names, following every response page.
 |`DeleteDynamoDbTableTask` |`deleteDynamoDbTable` |Delete one explicitly named table and its items; wait for deletion to complete.
 |===
@@ -69,8 +69,8 @@ The schema properties accept immutable AWS SDK for Java v2 model objects using G
 |`globalSecondaryIndexes` |`ListProperty<GlobalSecondaryIndex>` |Empty. Each configured GSI needs a key schema, projection, and provisioned throughput.
 |`localSecondaryIndexes` |`ListProperty<LocalSecondaryIndex>` |Empty. LSIs require a composite table key and share the table's partition key.
 |`provisionedThroughput` |`Property<ProvisionedThroughput>` |100 read and 100 write capacity units, matching the LocalStack task.
-|`sseSpecification` |`Property<SSESpecification>` |`enabled=true`, matching the LocalStack task.
-|`streamSpecification` |`Property<StreamSpecification>` |Unset. Enabled streams require a `streamViewType`.
+|`sseSpecification` |`Property<SSESpecification>` |`enabled=true`: KMS with the default `alias/aws/dynamodb` key. `enabled=false` or omitted within the specification selects an AWS owned key.
+|`streamSpecification` |`Property<StreamSpecification>` |Unset, meaning streams disabled. Enabled streams require a `streamViewType`.
 |`initializer` |`Property<String>` |Unset; fully qualified class name on the build classpath.
 |`waitTimeoutSeconds` |`Property<Integer>` |60; positive SDK waiter timeout for creation and deletion.
 |`apiCallTimeoutSeconds` |`Property<Integer>` |30; positive timeout for each SDK operation, including retries.
@@ -79,7 +79,36 @@ The schema properties accept immutable AWS SDK for Java v2 model objects using G
 
 These are provisioned-capacity tables. Set each GSI's throughput separately. The task passes encryption and stream settings to the emulator; it does not provision a KMS key or a stream consumer.
 
-An existing table is reused without changing its schema, indexes, capacity, encryption, streams, or items. Requested creation settings are validated but are not reconciled against existing settings. The task waits for an existing table in transition to become `ACTIVE`. To apply a different table definition, delete and recreate the development table or start a fresh managed build.
+[[configuration-drift]]
+=== Configuration Drift
+
+An existing table is reused only when its configuration matches the task definition. The task waits for a table in transition to become `ACTIVE`, then compares the final description. The same check applies when another task creates the table concurrently. It runs on every invocation, including configuration-cache reuse.
+
+[cols="2,3",options="header"]
+|===
+|Setting |Comparison
+|Primary key and attribute definitions |Partition/sort key roles and attribute names; scalar types for every table and index key attribute.
+|Global and local secondary indexes |The complete set of index names, key schemas, projection types, and projected non-key attributes. Missing and extra indexes fail, including when the task's index list is empty.
+|Capacity |Provisioned billing mode, table read/write capacity, and each GSI's read/write capacity. The table defaults of 100/100 are checked even when not explicitly configured. An omitted billing-mode summary is treated as provisioned.
+|Encryption |AWS owned versus KMS encryption, KMS encryption type, and the resolved key ARN. Omitted KMS type/key settings with `enabled=true` mean `KMS` and `alias/aws/dynamodb`.
+|Streams |Enabled/disabled state and, when enabled, the stream view type. An unset stream property requires disabled streams; a disabled stream's previous view type is ignored.
+|===
+
+List order does not affect comparison: key schemas are compared by role, attributes and indexes by name, and projected attributes as a set. Generated ARNs (except the encryption key), timestamps, item counts, sizes, and throughput history are ignored. The task compares configuration exposed by its creation properties; it does not audit items, TTL, tags, or other table settings.
+
+KMS key IDs, alias names, and alias ARNs are resolved with `DescribeKey` through the selected emulator's authenticated KMS client. Explicit key ARNs are compared directly. This accepts different identifiers for the same key and detects an alias retargeted to another key. An unresolved key fails with the table name, key identifier, and original cause; it is never assumed to match. Reuse with key IDs or aliases therefore also needs access to the emulator's KMS `DescribeKey` operation.
+
+Mismatches are reported together with their property paths and requested/existing values, for example:
+
+[source,text]
+----
+DynamoDB table 'catalog.products' configuration mismatch:
+ - provisionedThroughput.readCapacityUnits: requested 100, existing 5
+ - streamSpecification.streamEnabled: requested false, existing true
+The existing table and its items were not changed. Align the task definition with the table, or explicitly delete and recreate it (or use a fresh managed runtime).
+----
+
+The task never updates or deletes an existing table to resolve drift and never reruns its initializer. Align the task definition with the existing table to preserve it. To replace a development table, explicitly delete it with `deleteDynamoDbTable --tableName=<name>` and rerun creation; deletion discards its items. A fresh managed runtime starts without previous tables, but creation tasks sharing that runtime must still agree on each table's definition. Managed cleanup runs even when drift fails the build.
 
 == Table Initializers
 
@@ -147,6 +176,18 @@ For the development runtime:
 ./gradlew -p examples/dynamodb createProducts --mode=DEVELOPMENT
 ./gradlew -p examples/dynamodb listDynamoDbTables
 ./gradlew -p examples/dynamodb deleteDynamoDbTable --tableName=example-products
+./gradlew -p examples/dynamodb stopAwsEmulator
+----
+
+The example accepts `-PproductReadCapacity=<units>`. To demonstrate drift, create the development table with its default capacity and then request a different value:
+
+[source,shell]
+----
+./gradlew -p examples/dynamodb createProducts --mode=DEVELOPMENT
+# Expected failure: requested 5 read units, existing 100. The table and seeded items remain intact.
+./gradlew -p examples/dynamodb createProducts --mode=DEVELOPMENT -PproductReadCapacity=5
+# Matching settings reuse the original table without rerunning the initializer.
+./gradlew -p examples/dynamodb createProducts --mode=DEVELOPMENT
 ./gradlew -p examples/dynamodb stopAwsEmulator
 ----
 

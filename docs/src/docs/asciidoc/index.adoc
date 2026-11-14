@@ -8,7 +8,6 @@ Gradle plugins for running AWS Emulator, provisioning AWS resources, and configu
 ++++
 <div class="hero-actions">
   <a class="button-primary" href="getting-started.html">Get started <span aria-hidden="true">→</span></a>
-  <a class="button-secondary" href="api/index.html">Java API <span aria-hidden="true">↗</span></a>
 </div>
 ++++
 
@@ -24,7 +23,7 @@ plugins {
 }
 
 awsEmulator {
-    useWith(tasks.named<Test>("test"))
+    useWith(tasks.named<Test>("integrationTest"))
 }
 ----
 --
@@ -54,32 +53,7 @@ From this repository's root, run the included example:
 The first run builds the emulator image; later runs reuse it. Run the command again to check configuration-cache reuse. Follow the xref:getting-started.adoc[getting started guide] to add the plugin to your own application.
 
 [[choose-the-right-lifetime]]
-== Runtime Modes
-
-Use a managed instance for build tasks or a persistent development instance for local applications.
-
-++++
-<div class="lifecycle-grid">
-  <a href="testing.html" class="lifecycle-card">
-    <span class="card-eyebrow">01 / TESTS &amp; BUILD TASKS</span>
-    <strong>Managed Instance <span aria-hidden="true">↗</span></strong>
-    <p>A managed instance shared by participating tasks. Starts when needed and cleans up when they finish, including ordinary task failures.</p>
-    <code>awsEmulator.useWith(…)</code>
-    <span class="card-link">Test integration <span aria-hidden="true">→</span></span>
-  </a>
-  <a href="lifecycle.html" class="lifecycle-card">
-    <span class="card-eyebrow">02 / LOCAL DEVELOPMENT</span>
-    <strong>Development Instance <span aria-hidden="true">↗</span></strong>
-    <p>A development instance that stays running between builds. It survives Gradle and application exits until you explicitly stop it.</p>
-    <code>./gradlew startAwsEmulator</code>
-    <span class="card-link">Lifecycle tasks <span aria-hidden="true">→</span></span>
-  </a>
-</div>
-++++
-
-Managed and development instances use separate containers and working directories. Both store resources in memory, so stopping or restarting discards them. Custom resource tasks default to managed mode; module convenience tasks target development mode.
-
-xref:external-emulators.adoc[External connections] use an existing emulator's endpoint, credentials, and CA certificate.
+Run tests against a xref:testing.adoc[fresh emulator] or keep one running for xref:lifecycle.adoc[local development].
 
 [[what-you-can-do]]
 == AWS Resources

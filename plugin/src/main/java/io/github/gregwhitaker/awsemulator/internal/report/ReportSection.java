@@ -17,6 +17,7 @@
 package io.github.gregwhitaker.awsemulator.internal.report;
 
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Collections;
@@ -85,6 +86,9 @@ public final class ReportSection {
         for (int i = 0; i < pairs.length; i += 2) if (pairs[i + 1] != null) result.put((String) pairs[i], pairs[i + 1]);
         return result;
     }
+
+    /** Formats SDK timestamps without requiring service model or Java time serializers. */
+    public static String timestamp(Instant value) { return value == null ? null : value.toString(); }
 
     /** Selects known configuration attributes without exporting arbitrary service response fields. */
     public static Map<String, String> attributes(Map<String, String> source, String... names) {

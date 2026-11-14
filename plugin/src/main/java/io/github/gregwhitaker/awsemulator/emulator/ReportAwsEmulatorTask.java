@@ -17,9 +17,7 @@
 package io.github.gregwhitaker.awsemulator.emulator;
 
 import io.github.gregwhitaker.awsemulator.aws.AbstractAwsResourceTask;
-import io.github.gregwhitaker.awsemulator.aws.internal.AwsClientFactory;
-import io.github.gregwhitaker.awsemulator.internal.report.EmulatorReport;
-import io.github.gregwhitaker.awsemulator.internal.report.EmulatorReportCollector;
+import io.github.gregwhitaker.awsemulator.internal.report.EmulatorReportWork;
 import io.github.gregwhitaker.awsemulator.internal.report.EmulatorReportWriter;
 import org.gradle.api.GradleException;
 import org.gradle.api.file.DirectoryProperty;
@@ -29,16 +27,21 @@ import org.gradle.api.tasks.OutputDirectory;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.api.tasks.options.Option;
 import org.gradle.work.DisableCachingByDefault;
-import java.time.Instant;
+import org.gradle.workers.WorkerExecutor;
+import javax.inject.Inject;
 
 /**
- * Captures S3, SQS, SNS, DynamoDB, and CloudFormation metadata from an existing emulator.
+ * Captures metadata for all thirteen provisioned service families from an existing emulator:
+ * S3, SQS, SNS, DynamoDB, CloudFormation, EventBridge, Kinesis, SSM, Secrets Manager, KMS,
+ * CloudWatch Logs, Cognito User Pools, and SES. Omits resource payloads and secret values.
  * Writes index.html and report.json, including collection errors. Never starts an owned runtime.
  * Custom tasks inherit awsEmulator.defaultMode (initially MANAGED); convenience tasks use DEVELOPMENT.
  */
 @DisableCachingByDefault(because = "Reads live emulator state on every invocation")
 public abstract class ReportAwsEmulatorTask extends AbstractAwsResourceTask {
     public ReportAwsEmulatorTask() { getFailOnError().convention(false); }
+
+    @Inject protected abstract WorkerExecutor getWorkerExecutor();
 
     /** Output directory; defaults to build/reports/aws-emulator/runtime/mode/taskName. */
     @OutputDirectory
@@ -58,18 +61,25 @@ public abstract class ReportAwsEmulatorTask extends AbstractAwsResourceTask {
         EmulatorReportWriter.clear(directory);
         var runtime = getRuntime().get();
         var connection = runtime.inspectionConnection(getMode().get());
-        var metadata = new EmulatorReport.RuntimeInfo(getRuntimeName().get(), getMode().get().name(),
-            runtime.getParameters().getExternalEnabled().getOrElse(false), connection.endpoint(), connection.region());
-        var snapshot = new EmulatorReport(1, Instant.now().toString(), metadata,
-            new EmulatorReportCollector().collect(new AwsClientFactory(connection, getApiCallTimeoutSeconds().get())));
-        EmulatorReportWriter.write(snapshot, directory);
-        for (var section : snapshot.services()) getLogger().lifecycle("{}: {} resources ({})",
-            section.service(), section.resources().size(), section.status());
-        getLogger().lifecycle("AWS Emulator HTML report: {}", directory.resolve("index.html").toUri());
-        getLogger().lifecycle("AWS Emulator JSON report: {}", directory.resolve("report.json"));
-        if (!snapshot.complete()) {
-            if (getFailOnError().get()) throw new GradleException("AWS Emulator report is incomplete; see the report's collection issues.");
-            getLogger().warn("AWS Emulator report is incomplete; see the report's collection issues.");
-        }
+        var queue = getWorkerExecutor().processIsolation(spec -> {
+            // Kinesis wire-format selection is JVM-scoped. Keep it out of the Gradle daemon.
+            spec.getForkOptions().systemProperty("aws.cborEnabled", "false");
+            spec.getForkOptions().environment("CBOR_ENABLED", "false");
+            spec.getForkOptions().setMaxHeapSize("256m");
+        });
+        queue.submit(EmulatorReportWork.class, parameters -> {
+            parameters.getRuntimeName().set(getRuntimeName());
+            parameters.getMode().set(getMode().get().name());
+            parameters.getExternal().set(runtime.getParameters().getExternalEnabled().getOrElse(false));
+            parameters.getEndpoint().set(connection.endpoint());
+            parameters.getRegion().set(connection.region());
+            parameters.getConnectionDirectory().set(connection.directory().toFile());
+            parameters.getCredentialsFile().set(connection.credentials().toFile());
+            parameters.getCertificateFile().set(connection.certificate().toFile());
+            parameters.getTimeoutSeconds().set(getApiCallTimeoutSeconds());
+            parameters.getReportDirectory().set(getReportDirectory());
+            parameters.getFailOnError().set(getFailOnError());
+        });
+        queue.await();
     }
 }
