@@ -40,7 +40,7 @@ HEADINGS = re.compile(r"^## ([^\r\n]+)(\r?)$", re.MULTILINE)
 
 
 def command(*args, root, raw=False):
-    result = subprocess.run(args, cwd=root, text=True, capture_output=True)
+    result = subprocess.run(args, cwd=root, text=True, encoding="utf-8", capture_output=True)
     if result.returncode:
         raise RuntimeError(f"{args[0]} {args[1]} failed: {result.stderr.strip() or result.stdout.strip()}")
     return result.stdout if raw else result.stdout.strip()
@@ -172,6 +172,8 @@ def release(root, version, *, dry_run=False, timeout=3600, date=None):
         return
 
     command("gh", "auth", "status", "--active", "--hostname", "github.com", root=root)
+    command("git", "var", "GIT_AUTHOR_IDENT", root=root)
+    command("git", "var", "GIT_COMMITTER_IDENT", root=root)
     if clean_head(root) != head:
         raise ValueError("The checkout changed during release preparation; retry from a clean main checkout.")
     if not resume:
