@@ -5,6 +5,7 @@ Standalone Kotlin DSL builds demonstrating the AWS Emulator Gradle plugin with A
 | Example | Demonstrates |
 | --- | --- |
 | [Basic](basic/README.md) | S3 buckets, standard and FIFO SQS queues, a dead-letter queue, message fixtures, and signed STS requests. |
+| [CloudFormation](cloudformation/README.md) | Guarded JSON/YAML stack deployment, S3/SQS/DynamoDB service verification, stack outputs, updates, and rejection of declaration-only resource types. |
 | [Named runtimes](named-runtimes/README.md) | Independent test suites and development scenarios within one project, reusable resources, and an optional external connection. |
 | [Existing emulator](external/README.md) | Explicit endpoint, credentials, and CA files; SQS/Kinesis provisioning and tests without managing the emulator's lifecycle. |
 | [External processes](processes/README.md) | Python/Node `Exec` consumers, AWS CLI, shell/PowerShell connection exports, and IDE launch environments. |

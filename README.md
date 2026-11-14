@@ -66,6 +66,23 @@ Keep your application's AWS SDK and test dependencies. Use an SDK that supports 
 
 For Groovy DSL setup, see [getting started](docs/src/docs/asciidoc/getting-started.adoc). For regions, ports, images, and timeouts, see [configuration](docs/src/docs/asciidoc/configuration.adoc).
 
+## CloudFormation
+
+Deploy local JSON or YAML templates with `DeployCloudFormationStackTask`. The plugin checks every resource declaration against the provisioning handlers audited for emulator **1.0.322**, rejecting types that merely report success before the task connects. It creates or updates the stack, waits for completion, and exports stack outputs as JSON.
+
+```kotlin
+import io.github.gregwhitaker.awsemulator.aws.cloudformation.DeployCloudFormationStackTask
+
+val stack = tasks.register<DeployCloudFormationStackTask>("deployTestStack") {
+    stackName.set("application-tests")
+    templateFile.set(layout.projectDirectory.file("infra/test-stack.yaml"))
+}
+tasks.named<Test>("test") { dependsOn(stack) }
+awsEmulator { useWith(tasks.named<Test>("test")) }
+```
+
+`validateCloudFormationTemplate --templateFile=infra/test-stack.yaml` checks a template without Docker. Transforms (including SAM), nested stacks, and custom providers must be expanded or replaced with explicit resource tasks so unchecked types cannot bypass validation. See the [CloudFormation guide](docs/src/docs/asciidoc/cloudformation.adoc) for the supported-type catalogue and limits, or run the [example](examples/cloudformation/README.md) to verify S3, SQS, and DynamoDB provisioning.
+
 ## Runtime modes
 
 | Mode | Starts with | Cleanup |

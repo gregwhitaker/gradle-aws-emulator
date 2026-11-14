@@ -1,0 +1,149 @@
+= CloudFormation
+include::_partials/attributes.adoc[]
+
+Deploy local JSON or YAML templates into AWS Emulator with a provisioning check before the task connects. The plugin rejects resource types that emulator 1.0.322 would merely record as successful without creating service resources.
+
+== Start with the runnable example
+
+[source,shell]
+----
+./gradlew -p examples/cloudformation validateCloudFormationTemplate
+./gradlew -p examples/cloudformation integrationTest --configuration-cache
+./gradlew -p examples/cloudformation integrationTest --configuration-cache
+----
+
+Validation runs locally without Docker. The integration example deploys an S3 bucket, SQS queue, and DynamoDB table, then writes and reads through their service APIs. Each managed run creates a fresh emulator and removes it after the participating tasks finish, including ordinary failures.
+
+See {repo-url}/tree/main/examples/cloudformation[the runnable example] for persistent deployment, parameter updates, output consumption, and an intentionally rejected template.
+
+== Provision before tests
+
+[source,kotlin]
+----
+import io.github.gregwhitaker.awsemulator.aws.cloudformation.DeployCloudFormationStackTask
+
+plugins {
+    java
+    id("io.github.gregwhitaker.aws-emulator")
+}
+
+val stack = tasks.register<DeployCloudFormationStackTask>("deployTestStack") {
+    stackName.set("application-tests")
+    templateFile.set(layout.projectDirectory.file("infra/test-stack.yaml"))
+    parameters.put("QueueName", "application-events")
+    tags.put("environment", "test")
+}
+val tests = tasks.named<Test>("test") {
+    dependsOn(stack)
+    inputs.file(stack.flatMap { it.outputsFile })
+    systemProperty("stack.outputs", stack.flatMap { it.outputsFile }.get().asFile.absolutePath)
+}
+awsEmulator { useWith(tests) }
+----
+
+For example, `infra/test-stack.yaml` can contain:
+
+[source,yaml]
+----
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  QueueName:
+    Type: String
+Resources:
+  Events:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Ref QueueName
+Outputs:
+  QueueUrl:
+    Value: !Ref Events
+----
+
+The task waits for stack completion and writes a JSON object mapping output keys to values. This template produces `{"QueueUrl":"https://..."}`; read the file in your test or application. Output values are not printed. Files are replaced atomically where supported and use owner-only permissions on POSIX filesystems.
+
+Groovy DSL uses the same task types and properties:
+
+[source,groovy]
+----
+import io.github.gregwhitaker.awsemulator.aws.cloudformation.DeployCloudFormationStackTask
+
+def stack = tasks.register('deployTestStack', DeployCloudFormationStackTask) {
+    stackName.set('application-tests')
+    templateFile.set(layout.projectDirectory.file('infra/test-stack.yaml'))
+    parameters.put('QueueName', 'application-events')
+}
+tasks.named('test') { dependsOn(stack) }
+awsEmulator { useWith(tasks.named('test')) }
+----
+
+== Provisioning guard
+
+The support catalogue is audited against AWS Emulator `v1.0.322`, commit `7753983c6e495ec3612695b1336bf4936fc7b7fd`. It follows the upstream {repo-url}/blob/main/plugin/src/main/resources/io/github/gregwhitaker/awsemulator/aws/cloudformation/provisioned-types-1.0.322.txt[170 exact native provisioning type names and source references]. Nested stacks are excluded from deployment, leaving 169 accepted native types.
+
+`AWS::CDK::Metadata` is also accepted as stack metadata, and `AWS::CloudFormation::WaitCondition` is accepted for the emulator's signal-handling behavior. Neither represents a separate service resource. `AWS::CloudFormation::WaitConditionHandle` is rejected because its path only records a successful declaration.
+
+Supported native examples include `AWS::S3::Bucket`, `AWS::SQS::Queue`, `AWS::SNS::Topic`, `AWS::DynamoDB::Table`, `AWS::IAM::Role`, `AWS::Lambda::Function`, `AWS::EC2::Instance`, and `AWS::Logs::LogGroup`. A handler indicates that creation reaches service provisioning; it does not guarantee complete AWS property coverage or data-plane behavior.
+
+[cols="2,3",options="header"]
+|===
+|Template feature |Behavior
+|Declaration-only or unknown type |Rejected with its logical ID and exact type. For example: `AWS::CloudWatch::Alarm`, `AWS::Cognito::UserPool`, `AWS::Events::EventBus`, `AWS::ECS::Service`, `AWS::DynamoDB::GlobalTable`, and `AWS::SES::EmailIdentity`.
+|Conditional resources |Every declaration is checked, including resources under false conditions. Parameter values cannot disable the guard.
+|Transforms and macros |Root `Transform`, SAM templates, `Fn::Transform`, and `Fn::ForEach` are rejected. Supply a fully expanded template so all types are visible.
+|Nested stacks |`AWS::CloudFormation::Stack` is rejected because child templates cannot be inspected. Deploy each child with its own guarded task and explicitly pass required outputs.
+|Custom providers |`AWS::CloudFormation::CustomResource` and `Custom::*` are rejected because their provisioning behavior cannot be checked locally.
+|Ambiguous documents |Duplicate keys, multiple YAML documents, anchors, aliases, merge keys, nonliteral types, and unsupported YAML tags are rejected.
+|Different emulator version |Deployment and offline validation reject any configured `emulatorVersion` other than `1.0.322`.
+|===
+
+There is no option to disable the guard or add unchecked resource types. An available service API does not imply a working CloudFormation handler: for rejected types, use the plugin's service-specific tasks where available.
+
+The check validates resource support and document structure, not every CloudFormation property or intrinsic expression. The emulator performs the remaining template validation. Stack failures and rollbacks fail the deployment task; request acceptance alone is insufficient.
+
+Stack completion does not imply that every service has finished asynchronous initialization. In 1.0.322, a DynamoDB table can still be activating after `CREATE_COMPLETE`; use the service's readiness waiter before item operations, as the runnable example does. Stack deletion can similarly finish before a table disappears.
+
+The selected runtime's configured version determines the catalogue. For xref:external-emulators.adoc[external emulators] or a custom `image`, ensure the actual emulator is 1.0.322 too; the plugin cannot establish the remote binary version from that setting. Inspect templates locally with:
+
+[source,shell]
+----
+./gradlew validateCloudFormationTemplate --templateFile=infra/test-stack.yaml
+----
+
+Deployment always performs the same check itself before acquiring its connection or submitting a stack. A rejected template does not start that task's emulator; other dependencies in the build may independently use Docker.
+
+== Tasks and properties
+
+All task classes are in `io.github.gregwhitaker.awsemulator.aws.cloudformation`.
+
+[cols="2,3",options="header"]
+|===
+|Task type |Properties and behavior
+|`ValidateCloudFormationTemplateTask` |`templateFile`: local UTF-8 JSON or YAML, 1–51200 bytes. Checks provisioning support without an emulator connection. Accepts `runtimeName` to select the configured version.
+|`DeployCloudFormationStackTask` |`stackName`, `templateFile`; optional `parameters` and `tags` string maps, and `capabilities` list. Creates an absent stack or updates an existing one, waits for `CREATE_COMPLETE` or `UPDATE_COMPLETE`, and exports `outputsFile` (default `build/aws-emulator/cloudformation/TASK/outputs.json`). An unchanged stack succeeds and exports its outputs again.
+|`DeleteCloudFormationStackTask` |`stackName`. Deletes the stack and waits for its removal or `DELETE_COMPLETE`. An absent stack succeeds. Deletion follows the template's deletion policies and service constraints.
+|`ListCloudFormationStacksTask` |Lists names and statuses across all result pages, excluding deleted stacks.
+|===
+
+Stack names begin with a letter and contain up to 128 letters, digits, or hyphens. Parameter names begin with a letter and contain letters or digits. Supply the desired parameter values on each deployment; omitted parameters use template defaults rather than an explicit `UsePreviousValue` request. Tags are sent as the complete set, with at most 50 entries. Capabilities accept only `CAPABILITY_IAM` and `CAPABILITY_NAMED_IAM`; set them explicitly when your template needs IAM acknowledgement.
+
+Create/update/delete waits use `waitTimeoutSeconds` (default 120). Each SDK call uses `apiCallTimeoutSeconds` (default 30); a call already in progress can extend the overall wait. Timeouts fail the task and do not cancel the server operation. Busy, failed, or rolled-back stacks require inspection before retrying; the deploy task updates only `CREATE_COMPLETE`, `UPDATE_COMPLETE`, and `UPDATE_ROLLBACK_COMPLETE` stacks. Changing an existing template or parameters can replace resources.
+
+`templateFile` may come from a generating task's `flatMap` provider. It is read at execution, including on configuration-cache reuse. Input and output files must differ. Templates are submitted inline; remote `TemplateURL` inputs and change sets are not exposed.
+
+== Lifetimes and Spring Boot
+
+Custom deployment, deletion, and listing tasks default to `MANAGED`. They use the existing `mode`, `runtimeName`, verified TLS, and credential handling. Tasks that access live stack state always execute, even if template inputs and output files are unchanged; build-cache reuse is disabled.
+
+Register deployment tasks explicitly with a template and stack name, as above. The registered `deleteCloudFormationStack` and `listCloudFormationStacks` convenience tasks use `DEVELOPMENT`. To deploy the earlier task into the persistent runtime:
+
+[source,shell]
+----
+./gradlew deployTestStack --mode=DEVELOPMENT
+./gradlew listCloudFormationStacks
+./gradlew deleteCloudFormationStack --stackName=application-tests
+./gradlew stopAwsEmulator
+----
+
+Set parameters and other advanced properties on the task in your build script. CLI options include `--stackName`, `--templateFile`, `--mode`, and `--runtime` where applicable. `validateCloudFormationTemplate` is always local and has no mode.
+
+Deployment is marked as an emulator setup task, so it participates in xref:scenarios.adoc[resource sets] and the Spring Boot companion's xref:spring-boot.adoc[automatic setup discovery]. Managed cleanup removes the emulator after participating tasks finish; persistent and external runtimes retain their state until explicitly changed or stopped.

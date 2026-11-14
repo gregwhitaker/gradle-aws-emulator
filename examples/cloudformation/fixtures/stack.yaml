@@ -1,0 +1,33 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Local resources verified through their own service APIs.
+Parameters:
+  QueueName:
+    Type: String
+    Default: cloudformation-example-events
+Resources:
+  Files:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: cloudformation-example-files
+  Events:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Ref QueueName
+  Items:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: cloudformation-example-items
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+Outputs:
+  BucketName:
+    Value: !Ref Files
+  QueueUrl:
+    Value: !Ref Events
+  TableName:
+    Value: !Ref Items

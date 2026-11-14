@@ -59,13 +59,14 @@ dependencies {
         exclude(group = "software.amazon.awssdk", module = "netty-nio-client")
     }
     implementation("software.amazon.awssdk:url-connection-client")
-    for (service in listOf("ssm", "secretsmanager", "eventbridge", "kinesis", "kms", "cloudwatchlogs", "cognitoidentityprovider", "sesv2")) {
+    for (service in listOf("ssm", "secretsmanager", "eventbridge", "kinesis", "kms", "cloudwatchlogs", "cognitoidentityprovider", "sesv2", "cloudformation")) {
         implementation("software.amazon.awssdk:$service") {
             exclude(group = "software.amazon.awssdk", module = "apache-client")
             exclude(group = "software.amazon.awssdk", module = "netty-nio-client")
         }
     }
     implementation("com.fasterxml.jackson.core:jackson-databind:2.18.6")
+    implementation("org.yaml:snakeyaml:2.6")
     implementation("org.apache.commons:commons-compress:1.28.0")
     testFixturesImplementation(gradleTestKit())
     for (testSourceSet in listOf(functionalSourceSet, integrationSourceSet)) {
@@ -103,6 +104,7 @@ val functionalTest = tasks.named<Test>("functionalTest") {
 }
 
 tasks.named<Test>("integrationTest") {
+    useExample("cloudformation")
     useExample("external")
     useExample("named-runtimes")
     useExample("ses")

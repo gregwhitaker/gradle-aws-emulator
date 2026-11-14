@@ -43,6 +43,7 @@ import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient;
 import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
 import software.amazon.awssdk.services.sesv2.SesV2Client;
+import software.amazon.awssdk.services.cloudformation.CloudFormationClient;
 
 import java.net.URI;
 import java.time.Duration;
@@ -150,6 +151,15 @@ public final class AwsClientFactory {
     /** Creates an SES API v2 client using this runtime's credentials and TLS trust. */
     public SesV2Client sesV2() {
         return SesV2Client.builder()
+            .endpointOverride(URI.create(connection.endpoint())).region(Region.of(connection.region()))
+            .credentialsProvider(credentials()).httpClientBuilder(http())
+            .fipsEnabled(false).dualstackEnabled(false)
+            .overrideConfiguration(overrides()).build();
+    }
+
+    /** Creates a CloudFormation client using this runtime's local credentials and TLS trust. */
+    public CloudFormationClient cloudFormation() {
+        return CloudFormationClient.builder()
             .endpointOverride(URI.create(connection.endpoint())).region(Region.of(connection.region()))
             .credentialsProvider(credentials()).httpClientBuilder(http())
             .fipsEnabled(false).dualstackEnabled(false)

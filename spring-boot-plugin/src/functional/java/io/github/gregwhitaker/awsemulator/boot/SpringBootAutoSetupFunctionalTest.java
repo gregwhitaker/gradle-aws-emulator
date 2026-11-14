@@ -32,6 +32,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class SpringBootAutoSetupFunctionalTest {
     @TempDir Path project;
     private static final List<String> TYPES = List.of(
+        "cloudformation.DeployCloudFormationStackTask",
         "s3.CreateS3BucketTask", "s3.CreateS3BucketsTask",
         "sqs.CreateSqsQueueTask", "sqs.CreateSqsQueuesTask", "sqs.CreateSqsQueueWithDlqTask",
         "sns.CreateSnsTopicTask", "sns.CreateSnsTopicWithSqsEndpointTask", "dynamodb.CreateDynamoDbTableTask",

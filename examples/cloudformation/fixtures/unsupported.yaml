@@ -1,0 +1,15 @@
+Conditions:
+  Disabled: !Equals [one, two]
+Resources:
+  Alarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: Disabled
+    Properties:
+      AlarmName: never-created
+      Namespace: Example
+      MetricName: Messages
+      ComparisonOperator: GreaterThanThreshold
+      EvaluationPeriods: 1
+      Period: 60
+      Statistic: Sum
+      Threshold: 1

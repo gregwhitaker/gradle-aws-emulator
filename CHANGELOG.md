@@ -2,6 +2,7 @@
 
 ## 0.2.0 — Unreleased
 
+- Add CloudFormation template validation, stack deployment/update, listing, deletion, and JSON output exports. Reject declaration-only or unknown resource types using an emulator 1.0.322 provisioning catalogue before connecting; reject uninspectable transforms, nested stacks, and custom providers. Include a real-service example and lifecycle/configuration-cache tests.
 - Default to automatic port selection for managed and development runtimes, preserving explicit ports and `-PawsEmulator.port` overrides. Keep consumer task selection explicit through `useWith`.
 - Support managed runtimes in containerized CI and on remote Docker engines with `docker.host`, `docker.context`, and `DockerTransport.TUNNEL`; preserve verified HTTPS without shared bind mounts or published emulator ports, including named/shared ownership, configuration-cache reuse, and Isolated Projects.
 - Support Gradle Isolated Projects for default, named, external, and shared runtimes. Resolve owner metadata through project dependencies and shared setup through task paths; verify parallel configuration, configuration-cache reuse, and Docker lifecycle cleanup under isolation.
