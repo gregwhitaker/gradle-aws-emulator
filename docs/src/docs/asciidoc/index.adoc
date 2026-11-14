@@ -10,7 +10,6 @@ Gradle plugins for running AWS Emulator, provisioning AWS resources, and configu
   <a class="button-primary" href="getting-started.html">Get started <span aria-hidden="true">→</span></a>
   <a class="button-secondary" href="api/index.html">Java API <span aria-hidden="true">↗</span></a>
 </div>
-<p class="hero-requirements">Java 17+ <span>·</span> Gradle 8.14+ <span>·</span> Docker <span class="hero-requirements-note">No AWS account or AWS CLI required.</span></p>
 ++++
 
 [.home-example]
@@ -28,19 +27,7 @@ awsEmulator {
     useWith(tasks.named<Test>("test"))
 }
 ----
-
-++++
-<div class="example-lifecycle" aria-label="Managed test lifecycle">
-  <span><b>01</b> Start emulator</span><span aria-hidden="true">→</span>
-  <span><b>02</b> Run tests</span><span aria-hidden="true">→</span>
-  <span><b>03</b> Clean up</span>
-</div>
-<p class="example-caption">Configures the test task with the endpoint, credentials, and TLS trust.</p>
-++++
 --
-
-[.release-note]
-*Version {revnumber} is unreleased.* Start from a checkout with a xref:getting-started.adoc#apply-from-a-checkout[local composite build].
 
 [[try-a-working-build]]
 == Run the example

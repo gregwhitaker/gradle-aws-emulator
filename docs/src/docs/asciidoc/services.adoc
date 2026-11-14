@@ -32,7 +32,9 @@ For persistent development resources:
 
 == Parameter Store and Secrets Manager
 
-Task packages are `io.github.gregwhitaker.awsemulator.aws.ssm` and `io.github.gregwhitaker.awsemulator.aws.secretsmanager`.
+=== Parameter Store
+
+Package: `io.github.gregwhitaker.awsemulator.aws.ssm`.
 
 [cols="1,2",options="header"]
 |===
@@ -41,12 +43,23 @@ Task packages are `io.github.gregwhitaker.awsemulator.aws.ssm` and `io.github.gr
 |`PutSsmParametersTask` |`fixtures` JSON file, `overwrite`
 |`ListSsmParametersTask` |Lists parameter names, without values
 |`DeleteSsmParametersTask` |Explicit `names` list
+|===
+
+=== Secrets Manager
+
+Package: `io.github.gregwhitaker.awsemulator.aws.secretsmanager`.
+
+[cols="1,2",options="header"]
+|===
+|Task type |Configuration
 |`PutSecretTask` |`secretName`, `value` string, optional `keyId`, `overwrite` (default `false`)
 |`PutSecretsTask` |`fixtures` JSON file, `overwrite`
 |`ListSecretsTask` |Lists secret names, including secrets scheduled for deletion
 |`DescribeSecretTask` |`secretName`; prints ARN and deletion date without the value
 |`DeleteSecretsTask` |Explicit `names`, `recoveryWindowInDays` (7–30; default 30), `force` (default `false`)
 |===
+
+=== Shared setup and fixtures
 
 Kotlin DSL:
 

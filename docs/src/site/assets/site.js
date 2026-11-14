@@ -23,8 +23,28 @@
   const nav = document.querySelector('.site-nav');
   const menu = document.querySelector('.menu-toggle');
   const links = [...nav.querySelectorAll('.nav-group a')];
-  const current = links.find(link => link.getAttribute('href') === page);
-  current?.setAttribute('aria-current', 'page');
+  const pageLinks = links.filter(link => link.getAttribute('href').split('#')[0] === page);
+  const linkedSections = pageLinks.filter(link => link.hash).map(link => ({
+    link, target: document.getElementById(decodeURIComponent(link.hash.slice(1)))
+  })).filter(entry => entry.target).sort((a, b) =>
+    a.target.compareDocumentPosition(b.target) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1);
+  const findCurrentLink = () => {
+    const exact = pageLinks.find(link => link.hash === location.hash);
+    if (exact) return exact;
+    let target;
+    try {
+      target = document.getElementById(decodeURIComponent(location.hash.slice(1)));
+    } catch {
+      // An invalid URL fragment must not prevent the rest of the guide loading.
+    }
+    // A subsection belongs to the nearest preceding service heading, even if
+    // navigation order differs from the order in the shared article.
+    const section = target && linkedSections.findLast(entry => entry.target === target
+      || (entry.target.compareDocumentPosition(target) & Node.DOCUMENT_POSITION_FOLLOWING));
+    return section?.link || pageLinks.find(link => !link.hash) || linkedSections[0]?.link || pageLinks[0];
+  };
+  let current = findCurrentLink();
+  current?.setAttribute('aria-current', current.hash ? 'location' : 'page');
 
   const context = document.createElement('div');
   context.className = 'page-context';
@@ -47,10 +67,9 @@
     const introduction = document.createElement('div');
     introduction.className = 'home-introduction';
     const example = document.querySelector('.home-example');
-    const releaseNote = document.querySelector('.release-note');
     introduction.append(document.querySelector('#header'), document.querySelector('#preamble'));
     hero.append(introduction, example);
-    content.prepend(hero, releaseNote);
+    content.prepend(hero);
   }
 
   menu.hidden = false;
@@ -185,11 +204,14 @@
     wrapper.append(table);
   });
 
-  const index = links.indexOf(current);
-  if (index >= 0) {
-    const pagination = document.createElement('nav');
-    pagination.className = 'page-pagination';
-    pagination.setAttribute('aria-label', 'Previous and next pages');
+  const pagination = document.createElement('nav');
+  pagination.className = 'page-pagination';
+  pagination.setAttribute('aria-label', 'Previous and next pages');
+  const updatePagination = () => {
+    pagination.replaceChildren();
+    const index = links.indexOf(current);
+    pagination.hidden = index < 0;
+    if (index < 0) return;
     for (const [offset, label] of [[-1, 'Previous'], [1, 'Next']]) {
       const source = links[index + offset];
       if (!source) continue;
@@ -201,8 +223,18 @@
       link.append(caption, source.textContent.trim());
       pagination.append(link);
     }
-    content.append(pagination);
-  }
+  };
+  updatePagination();
+  content.append(pagination);
+  window.addEventListener('hashchange', () => {
+    const next = findCurrentLink();
+    if (next === current) return;
+    current?.removeAttribute('aria-current');
+    current = next;
+    current?.setAttribute('aria-current', current.hash ? 'location' : 'page');
+    updatePagination();
+    if (current && !mobile.matches) nav.scrollTop = Math.max(0, current.offsetTop - nav.clientHeight / 2);
+  });
 
   const dialog = document.querySelector('#docs-search');
   const searchToggle = document.querySelector('.search-toggle');
