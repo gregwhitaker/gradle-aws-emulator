@@ -1,0 +1,78 @@
+= Spring Cloud AWS
+include::_partials/attributes.adoc[]
+:description: Use Spring Cloud AWS clients, SQS listeners, and configuration imports with AWS Emulator.
+
+Spring Cloud AWS uses the `io.github.gregwhitaker.aws-emulator.spring-boot` companion to provision resources before Spring starts and supply the emulator connection to application and test JVMs. Follow the xref:spring-boot.adoc#apply-from-a-checkout[Spring Boot setup] to apply the companion.
+
+The link:{repo-url}/tree/main/examples/spring-cloud-aws[Spring Cloud AWS example] pins Spring Cloud AWS 3.4.0 with Spring Boot 3.5.16, following the https://github.com/awspring/spring-cloud-aws#compatibility-with-spring-project-versions[framework compatibility matrix]. It requires Java 17+, Gradle 8.14+, and a local Docker engine with Linux containers.
+
+toc::[]
+
+== Run The Example
+
+From the repository root:
+
+[source,shell]
+----
+./gradlew -p examples/spring-cloud-aws test bootRunLocal --configuration-cache
+./gradlew -p examples/spring-cloud-aws test bootRunLocal --configuration-cache
+./gradlew -p examples/spring-cloud-aws stopAwsEmulator
+----
+
+The application exits after verifying its integrations. Tests use a fresh managed emulator and remove it afterwards. `bootRunLocal` uses a separate development emulator that survives application exit. Repeat the command to exercise configuration-cache reuse; initial compilation can cause Spring Boot to refresh the first cache entry.
+
+== Resources And Dependencies
+
+The link:{repo-url}/blob/main/examples/spring-cloud-aws/build.gradle.kts[example build] imports the Spring Cloud AWS dependency BOM and declares the SQS, Parameter Store, and Secrets Manager starters. Keep framework versions compatible with the application's Spring Boot version.
+
+The build declares an `application` xref:scenarios.adoc#resource-sets[resource set] once and attaches it to managed Spring tests, local Boot runs, and a development scenario. The set creates an SQS queue, a parameter, and a JSON secret, then seeds messages. Consumers sharing a mode share resources and run setup once per build. The combined command above uses separate managed and development instances, so each listener receives its own fixture.
+
+== Configuration Imports
+
+The link:{repo-url}/blob/main/examples/spring-cloud-aws/src/main/resources/application-local.properties[local profile] imports required configuration before the application context starts:
+
+[source,properties]
+----
+spring.config.import=aws-parameterstore:/spring-cloud-example/,aws-secretsmanager:/spring-cloud-example/credentials
+spring.cloud.aws.endpoint=${aws.endpointUrl}
+spring.cloud.aws.region.static=${aws.region}
+spring.cloud.aws.parameterstore.endpoint=${aws.endpointUrl}
+spring.cloud.aws.secretsmanager.endpoint=${aws.endpointUrl}
+----
+
+Gradle provisions the parameter and JSON secret before launch. Spring injects their values through `@Value`, including in `@SpringBootTest`. The local profile maps the supplied endpoint to Spring Cloud AWS, including the early clients used by configuration imports.
+
+== Clients And Messaging
+
+The application uses the auto-configured `SqsAsyncClient` and `SqsTemplate` to send messages, and `@SqsListener` consumes both seeded and newly sent messages. It waits for successful manual acknowledgements with bounded timeouts.
+
+The SDK reads generated credentials through its normal provider chain. The plugin supplies the endpoint, region, and consumer JVM trust at execution time. All clients use HTTPS with certificate and hostname validation enabled; no custom client beans or trust managers are needed. See xref:connections.adoc[Credentials & TLS] for connection details.
+
+== Development, Debugging, And Failures
+
+For a managed application run or intentional failures:
+
+[source,shell]
+----
+./gradlew -p examples/spring-cloud-aws bootRunLocal -Pmanaged=true --configuration-cache
+./gradlew -p examples/spring-cloud-aws bootRunLocal -Pmanaged=true --args=fail
+./gradlew -p examples/spring-cloud-aws test -PfailExample=true
+----
+
+The last two commands fail after verifying the integrations; managed containers and connection files are still removed. `bootRunLocalDebug` supports the same resource set and waits for a debugger on port 5005 by default.
+
+The same definitions can also be loaded as a development scenario:
+
+[source,shell]
+----
+./gradlew -p examples/spring-cloud-aws resetAwsEmulator --configuration-cache
+./gradlew -p examples/spring-cloud-aws stopAwsEmulator
+----
+
+Reset discards all resources in this project's development emulator before applying the set.
+
+== Compatibility And Verification
+
+The Docker suite verifies this framework path with configuration-cache reuse, separate managed and development instances in one build, and managed cleanup after test failures, application failures, and missing required imports.
+
+Spring Cloud AWS 4.x is outside this example's compatibility coverage. The separate xref:spring-boot.adoc#runnable-example[Spring Boot example] covers Boot 4 with direct SDK clients. See the https://docs.awspring.io/spring-cloud-aws/docs/3.4.0/reference/html/index.html[Spring Cloud AWS reference] for import and listener configuration.

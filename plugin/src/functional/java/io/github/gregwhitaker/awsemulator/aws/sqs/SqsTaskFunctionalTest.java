@@ -86,15 +86,17 @@ class SqsTaskFunctionalTest {
             tasks.register<CreateSqsQueueWithDlqTask>("createDlq") { queueName.set("events.fifo"); queueAttributes.put("FifoQueue", "true") }
             tasks.register<ListSqsQueuesTask>("customListQueues")
             tasks.register<PurgeSqsQueuesTask>("customPurgeQueues")
+            tasks.register<DeleteSqsQueuesTask>("customDeleteQueues")
             tasks.register<PublishSqsTask>("customPublish")
             check(tasks.named<CreateSqsQueueWithDlqTask>("createDlq").get().deadletterQueueName.get() == "events-dlq.fifo")
-            listOf("listSqsQueues", "purgeSqsQueues", "publishSqs").forEach {
+            check(tasks.named<DeleteSqsQueuesTask>("customDeleteQueues").get().mode.get() == EmulatorMode.MANAGED)
+            listOf("listSqsQueues", "purgeSqsQueues", "deleteSqsQueues", "publishSqs").forEach {
                 check((tasks.named(it).get() as AbstractAwsResourceTask).mode.get() == EmulatorMode.DEVELOPMENT)
             }
             """);
         String output = runner(project, "tasks", "--all").build().getOutput();
         for (String task : new String[] {"createQueues", "createDlq", "customListQueues", "customPurgeQueues",
-            "customPublish", "listSqsQueues", "purgeSqsQueues", "publishSqs"}) {
+            "customPublish", "customDeleteQueues", "listSqsQueues", "purgeSqsQueues", "deleteSqsQueues", "publishSqs"}) {
             assertTrue(output.contains(task + " - "), output);
         }
         assertTrue(output.contains("AWS Emulator - SQS tasks"), output);
@@ -120,6 +122,8 @@ class SqsTaskFunctionalTest {
         }
         String cli = runner(project, "purgeSqsQueues", "--queueNames=valid,bad/name").buildAndFail().getOutput();
         assertTrue(cli.contains("queueName must"), cli);
+        String deletion = runner(project, "deleteSqsQueues", "--queueNames=valid,").buildAndFail().getOutput();
+        assertTrue(deletion.contains("queueName must"), deletion);
         assertFalse(Files.exists(project.resolve(".aws-emulator")));
     }
 

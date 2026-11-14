@@ -1,0 +1,35 @@
+== Attach An Existing Application
+
+First xref:getting-started.adoc#apply-from-a-checkout[include this checkout in plugin management] and apply `io.github.gregwhitaker.aws-emulator` alongside your chosen framework plugins. This integration uses Gradle `JavaExec` and `Test` tasks:
+
+.Kotlin DSL
+[source,kotlin]
+----
+import io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueueTask
+import io.github.gregwhitaker.awsemulator.model.EmulatorMode
+
+val createQueue = tasks.register<CreateSqsQueueTask>("createApplicationQueue") {
+    queueName.set("application-events")
+}
+awsEmulator {
+    useWith(tasks.named<JavaExec>("run"), EmulatorMode.MANAGED, createQueue)
+    useWith(tasks.named<Test>("test"), EmulatorMode.MANAGED, createQueue)
+}
+----
+
+.Groovy DSL
+[source,groovy]
+----
+import io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueueTask
+import io.github.gregwhitaker.awsemulator.model.EmulatorMode
+
+def createQueue = tasks.register('createApplicationQueue', CreateSqsQueueTask) {
+    queueName.set('application-events')
+}
+awsEmulator {
+    useWith(tasks.named('run'), EmulatorMode.MANAGED, createQueue)
+    useWith(tasks.named('test'), EmulatorMode.MANAGED, createQueue)
+}
+----
+
+Task names above refer to tasks supplied by the application's existing plugins. Only explicitly selected consumers receive the emulator connection. Setup task modes must match their consumers. See xref:testing.adoc[Tests & Java execution] for source sets and additional consumer configuration.

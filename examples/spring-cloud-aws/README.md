@@ -36,3 +36,5 @@ The same definitions can also be loaded as a development scenario:
 ```
 
 Reset discards all resources in this project's development emulator before applying the set. Spring Cloud AWS integration is tested against the pinned 3.x pairing above; the separate [Spring Boot example](../spring-boot/README.md) covers Boot 4 with direct SDK clients.
+
+See the [Spring Cloud AWS guide](../../docs/src/docs/asciidoc/spring-cloud-aws.adoc) for setup, configuration imports, and lifecycle details.

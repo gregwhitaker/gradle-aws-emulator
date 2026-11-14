@@ -1,0 +1,98 @@
+= Micronaut
+include::_partials/attributes.adoc[]
+:description: Run and test Micronaut applications against AWS Emulator using the core Gradle plugin.
+
+Micronaut uses the core `io.github.gregwhitaker.aws-emulator` plugin. Attach its existing Gradle `run` and `test` tasks with `awsEmulator.useWith(...)`; no additional emulator companion is required. Your application chooses its framework and AWS SDK versions.
+
+The example uses Java 17+, Gradle 8.14+, a local Docker engine with Linux containers, and AWS SDK for Java v2. It performs signed HTTPS requests with normal certificate and hostname validation. No AWS account or AWS CLI is required.
+
+toc::[]
+
+== Run The Example
+
+From the repository root:
+
+[source,shell]
+----
+./gradlew -p examples/micronaut test run --configuration-cache
+./gradlew -p examples/micronaut test run --configuration-cache
+----
+
+The example build provisions an SQS queue before the framework consumers start. Tests and application execution share a fresh managed instance within that project and build. The repeated command reuses the configuration cache while provisioning and consumers execute again. The managed container, generated credentials, and trust stores are removed after the consumers finish, including ordinary failures.
+
+The example is an independent composite build. `classes testClasses` compiles it without Docker; `test`, `run`, and `build` require Docker. Applying the plugin or running `help` does not start an emulator.
+
+include::_partials/framework-task-integration.adoc[]
+
+[[micronaut]]
+== SDK Client Integration
+
+The Java example uses the Micronaut application plugin and `micronaut-aws-sdk-v2`. Micronaut creates the injected `SqsClient`, and both the main application and `@MicronautTest` call the same `Messages` bean. The console application sends and receives a message, then closes its application context.
+
+The SDK reads the execution-time connection supplied by Gradle. Keep emulator consumers on the normal SDK providers. Micronaut-specific endpoint overrides or custom credential beans can take precedence; scope production settings to other environments. The example uses the URLConnection HTTP client and leaves TLS verification enabled. See the https://micronaut-projects.github.io/micronaut-aws/4.11.0/guide/[Micronaut AWS guide] for its client configuration.
+
+The example does not apply Micronaut Test Resources. If an existing application uses that plugin to provision AWS/LocalStack, disable that competing AWS provider for emulator consumers. Other services may still use their own test resources.
+
+.View The Micronaut Build
+[%collapsible]
+====
+[source,kotlin]
+----
+include::examples/micronaut/build.gradle.kts[]
+----
+====
+
+.View The Framework-Managed SQS Consumer
+[%collapsible]
+====
+[source,java]
+----
+include::examples/micronaut/src/main/java/example/Messages.java[]
+----
+====
+
+== Development, Debugging, And Failures
+
+The example accepts `-Pdevelopment=true` for application runs:
+
+[source,shell]
+----
+./gradlew -p examples/micronaut run -Pdevelopment=true --configuration-cache
+./gradlew -p examples/micronaut run -Pdevelopment=true --configuration-cache
+./gradlew -p examples/micronaut listSqsQueues
+./gradlew -p examples/micronaut stopAwsEmulator
+----
+
+The application still exits after its round trip. Its development emulator survives success or failure and is reused until explicitly stopped. `test` always uses a managed instance, even with `-Pdevelopment=true`. The example registers separate setup tasks so managed tests and development runs cannot accidentally target the same runtime.
+
+To debug the example, run `run --debug-jvm` and attach to port 5005. Gradle suspends the JVM until a debugger connects. The emulator and queue are ready before the application JVM starts.
+
+To exercise managed cleanup after application or test failure:
+
+[source,shell]
+----
+./gradlew -p examples/micronaut run -PfailExample=true
+./gradlew -p examples/micronaut test -PfailExample=true
+----
+
+These commands intentionally fail after completing their SDK round trip.
+
+== Compatibility And Verification
+
+[cols="1,2,2",options="header"]
+|===
+|Framework |Docker-free compatibility fixtures |Real-emulator fixtures
+|Micronaut |Platform 4.9.4 and 4.10.24; Micronaut Gradle plugin 4.6.2 |Platform 4.10.24
+|===
+
+The Docker-free suite compiles the application and its tests, verifies setup ordering and runtime selection, and checks configuration-cache reuse without invoking Docker. It runs under the repository's JDK/Gradle CI matrix. Override the example framework version with `-PmicronautVersion=4.9.4` to reproduce the alternate fixture.
+
+The real-emulator suite checks framework consumers, signed HTTPS, inherited credential/endpoint replacement, managed runtime sharing and failure cleanup, development reuse, and isolation between development runs and managed tests. Both suites copy the runnable example, so the documented sources are the compatibility fixture.
+
+[source,shell]
+----
+./gradlew :plugin:functionalTest --tests '*FrameworkCompatibilityFunctionalTest'
+./gradlew :plugin:integrationTest --tests '*FrameworkIntegrationTest'
+----
+
+Verified support covers JVM `run` and `Test` consumers using AWS SDK for Java v2. Native images and continuous restart or automatic reload workflows are outside this compatibility scope. IDE launches must delegate to the opted-in Gradle task to receive the generated connection. See xref:connections.adoc[Credentials & TLS] for client-level overrides and trust configuration.

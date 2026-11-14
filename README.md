@@ -206,7 +206,7 @@ The optional **`io.github.gregwhitaker.aws-emulator.spring-boot`** companion add
 
 The local tasks use a persistent development instance by default. The debug task waits for a debugger on `localhost:5005`. See the [companion README](spring-boot-plugin/README.md) for installation, profiles, resource selection, and managed mode.
 
-Micronaut and Ktor use the core plugin with their existing `run` and `test` tasks; see the [framework guide](docs/src/docs/asciidoc/frameworks.adoc).
+[Micronaut](docs/src/docs/asciidoc/micronaut.adoc) and [Ktor](docs/src/docs/asciidoc/ktor.adoc) use the core plugin with their existing `run` and `test` tasks. [Spring Cloud AWS](docs/src/docs/asciidoc/spring-cloud-aws.adoc) uses the Spring Boot companion for auto-configured clients, SQS listeners, and configuration imports.
 
 ## Examples
 

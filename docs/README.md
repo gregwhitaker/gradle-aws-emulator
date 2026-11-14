@@ -48,9 +48,10 @@ After a successful deployment, the site is available at <https://gregwhitaker.gi
 - Capitalize each word in page and section headings, preserving acronyms and official product names.
 - Use `xref:page.adoc#section-id[Label]` for internal links. Top-level pages are discovered automatically at configuration time. Add each new page to the navigation in `_partials/docinfo-header.html`.
 - Give each supported AWS service its own guide page, linked directly from the alphabetized AWS resources navigation and homepage list. Keep service task references on that service's page and cross-link related workflows. Preserve heading IDs when editing. The active entry and previous/next links follow page navigation, including browser back and forward.
+- Give each framework its own guide page, linked directly from the Integrations navigation and homepage list. Keep shared task-configuration snippets in partials.
 - Keep reusable partials under `_partials/`; they are included, not rendered as standalone pages.
 - The getting-started guide includes the actual build scripts, SDK test, and message fixtures from `examples/basic`. `prepareDocs` stages those files so source changes invalidate generation.
-- The Micronaut and Ktor guide includes build scripts and application code from `examples/micronaut` and `examples/ktor`; `prepareDocs` stages these examples too.
+- The separate Micronaut and Ktor guides include their own build scripts and application code from `examples/micronaut` and `examples/ktor`; `prepareDocs` stages these examples too.
 - Update styles and browser behavior in `src/site/assets/`. Assets are local; the guide has no CDN or web-font dependency. JavaScript enhances navigation, section search, copy buttons, JVM/JSON syntax colors, and tables; content and links remain usable without it.
 - `indexGuide` runs `src/tools/IndexGuide.java` after rendering and indexes the current guide pages by heading. It excludes site navigation and the table of contents. `site` includes the resulting `assets/search-index.js`; adding or removing a guide page updates the index automatically. No separate search service or package installation is needed.
 - `theme.css` and `theme.js` define the shared palette, toggle, and preference. `api.css` adapts Javadoc's tables, navigation, search results, and method filters to that palette.

@@ -92,4 +92,58 @@ class SqsQueueOperationsTest {
             () -> new SqsQueueOperations().purge(client, List.of("first", "second", "third"))));
         assertEquals(List.of("https://local/first", "https://local/second"), calls);
     }
+
+    @Test
+    void deletionResolvesTheSelectionFirstAndToleratesMissingAndConcurrentlyDeletedQueues() {
+        var calls = new ArrayList<String>();
+        var client = SdkStub.client(SqsClient.class, (proxy, method, args) -> switch (method.getName()) {
+            case "getQueueUrl" -> {
+                String name = ((GetQueueUrlRequest) args[0]).queueName();
+                calls.add("lookup " + name);
+                if (name.equals("missing")) throw QueueDoesNotExistException.builder().build();
+                yield GetQueueUrlResponse.builder().queueUrl("https://local/" + name).build();
+            }
+            case "deleteQueue" -> {
+                String url = ((DeleteQueueRequest) args[0]).queueUrl();
+                calls.add("delete " + url);
+                if (url.endsWith("raced")) throw QueueDoesNotExistException.builder().build();
+                yield DeleteQueueResponse.builder().build();
+            }
+            default -> throw new AssertionError(method.getName());
+        });
+        new SqsQueueOperations().delete(client, List.of("first", "missing", "raced", "orders.fifo"));
+        assertEquals(List.of("lookup first", "lookup missing", "lookup raced", "lookup orders.fifo",
+            "delete https://local/first", "delete https://local/raced", "delete https://local/orders.fifo"), calls);
+    }
+
+    @Test
+    void lookupFailurePreventsAnyDeletion() {
+        var denied = SqsException.builder().statusCode(403).build();
+        var client = SdkStub.client(SqsClient.class, (proxy, method, args) -> {
+            assertEquals("getQueueUrl", method.getName());
+            if (((GetQueueUrlRequest) args[0]).queueName().equals("denied")) throw denied;
+            return GetQueueUrlResponse.builder().queueUrl("https://local/first").build();
+        });
+        assertSame(denied, assertThrows(SqsException.class,
+            () -> new SqsQueueOperations().delete(client, List.of("first", "denied"))));
+    }
+
+    @Test
+    void deletionFailuresStopWithoutDeletingRemainingQueues() {
+        var calls = new ArrayList<String>();
+        var denied = SqsException.builder().statusCode(403).build();
+        var client = SdkStub.client(SqsClient.class, (proxy, method, args) -> switch (method.getName()) {
+            case "getQueueUrl" -> GetQueueUrlResponse.builder().queueUrl("https://local/" + ((GetQueueUrlRequest) args[0]).queueName()).build();
+            case "deleteQueue" -> {
+                String url = ((DeleteQueueRequest) args[0]).queueUrl();
+                calls.add(url);
+                if (url.endsWith("second")) throw denied;
+                yield DeleteQueueResponse.builder().build();
+            }
+            default -> throw new AssertionError(method.getName());
+        });
+        assertSame(denied, assertThrows(SqsException.class,
+            () -> new SqsQueueOperations().delete(client, List.of("first", "second", "third"))));
+        assertEquals(List.of("https://local/first", "https://local/second"), calls);
+    }
 }

@@ -34,6 +34,7 @@ class SpringBootAutoSetupFunctionalTest {
     private static final List<String> TYPES = List.of(
         "cloudformation.DeployCloudFormationStackTask",
         "s3.CreateS3BucketTask", "s3.CreateS3BucketsTask",
+        "s3.PutS3BucketPolicyTask", "s3.PutS3BucketVersioningTask", "s3.PutS3BucketNotificationConfigurationTask",
         "sqs.CreateSqsQueueTask", "sqs.CreateSqsQueuesTask", "sqs.CreateSqsQueueWithDlqTask",
         "sns.CreateSnsTopicTask", "sns.CreateSnsTopicWithSqsEndpointTask", "dynamodb.CreateDynamoDbTableTask",
         "ssm.PutSsmParameterTask", "ssm.PutSsmParametersTask", "secretsmanager.PutSecretTask", "secretsmanager.PutSecretsTask",

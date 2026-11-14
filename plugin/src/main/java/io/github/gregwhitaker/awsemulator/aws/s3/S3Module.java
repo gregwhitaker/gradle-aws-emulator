@@ -32,6 +32,10 @@ public final class S3Module {
         configure(project, ListS3BucketsTask.class, "Lists S3 buckets in AWS Emulator.");
         configure(project, PurgeS3BucketsTask.class, "Removes all objects, versions, and delete markers from selected S3 buckets.");
         configure(project, DeleteS3BucketsTask.class, "Deletes selected S3 buckets from AWS Emulator.");
+        configure(project, PutS3BucketPolicyTask.class, "Replaces the policy of an existing S3 bucket.");
+        configure(project, DeleteS3BucketPolicyTask.class, "Removes the policy of an existing S3 bucket.");
+        configure(project, PutS3BucketVersioningTask.class, "Enables or suspends versioning of an existing S3 bucket.");
+        configure(project, PutS3BucketNotificationConfigurationTask.class, "Replaces all notifications of an existing S3 bucket.");
         configure(project, UploadS3ObjectTask.class, "Uploads a file to an S3 object in AWS Emulator.");
         configure(project, UploadS3DirectoryTask.class, "Uploads a directory of S3 object fixtures to AWS Emulator.");
         configure(project, ListS3ObjectsTask.class, "Lists S3 object keys and sizes in AWS Emulator.");
@@ -45,6 +49,8 @@ public final class S3Module {
         project.getTasks().register("purgeS3Buckets", PurgeS3BucketsTask.class,
             task -> task.getMode().convention(EmulatorMode.DEVELOPMENT));
         project.getTasks().register("deleteS3Buckets", DeleteS3BucketsTask.class,
+            task -> task.getMode().convention(EmulatorMode.DEVELOPMENT));
+        project.getTasks().register("deleteS3BucketPolicy", DeleteS3BucketPolicyTask.class,
             task -> task.getMode().convention(EmulatorMode.DEVELOPMENT));
     }
 

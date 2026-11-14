@@ -110,12 +110,15 @@ Create and configure resources with service-specific Gradle tasks.
 ++++
 <div class="guide-links">
   <a href="spring-boot.html"><span>01</span><div><strong>Spring Boot</strong><p>Run and debug Spring Boot with automatic resource setup.</p></div><span aria-hidden="true">→</span></a>
-  <a href="scenarios.html"><span>02</span><div><strong>Fixtures And Scenarios</strong><p>Load fixtures, choose a scenario, and reset your environment.</p></div><span aria-hidden="true">→</span></a>
-  <a href="shared-runtimes.html"><span>03</span><div><strong>Shared Runtimes</strong><p>Share one emulator across multiple Gradle projects.</p></div><span aria-hidden="true">→</span></a>
+  <a href="spring-cloud-aws.html"><span>02</span><div><strong>Spring Cloud AWS</strong><p>Configure AWS clients, SQS listeners, and configuration imports.</p></div><span aria-hidden="true">→</span></a>
+  <a href="micronaut.html"><span>03</span><div><strong>Micronaut</strong><p>Run and test Micronaut with injected AWS SDK clients.</p></div><span aria-hidden="true">→</span></a>
+  <a href="ktor.html"><span>04</span><div><strong>Ktor</strong><p>Run and test Ktor routes against provisioned AWS resources.</p></div><span aria-hidden="true">→</span></a>
+  <a href="scenarios.html"><span>05</span><div><strong>Fixtures And Scenarios</strong><p>Load fixtures, choose a scenario, and reset your environment.</p></div><span aria-hidden="true">→</span></a>
+  <a href="shared-runtimes.html"><span>06</span><div><strong>Shared Runtimes</strong><p>Share one emulator across multiple Gradle projects.</p></div><span aria-hidden="true">→</span></a>
 </div>
 ++++
 
-See the xref:frameworks.adoc[framework guide] for Micronaut and Ktor setup. Keep your application's AWS SDK and test dependencies, and see xref:connections.adoc[SDK connection setup] for endpoints and TLS. Applying the plugin alone does not start Docker; tasks opt in explicitly.
+Keep your application's AWS SDK and test dependencies, and see xref:connections.adoc[SDK connection setup] for endpoints and TLS. Applying the plugin alone does not start Docker; tasks opt in explicitly.
 
 == Requirements
 

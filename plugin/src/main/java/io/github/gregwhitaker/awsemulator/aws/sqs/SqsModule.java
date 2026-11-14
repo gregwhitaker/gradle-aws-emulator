@@ -32,11 +32,14 @@ public final class SqsModule {
         configure(project, CreateSqsQueueWithDlqTask.class, "Creates or updates an SQS queue with a deadletter queue in AWS Emulator.");
         configure(project, ListSqsQueuesTask.class, "Lists SQS queues and message counts in AWS Emulator.");
         configure(project, PurgeSqsQueuesTask.class, "Requests removal of all messages from selected SQS queues.");
+        configure(project, DeleteSqsQueuesTask.class, "Deletes selected SQS queues and their messages from AWS Emulator.");
         configure(project, PublishSqsTask.class, "Publishes message files to selected SQS queues in AWS Emulator.");
 
         project.getTasks().register("listSqsQueues", ListSqsQueuesTask.class,
             task -> task.getMode().convention(EmulatorMode.DEVELOPMENT));
         project.getTasks().register("purgeSqsQueues", PurgeSqsQueuesTask.class,
+            task -> task.getMode().convention(EmulatorMode.DEVELOPMENT));
+        project.getTasks().register("deleteSqsQueues", DeleteSqsQueuesTask.class,
             task -> task.getMode().convention(EmulatorMode.DEVELOPMENT));
         project.getTasks().register("publishSqs", PublishSqsTask.class,
             task -> task.getMode().convention(EmulatorMode.DEVELOPMENT));

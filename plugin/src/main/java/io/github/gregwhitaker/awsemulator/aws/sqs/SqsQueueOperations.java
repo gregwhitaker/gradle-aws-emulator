@@ -23,7 +23,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 
-/** Shared queue lookup, listing, and purge operations. */
+/** Shared queue lookup, listing, purge, and deletion operations. */
 final class SqsQueueOperations {
     List<Queue> list(SqsClient client, String prefix) {
         List<Queue> queues = new ArrayList<>();
@@ -52,6 +52,25 @@ final class SqsQueueOperations {
     void purge(SqsClient client, List<String> names) {
         // Resolve every name before the first mutation so a missing queue cannot partially purge the selection.
         for (String url : urls(client, names)) client.purgeQueue(PurgeQueueRequest.builder().queueUrl(url).build());
+    }
+
+    void delete(SqsClient client, List<String> names) {
+        var urls = new ArrayList<String>();
+        // Resolve the full selection before deleting anything. Only missing queues are ignored.
+        for (String name : names) {
+            try {
+                urls.add(client.getQueueUrl(GetQueueUrlRequest.builder().queueName(name).build()).queueUrl());
+            } catch (QueueDoesNotExistException absent) {
+                // Deletion is idempotent; no lookup of a related dead-letter queue is needed.
+            }
+        }
+        for (String url : urls) {
+            try {
+                client.deleteQueue(DeleteQueueRequest.builder().queueUrl(url).build());
+            } catch (QueueDoesNotExistException raced) {
+                // Another caller may delete a queue after lookup.
+            }
+        }
     }
 
     record Queue(String name, String url, String messages) {}
