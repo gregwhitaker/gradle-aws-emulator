@@ -41,6 +41,36 @@ final class ResourceSetModule {
     private final Map<String, List<TaskProvider<? extends AbstractAwsResourceTask>>> instances = new HashMap<>();
     private final Set<String> resolving = new HashSet<>();
 
+    /** Reverses the include graph, deduplicating shared prerequisites before constructing a failure-safe chain. */
+    List<TaskProvider<? extends AbstractAwsResourceTask>> cleanup(
+            List<Provider<? extends EmulatorResourceSet>> selections, String runtimeName, EmulatorMode mode) {
+        List<EmulatorResourceSet> ordered = new ArrayList<>();
+        Set<EmulatorResourceSet> visited = new HashSet<>();
+        for (var selection : selections) cleanupOrder(selection.get(), ordered, visited, new HashSet<>());
+        java.util.Collections.reverse(ordered);
+        List<TaskProvider<? extends AbstractAwsResourceTask>> result = new ArrayList<>();
+        for (var resources : ordered) {
+            String key = "cleanup_" + runtimeName + "_" + resources.getName() + "_" + mode;
+            for (var step : resources.cleanupSteps()) {
+                result.add(register(key, step, runtimeName, mode, List.copyOf(result)));
+            }
+        }
+        return List.copyOf(result);
+    }
+
+    private void cleanupOrder(EmulatorResourceSet resources, List<EmulatorResourceSet> ordered,
+            Set<EmulatorResourceSet> visited, Set<EmulatorResourceSet> path) {
+        if (extension.getResourceSets().findByName(resources.getName()) != resources) {
+            throw new GradleException("AWS Emulator resource sets must belong to the consumer's project: " + resources.getName());
+        }
+        if (!path.add(resources)) throw new GradleException("Cyclic AWS Emulator resource set includes: " + resources.getName());
+        if (visited.add(resources)) {
+            for (var included : resources.includes()) cleanupOrder(included.get(), ordered, visited, path);
+            ordered.add(resources);
+        }
+        path.remove(resources);
+    }
+
     ResourceSetModule(Project project, AwsEmulatorExtension extension) {
         this.project = project;
         this.extension = extension;

@@ -54,9 +54,14 @@ final class DynamoDbTableOperations {
     }
 
     void delete(DynamoDbClient client, String name, int timeoutSeconds) {
+        delete(client, name, timeoutSeconds, false);
+    }
+
+    void delete(DynamoDbClient client, String name, int timeoutSeconds, boolean ignoreMissing) {
         try {
             client.deleteTable(DeleteTableRequest.builder().tableName(name).build());
         } catch (ResourceNotFoundException missing) {
+            if (ignoreMissing) return;
             throw new GradleException("DynamoDB table does not exist: " + name, missing);
         }
         try (var waiter = waiter(client, timeoutSeconds)) {

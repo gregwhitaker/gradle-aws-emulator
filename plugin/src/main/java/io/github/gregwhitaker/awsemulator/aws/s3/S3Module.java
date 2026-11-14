@@ -40,6 +40,8 @@ public final class S3Module {
         configure(project, UploadS3DirectoryTask.class, "Uploads a directory of S3 object fixtures to AWS Emulator.");
         configure(project, ListS3ObjectsTask.class, "Lists S3 object keys and sizes in AWS Emulator.");
         configure(project, DownloadS3ObjectTask.class, "Downloads an S3 object from AWS Emulator.");
+        configure(project, ExportS3ObjectsTask.class, "Exports current S3 objects as a portable JSON fixture.");
+        configure(project, ReplayS3ObjectsTask.class, "Replays an exported S3 object fixture into an explicit bucket.");
 
         project.getTasks().register("listS3Objects", ListS3ObjectsTask.class,
             task -> task.getMode().convention(EmulatorMode.DEVELOPMENT));

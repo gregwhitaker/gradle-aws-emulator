@@ -137,6 +137,10 @@ Each service guide includes task references and configuration examples:
 
 Use [resource sets and scenarios](docs/src/docs/asciidoc/scenarios.adoc) to reuse definitions across tests, local applications, and development environments. The [DynamoDB example](examples/dynamodb/README.md) also demonstrates safe table reuse: configuration drift fails with requested and existing values while preserving the table and its items.
 
+Declare resource-set `cleanup` steps and run `resetAwsEmulator -PawsEmulator.resetScope=RESOURCES` to clear and reseed just those resources while keeping the runtime and unrelated resources. `cleanAwsEmulator` runs cleanup alone. The default reset scope remains `RUNTIME`, which discards the entire selected development instance.
+
+Capture current S3 objects with `ExportS3ObjectsTask` and DynamoDB items with `ExportDynamoDbItemsTask`, then replay with `ReplayS3ObjectsTask` and `PutDynamoDbItemsTask`. These portable fixtures contain data, support binary and typed values, and require resource definitions for recreation. See [export and replay](docs/src/docs/asciidoc/scenarios.adoc#export-and-replay) and the [scenario example](examples/scenarios/README.md).
+
 ### CloudFormation
 
 `DeployCloudFormationStackTask` deploys local JSON or YAML templates, waits for completion, and exports stack outputs as JSON. Every resource declaration is checked against provisioning handlers audited for emulator **1.0.322**; types that merely report success are rejected before the task connects.

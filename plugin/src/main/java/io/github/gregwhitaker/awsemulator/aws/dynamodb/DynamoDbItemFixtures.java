@@ -17,7 +17,9 @@
 package io.github.gregwhitaker.awsemulator.aws.dynamodb;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import io.github.gregwhitaker.awsemulator.aws.internal.JsonFixtures;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.github.gregwhitaker.awsemulator.aws.internal.FixtureFiles;
 import org.gradle.api.GradleException;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
@@ -28,10 +30,41 @@ import java.util.*;
 /** Strict DynamoDB AttributeValue JSON, preserving number precision and binary/set types. */
 final class DynamoDbItemFixtures {
     List<Map<String, AttributeValue>> read(Path file) {
-        return JsonFixtures.readObjects(file).stream().map(node -> {
-            if (node.isEmpty()) throw invalid("Items must not be empty");
-            return attributes(node, 0);
-        }).toList();
+        JsonNode root = FixtureFiles.read(file);
+        if (!root.isArray()) throw invalid("Fixture must be a JSON array");
+        List<Map<String, AttributeValue>> result = new ArrayList<>();
+        for (JsonNode node : root) {
+            if (!node.isObject() || node.isEmpty()) throw invalid("Items must be nonempty objects");
+            result.add(attributes(node, 0));
+        }
+        return List.copyOf(result);
+    }
+
+    ObjectNode encode(Map<String, AttributeValue> item) {
+        var result = JsonNodeFactory.instance.objectNode();
+        new TreeMap<>(item).forEach((name, value) -> result.set(name, encode(value)));
+        return result;
+    }
+
+    private JsonNode encode(AttributeValue value) {
+        var result = JsonNodeFactory.instance.objectNode();
+        if (value.s() != null) result.put("S", value.s());
+        else if (value.n() != null) result.put("N", value.n());
+        else if (value.b() != null) result.put("B", Base64.getEncoder().encodeToString(value.b().asByteArray()));
+        else if (value.bool() != null) result.put("BOOL", value.bool());
+        else if (Boolean.TRUE.equals(value.nul())) result.put("NULL", true);
+        else if (value.hasM()) result.set("M", encode(value.m()));
+        else if (value.hasL()) value.l().forEach(entry -> result.withArray("L").add(encode(entry)));
+        else if (value.hasSs()) value.ss().stream().sorted().forEach(entry -> result.withArray("SS").add(entry));
+        else if (value.hasNs()) value.ns().stream().map(DynamoDbItemFixtures::canonicalNumber).sorted()
+            .forEach(entry -> result.withArray("NS").add(entry));
+        else if (value.hasBs()) value.bs().stream().map(bytes -> Base64.getEncoder().encodeToString(bytes.asByteArray())).sorted()
+            .forEach(entry -> result.withArray("BS").add(entry));
+        else throw invalid("Unsupported exported attribute type");
+        if (value.hasL() && value.l().isEmpty()) result.putArray("L");
+        // Reuse strict type validation, including nesting and numeric limits, on service responses.
+        value(result, 0);
+        return result;
     }
 
     private Map<String, AttributeValue> attributes(JsonNode object, int depth) {

@@ -44,6 +44,14 @@ val infrastructure = awsEmulator.resourceSets.register("infrastructure") {
         keySchema.add(KeySchemaElement.builder().attributeName("id").keyType(KeyType.HASH).build())
         attributeDefinitions.add(AttributeDefinition.builder().attributeName("id").attributeType(ScalarAttributeType.S).build())
     }
+    cleanup("remove-assets", DeleteS3BucketsTask::class.java) {
+        buckets.add("scenario-assets")
+        force.set(true)
+    }
+    cleanup("remove-products", DeleteDynamoDbTableTask::class.java) {
+        tableName.set("scenario-products")
+        ignoreMissing.set(true)
+    }
 }
 val assets = awsEmulator.resourceSets.register("assets") {
     include(infrastructure)
@@ -75,6 +83,34 @@ val failedOrders = awsEmulator.resourceSets.register("failed-orders") {
     }
 }
 
+val exportedObjects = layout.buildDirectory.file("fixtures/scenario/objects.json")
+val exportedItems = layout.buildDirectory.file("fixtures/scenario/items.json")
+val exportObjects = tasks.register<ExportS3ObjectsTask>("exportScenarioObjects") {
+    bucketName.set("scenario-assets")
+    outputFile.set(exportedObjects)
+}
+val exportItems = tasks.register<ExportDynamoDbItemsTask>("exportScenarioItems") {
+    tableName.set("scenario-products")
+    outputFile.set(exportedItems)
+}
+tasks.register("exportScenario") {
+    description = "Captures the existing scenario's S3 objects and DynamoDB items as portable fixtures."
+    group = "AWS Emulator - Scenarios"
+    dependsOn(exportObjects, exportItems)
+}
+val replay = awsEmulator.resourceSets.register("replay") {
+    include(infrastructure)
+    seed("objects", ReplayS3ObjectsTask::class.java) {
+        bucketName.set("scenario-assets")
+        // File paths deliberately do not depend on export tasks: replay uses the previously captured data.
+        objectsFile.set(exportedObjects)
+    }
+    seed("items", PutDynamoDbItemsTask::class.java) {
+        tableName.set("scenario-products")
+        itemsFile.set(exportedItems)
+    }
+}
+
 awsEmulator {
     defaultMode.set(EmulatorMode.DEVELOPMENT)
     defaultScenario.set("demo")
@@ -82,6 +118,7 @@ awsEmulator {
         register("demo") { resources(demo) }
         register("empty") { resources(infrastructure) }
         register("failed-orders") { resources(failedOrders) }
+        register("replay") { resources(replay) }
     }
 }
 

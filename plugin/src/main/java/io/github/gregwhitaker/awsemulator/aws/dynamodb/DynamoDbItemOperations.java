@@ -30,14 +30,18 @@ final class DynamoDbItemOperations {
 
     void put(DynamoDbClient client, String table, List<Map<String, AttributeValue>> items, int maxRetries, int delayMillis) {
         var description = client.describeTable(DescribeTableRequest.builder().tableName(table).build()).table();
+        validate(items, description);
+        var requests = items.stream().map(item -> WriteRequest.builder().putRequest(PutRequest.builder().item(item).build()).build()).toList();
+        write(client, table, requests, maxRetries, delayMillis);
+    }
+
+    void validate(List<Map<String, AttributeValue>> items, TableDescription description) {
         List<String> keys = keyNames(description);
         Set<Map<String, AttributeValue>> seen = new HashSet<>();
         for (var item : items) {
             Map<String, AttributeValue> key = key(item, keys);
             if (!seen.add(key)) throw new GradleException("DynamoDB fixture contains duplicate primary keys (values omitted).");
         }
-        var requests = items.stream().map(item -> WriteRequest.builder().putRequest(PutRequest.builder().item(item).build()).build()).toList();
-        write(client, table, requests, maxRetries, delayMillis);
     }
 
     int purge(DynamoDbClient client, String table, int maxRetries, int delayMillis) {

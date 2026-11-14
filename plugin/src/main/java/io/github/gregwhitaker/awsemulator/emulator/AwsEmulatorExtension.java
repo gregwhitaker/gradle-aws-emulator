@@ -17,6 +17,7 @@
 package io.github.gregwhitaker.awsemulator.emulator;
 
 import io.github.gregwhitaker.awsemulator.core.AbstractAwsEmulatorTask;
+import io.github.gregwhitaker.awsemulator.aws.AbstractAwsResourceTask;
 import io.github.gregwhitaker.awsemulator.internal.ConfigureEmulatorAction;
 import io.github.gregwhitaker.awsemulator.model.EmulatorMode;
 import org.gradle.api.GradleException;
@@ -168,6 +169,11 @@ public abstract class AwsEmulatorExtension extends EmulatorRuntimeConfiguration 
     Object resolveSetup(Object setup, String runtimeName, EmulatorMode mode) {
         requireRuntime(runtimeName);
         return resourceSetModule.resolve(setup, runtimeName, mode);
+    }
+
+    List<TaskProvider<? extends AbstractAwsResourceTask>> resolveCleanup(EmulatorScenario scenario) {
+        requireRuntime(scenario.getRuntimeName().get());
+        return resourceSetModule.cleanup(scenario.resources(), scenario.getRuntimeName().get(), EmulatorMode.DEVELOPMENT);
     }
 
     Object resolveSetup(Object setup, String runtimeName, EmulatorMode mode, String consumerPath) {

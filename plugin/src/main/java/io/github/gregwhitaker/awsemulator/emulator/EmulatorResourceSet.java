@@ -36,6 +36,7 @@ public class EmulatorResourceSet implements Named {
     private final String name;
     private final List<Step<?>> provision = new ArrayList<>();
     private final List<Step<?>> seed = new ArrayList<>();
+    private final List<Step<?>> cleanup = new ArrayList<>();
     private final List<Provider<? extends EmulatorResourceSet>> includes = new ArrayList<>();
     private final Set<String> names = new HashSet<>();
     private boolean finalized;
@@ -63,6 +64,15 @@ public class EmulatorResourceSet implements Named {
         add(seed, name, type, action);
     }
 
+    /**
+     * Defines explicit cleanup for resource-scoped scenario resets and cleanup commands.
+     * Steps run in declaration order, before included sets are cleaned. Ordinary seeding does not run cleanup.
+     * Select only resources owned by this set; cleanup does not infer ownership from provisioning tasks.
+     */
+    public <T extends AbstractAwsResourceTask> void cleanup(String name, Class<T> type, Action<? super T> action) {
+        add(cleanup, name, type, action);
+    }
+
     private <T extends AbstractAwsResourceTask> void add(List<Step<?>> steps, String name, Class<T> type, Action<? super T> action) {
         mutable();
         validateName(name);
@@ -81,6 +91,10 @@ public class EmulatorResourceSet implements Named {
     }
 
     List<Provider<? extends EmulatorResourceSet>> includes() { return List.copyOf(includes); }
+    List<Step<?>> cleanupSteps() {
+        finalized = true;
+        return List.copyOf(cleanup);
+    }
     List<Step<?>> steps() {
         finalized = true;
         List<Step<?>> result = new ArrayList<>(provision);

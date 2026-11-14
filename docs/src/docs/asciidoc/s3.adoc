@@ -76,6 +76,8 @@ All properties use Gradle's lazy property API.
 |`UploadS3DirectoryTask` |`bucketName`, `sourceDirectory` |`prefix`, `contentTypes`, `metadata`, `mode`, `apiCallTimeoutSeconds`
 |`ListS3ObjectsTask` |`bucketName` |`prefix`, `mode`, `apiCallTimeoutSeconds`
 |`DownloadS3ObjectTask` |`bucketName`, `objectKey`, `outputFile` |`mode`, `apiCallTimeoutSeconds`
+|`ExportS3ObjectsTask` |`bucketName`, `outputFile` |`prefix` (empty), `mode`, `apiCallTimeoutSeconds`
+|`ReplayS3ObjectsTask` |`bucketName`, `objectsFile` |`mode`, `apiCallTimeoutSeconds`
 |===
 
 [cols="1,1,3",options="header"]
@@ -229,6 +231,8 @@ tasks.named<Test>("test") {
 `ListS3ObjectsTask` follows all response pages and prints object keys and sizes. `DownloadS3ObjectTask` writes to an explicit `outputFile`, replacing it only after the full download succeeds. Object tasks execute again on subsequent builds, including configuration-cache reuse.
 
 See xref:scenarios.adoc#upload-and-inspect-s3-objects[S3 data fixtures] for content types, metadata, directory handling, and development datasets.
+
+`ExportS3ObjectsTask` captures current object bytes, keys, content types, and user metadata in a portable JSON fixture; `ReplayS3ObjectsTask` writes that fixture to an explicit existing bucket. Export requires an already running runtime and never starts an owned emulator. See xref:scenarios.adoc#export-and-replay[export and replay] for the format, size limit, and exclusions.
 
 API: link:api/io/github/gregwhitaker/awsemulator/aws/s3/UploadS3ObjectTask.html[UploadS3ObjectTask], link:api/io/github/gregwhitaker/awsemulator/aws/s3/UploadS3DirectoryTask.html[UploadS3DirectoryTask], link:api/io/github/gregwhitaker/awsemulator/aws/s3/ListS3ObjectsTask.html[ListS3ObjectsTask], link:api/io/github/gregwhitaker/awsemulator/aws/s3/DownloadS3ObjectTask.html[DownloadS3ObjectTask].
 

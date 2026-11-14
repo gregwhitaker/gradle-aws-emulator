@@ -19,6 +19,7 @@ package io.github.gregwhitaker.awsemulator.emulator;
 import io.github.gregwhitaker.awsemulator.aws.AbstractAwsResourceTask;
 import io.github.gregwhitaker.awsemulator.internal.LocalTaskDependencies;
 import io.github.gregwhitaker.awsemulator.model.EmulatorMode;
+import io.github.gregwhitaker.awsemulator.model.ScenarioResetScope;
 import org.gradle.api.GradleException;
 import org.gradle.api.Project;
 import org.gradle.api.Task;
@@ -32,6 +33,10 @@ final class ScenarioModule {
     private final AwsEmulatorExtension extension;
     private final Map<String, TaskProvider<Task>> seedTasks = new LinkedHashMap<>();
     private final Map<String, TaskProvider<Task>> resetTasks = new LinkedHashMap<>();
+    private final Map<String, TaskProvider<Task>> cleanTasks = new LinkedHashMap<>();
+    private final Map<String, List<TaskProvider<? extends AbstractAwsResourceTask>>> cleanup = new HashMap<>();
+    private final Set<String> resets = new HashSet<>();
+    private final Set<String> prepared = new HashSet<>();
     private final Set<String> suffixes = new HashSet<>();
     private final Map<String, String> activeScenarios = new HashMap<>();
 
@@ -52,8 +57,10 @@ final class ScenarioModule {
         var selected = project.getProviders().gradleProperty("awsEmulator.scenario").orElse(extension.getDefaultScenario());
         command("seedAwsEmulator", "Creates resources and loads the selected development scenario.")
             .configure(task -> task.dependsOn(project.provider(() -> selected(seedTasks, selected.get()))));
-        command("resetAwsEmulator", "Restarts the development emulator and loads the selected scenario.")
+        command("resetAwsEmulator", "Resets the selected scenario using its configured reset scope, then seeds it.")
             .configure(task -> task.dependsOn(project.provider(() -> selected(resetTasks, selected.get()))));
+        command("cleanAwsEmulator", "Runs only the selected scenario's explicit cleanup, preserving its runtime.")
+            .configure(task -> task.dependsOn(project.provider(() -> selected(cleanTasks, selected.get()))));
     }
 
     private void registerScenario(EmulatorScenario scenario) {
@@ -67,10 +74,78 @@ final class ScenarioModule {
         var seed = command("seedAwsEmulator" + suffix, "Creates resources and loads the '" + name + "' development scenario.");
         seed.configure(task -> task.dependsOn(project.provider(() -> prepare(scenario))));
         seedTasks.put(name, seed);
-        var reset = command("resetAwsEmulator" + suffix, "Restarts the development emulator and loads the '" + name + "' scenario.");
-        reset.configure(task -> task.dependsOn(project.provider(() ->
-            extension.lifecycleTask("restartAwsEmulator", scenario.getRuntimeName().get())), seed));
+        var reset = command("resetAwsEmulator" + suffix, "Resets and seeds the '" + name + "' scenario using its configured reset scope.");
+        reset.configure(task -> task.dependsOn(project.provider(() -> prepareReset(scenario, seed))));
         resetTasks.put(name, reset);
+        var clean = command("cleanAwsEmulator" + suffix, "Runs explicit cleanup for the '" + name + "' scenario.");
+        clean.configure(task -> task.dependsOn(project.provider(() -> prepareCleanup(scenario))));
+        cleanTasks.put(name, clean);
+    }
+
+    private List<Object> prepareReset(EmulatorScenario scenario, TaskProvider<Task> seed) {
+        String selected = project.getProviders().gradleProperty("awsEmulator.resetScope")
+            .getOrElse(scenario.getResetScope().get().name());
+        ScenarioResetScope scope;
+        try { scope = ScenarioResetScope.valueOf(selected.toUpperCase(Locale.ROOT)); }
+        catch (IllegalArgumentException e) { throw new GradleException("awsEmulator.resetScope must be RUNTIME or RESOURCES."); }
+        if (scope == ScenarioResetScope.RUNTIME) {
+            return List.of(extension.lifecycleTask("restartAwsEmulator", scenario.getRuntimeName().get()), seed);
+        }
+        var cleaning = prepareCleanup(scenario);
+        var setup = prepare(scenario);
+        if (resets.add(scenario.getName())) {
+            Set<Task> setupTasks = new LinkedHashSet<>();
+            Set<Task> cleanupTasks = new LinkedHashSet<>();
+            collectResources(setup, setupTasks);
+            collectResources(cleaning, cleanupTasks);
+            if (setupTasks.stream().anyMatch(cleanupTasks::contains)) {
+                throw new GradleException("Scenario cleanup must use separate tasks and must not depend on provisioning or seeding tasks.");
+            }
+            for (Task task : setupTasks) task.dependsOn(cleaning);
+        }
+        return List.of(seed, cleaning);
+    }
+
+    private List<TaskProvider<? extends AbstractAwsResourceTask>> prepareCleanup(EmulatorScenario scenario) {
+        activate(scenario);
+        if (cleanup.containsKey(scenario.getName())) return cleanup.get(scenario.getName());
+        List<TaskProvider<? extends AbstractAwsResourceTask>> tasks = new ArrayList<>(scenario.cleaning());
+        tasks.addAll(extension.resolveCleanup(scenario));
+        if (tasks.isEmpty()) throw new GradleException("Scenario '" + scenario.getName()
+            + "' has no cleanup steps. Declare cleanup on the scenario or its resource sets before using resource-scoped reset or clean.");
+        String runtimeName = scenario.getRuntimeName().get();
+        TaskProvider<Task> start = extension.usesExternalRuntime(runtimeName) ? null : extension.lifecycleTask("startAwsEmulator", runtimeName);
+        Set<Task> visited = new HashSet<>();
+        Set<Task> direct = new HashSet<>();
+        TaskProvider<? extends AbstractAwsResourceTask> previous = null;
+        for (var provider : tasks) {
+            var task = provider.get();
+            if (!direct.add(task)) throw new GradleException("A task may appear only once in scenario cleanup: " + task.getPath());
+            configureResources(task, runtimeName, start, visited);
+            if (previous != null) task.dependsOn(previous);
+            previous = provider;
+        }
+        var result = List.copyOf(tasks);
+        cleanup.put(scenario.getName(), result);
+        return result;
+    }
+
+    private void collectResources(Object dependencies, Set<Task> resources) {
+        Set<Task> visited = new HashSet<>();
+        LocalTaskDependencies.visit(project, dependencies, task -> collectResource(task, visited, resources));
+    }
+
+    private void collectResource(Task task, Set<Task> visited, Set<Task> resources) {
+        if (!visited.add(task)) return;
+        if (task instanceof AbstractAwsResourceTask) resources.add(task);
+        LocalTaskDependencies.visitPrerequisites(project, task, dependency -> collectResource(dependency, visited, resources));
+    }
+
+    private void activate(EmulatorScenario scenario) {
+        String active = activeScenarios.putIfAbsent(scenario.getRuntimeName().get(), scenario.getName());
+        if (active != null && !active.equals(scenario.getName())) {
+            throw new GradleException("Select only one AWS Emulator scenario per runtime per Gradle invocation: " + scenario.getRuntimeName().get());
+        }
     }
 
     private TaskProvider<Task> selected(Map<String, TaskProvider<Task>> tasks, String name) {
@@ -89,9 +164,8 @@ final class ScenarioModule {
         dependencies.add(resources);
         dependencies.addAll(scenario.provisioning());
         dependencies.addAll(scenario.seeding());
-        String activeScenario = activeScenarios.putIfAbsent(runtimeName, scenario.getName());
-        if (activeScenario != null) {
-            if (!activeScenario.equals(scenario.getName())) throw new GradleException("Select only one AWS Emulator scenario per runtime per Gradle invocation: " + runtimeName);
+        activate(scenario);
+        if (!prepared.add(scenario.getName())) {
             return dependencies;
         }
         Set<Task> direct = new HashSet<>();

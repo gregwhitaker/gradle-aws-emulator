@@ -17,17 +17,24 @@
 package io.github.gregwhitaker.awsemulator.aws.dynamodb;
 
 import io.github.gregwhitaker.awsemulator.aws.internal.AwsClientFactory;
+import org.gradle.api.provider.Property;
+import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.work.DisableCachingByDefault;
 
 /** Deletes the selected table and its items, waiting until the table no longer exists. */
 @DisableCachingByDefault(because = "Deletes live emulator resources")
 public abstract class DeleteDynamoDbTableTask extends AbstractDynamoDbTableTask {
+    public DeleteDynamoDbTableTask() { getIgnoreMissing().convention(false); }
+
+    /** Treat an absent table as successfully cleaned. Defaults to false; useful for repeatable scenario cleanup. */
+    @Input public abstract Property<Boolean> getIgnoreMissing();
+
     @TaskAction
     public void deleteTable() {
         String name = tableName();
         try (var client = new AwsClientFactory(connection(), getApiCallTimeoutSeconds().get()).dynamoDb()) {
-            new DynamoDbTableOperations().delete(client, name, getWaitTimeoutSeconds().get());
+            new DynamoDbTableOperations().delete(client, name, getWaitTimeoutSeconds().get(), getIgnoreMissing().get());
         }
         getLogger().lifecycle("Deleted DynamoDB table: {}", name);
     }

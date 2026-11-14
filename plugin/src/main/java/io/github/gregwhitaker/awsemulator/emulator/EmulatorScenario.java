@@ -17,6 +17,8 @@
 package io.github.gregwhitaker.awsemulator.emulator;
 
 import io.github.gregwhitaker.awsemulator.aws.AbstractAwsResourceTask;
+import io.github.gregwhitaker.awsemulator.model.ScenarioResetScope;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.gradle.api.Named;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.provider.Property;
@@ -31,18 +33,25 @@ import java.util.List;
 public class EmulatorScenario implements Named {
     private final String name;
     private final Property<String> runtimeName;
+    private final Property<ScenarioResetScope> resetScope;
     private final List<TaskProvider<? extends AbstractAwsResourceTask>> provision = new ArrayList<>();
     private final List<TaskProvider<? extends AbstractAwsResourceTask>> seed = new ArrayList<>();
+    private final List<TaskProvider<? extends AbstractAwsResourceTask>> cleanup = new ArrayList<>();
     private final List<Provider<? extends EmulatorResourceSet>> resources = new ArrayList<>();
 
     @Inject public EmulatorScenario(String name, ObjectFactory objects) {
         this.name = name;
         runtimeName = objects.property(String.class).convention(AwsEmulatorExtension.DEFAULT_RUNTIME);
+        resetScope = objects.property(ScenarioResetScope.class).convention(ScenarioResetScope.RUNTIME);
     }
     @Override public String getName() { return name; }
 
     /** Runtime whose development instance receives this scenario. Defaults to default. */
     public Property<String> getRuntimeName() { return runtimeName; }
+
+    /** Reset scope: RUNTIME restarts the emulator; RESOURCES executes declared cleanup before reseeding. */
+    @SuppressFBWarnings(value = "EI_EXPOSE_REP", justification = "The Gradle DSL must expose the mutable Property for lazy configuration.")
+    public Property<ScenarioResetScope> getResetScope() { return resetScope; }
 
     /** Applies reusable definitions to the development instance before this scenario's explicit tasks. */
     @SafeVarargs public final void resources(Provider<? extends EmulatorResourceSet>... sets) {
@@ -59,7 +68,13 @@ public class EmulatorScenario implements Named {
         seed.addAll(Arrays.asList(tasks));
     }
 
+    /** Explicit cleanup tasks, in declaration order before resource-set cleanup. Never run by seed alone. */
+    @SafeVarargs public final void cleanup(TaskProvider<? extends AbstractAwsResourceTask>... tasks) {
+        cleanup.addAll(Arrays.asList(tasks));
+    }
+
     List<TaskProvider<? extends AbstractAwsResourceTask>> provisioning() { return List.copyOf(provision); }
     List<TaskProvider<? extends AbstractAwsResourceTask>> seeding() { return List.copyOf(seed); }
+    List<TaskProvider<? extends AbstractAwsResourceTask>> cleaning() { return List.copyOf(cleanup); }
     List<Provider<? extends EmulatorResourceSet>> resources() { return List.copyOf(resources); }
 }

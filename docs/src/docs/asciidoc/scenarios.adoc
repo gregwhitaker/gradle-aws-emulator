@@ -1,6 +1,6 @@
 = Data Fixtures & Development Scenarios
 include::_partials/attributes.adoc[]
-:description: Load S3 files and DynamoDB JSON items, select named development datasets, and reset and reseed the emulator.
+:description: Load and export S3 and DynamoDB fixtures, select development datasets, and selectively clean, reset, and replay resources.
 
 Use typed data tasks on their own, or combine provisioning and fixtures into a named development scenario. The plugin creates an ordinary Gradle dependency graph, so failures propagate and configuration-cache reuse still runs the live resource operations.
 
@@ -68,7 +68,7 @@ Register downloads with an explicit local output file. Object keys are never int
 
 == Seed And Clear DynamoDB Items
 
-`PutDynamoDbItemsTask` reads a nonempty JSON array of DynamoDB attribute maps. Use explicit https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_AttributeValue.html[AttributeValue type tags] to preserve number precision, binary data, sets, lists, and maps:
+`PutDynamoDbItemsTask` reads a JSON array of DynamoDB attribute maps. An empty array is valid and writes no items, allowing empty-table exports to be replayed. Use explicit https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_AttributeValue.html[AttributeValue type tags] to preserve number precision, binary data, sets, lists, and maps:
 
 .fixtures/products.json
 [source,json]
@@ -218,16 +218,129 @@ Scenarios select the `default` runtime unless configured with `runtimeName.set("
 |===
 |Command |Behavior
 |`seedAwsEmulator` |Start or reuse the development instance, provision resources, and seed the selected scenario. Preserve unrelated state.
-|`resetAwsEmulator` |Restart the development instance first, then provision and seed the selected scenario.
+|`resetAwsEmulator` |Apply the selected reset scope, then provision and seed the selected scenario. The default scope is `RUNTIME`.
 |`seedAwsEmulatorDemo` |Seed `demo` regardless of the default or selection property.
-|`resetAwsEmulatorDemo` |Restart and seed `demo` explicitly.
+|`resetAwsEmulatorDemo` |Reset and seed `demo` explicitly, using its reset scope.
+|`cleanAwsEmulator` |Run only explicit cleanup for the selected scenario; preserve the runtime and omit provisioning/seeding.
+|`cleanAwsEmulatorDemo` |Run only `demo`'s explicit cleanup.
 |===
 
 `-PawsEmulator.scenario=<name>` selects a scenario for the generic commands and takes precedence over `awsEmulator.defaultScenario`. The default name is `default`; it must be registered, or set `defaultScenario` to a registered name. Unknown names fail before lifecycle tasks execute. Listing tasks and requesting help do not start Docker.
 
-IMPORTANT: Reset removes *all resources* in the selected development emulator, including resources outside the selected scenario and in other services. It then reloads only the chosen scenario. With xref:shared-runtimes.adoc[shared ownership], this affects every application using that named development instance; define and run shared scenarios in the owner project. Reset does not affect the separate managed instance, other named runtimes, or a different owner's emulator. Use reset when switching from a populated scenario to `empty`; seed alone does not remove old data.
+IMPORTANT: The default `RUNTIME` reset scope removes *all resources* in the selected development emulator, including resources outside the selected scenario and in other services. It then reloads only the chosen scenario. With xref:shared-runtimes.adoc[shared ownership], this affects every application using that named development instance; define and run shared scenarios in the owner project. Reset does not affect the separate managed instance, other named runtimes, or a different owner's emulator. Use resource-scoped reset with explicit cleanup to retain unrelated resources. Seed alone does not remove old data.
 
-`restartAwsEmulator` retains its existing behavior: restart with empty state, without provisioning or fixtures. Reset builds on that lifecycle operation; it is not a persisted snapshot.
+`restartAwsEmulator` retains its existing behavior: restart with empty state, without provisioning or fixtures. `RUNTIME` reset builds on that lifecycle operation; it is not a persisted snapshot.
+
+[[selective-reset]]
+== Selective Reset And Cleanup
+
+Define cleanup alongside each resource set's provisioning and fixtures. Cleanup uses ordinary typed resource tasks and explicit resource names; the plugin does not infer ownership, discover all resources, or automatically delete resources mentioned by provisioning tasks.
+
+[source,kotlin]
+----
+import io.github.gregwhitaker.awsemulator.aws.s3.DeleteS3BucketsTask
+import io.github.gregwhitaker.awsemulator.aws.dynamodb.DeleteDynamoDbTableTask
+import io.github.gregwhitaker.awsemulator.model.ScenarioResetScope
+
+val infrastructure = awsEmulator.resourceSets.register("infrastructure") {
+    // Add the corresponding provision(...) steps here.
+    cleanup("remove-assets", DeleteS3BucketsTask::class.java) {
+        buckets.add("scenario-assets")
+        force.set(true)
+    }
+    cleanup("remove-products", DeleteDynamoDbTableTask::class.java) {
+        tableName.set("scenario-products")
+        ignoreMissing.set(true)
+    }
+}
+awsEmulator.scenarios.register("demo") {
+    resources(infrastructure)
+    resetScope.set(ScenarioResetScope.RESOURCES)
+}
+----
+
+In Groovy, use `cleanup('remove-assets', DeleteS3BucketsTask) { ... }` and `resetScope.set(ScenarioResetScope.RESOURCES)`. Existing task-based scenarios can declare `cleanup(deleteAssets, deleteProducts)` using task providers. Keep cleanup and provisioning in separate tasks; cleanup must not depend on provisioning or seeding. Do not refer to generated task names.
+
+`resetScope` defaults to `ScenarioResetScope.RUNTIME`. `-PawsEmulator.resetScope=RESOURCES` or `RUNTIME` overrides the selected scenario's setting for reset commands; values are case-insensitive. Invalid scopes fail before lifecycle actions. `seedAwsEmulator` never runs cleanup. `cleanAwsEmulator` always uses explicit resource cleanup and ignores reset scope.
+
+[source,shell]
+----
+./gradlew -p examples/scenarios resetAwsEmulator -PawsEmulator.resetScope=RESOURCES
+./gradlew -p examples/scenarios resetAwsEmulator -PawsEmulator.resetScope=RESOURCES -PawsEmulator.scenario=empty
+./gradlew -p examples/scenarios cleanAwsEmulator
+----
+
+Resource-scoped reset runs all cleanup before any resource provisioning or seeding. Explicit scenario cleanup runs first, in declaration order. Resource-set cleanup then runs from dependents to included prerequisites; a shared included set is cleaned once. Steps within a set run in declaration order. Cleanup failure blocks subsequent cleanup and all provisioning/seeding, including with `--continue`. Resource-scoped reset and clean reject scenarios with no cleanup steps; sets with no cleanup declarations contribute no deletions. Only the selected scenario's cleanup runs, so scenarios that switch between datasets should include the same cleanup definitions.
+
+The selected development runtime is started or reused without restarting it; external runtimes are connected to without lifecycle commands. Cleanup tasks inherit and lock the selected runtime name and `DEVELOPMENT` mode. Resources outside the explicit cleanup selections remain, including those used by other applications sharing the runtime. Cleanup is not transactional: earlier deletions remain if a later step fails. Choose idempotent deletion tasks for repeatable cleanup. S3 bucket deletion tolerates absent buckets; DynamoDB table deletion needs `ignoreMissing.set(true)`. A purge step can preserve resource configuration instead, but requires the resource to exist.
+
+Use a single reset command when cleanup must be followed by seeding. As with ordinary Gradle tasks, listing clean and seed separately on the command line does not itself express a dependency between them. Cleanup steps run only when requested by these commands; attaching a resource set to managed tests or Boot does not clean a development environment.
+
+[[export-and-replay]]
+== Export And Replay A Dataset
+
+Export selected live data into portable fixture files, then provision the same resource definitions and replay them. These files capture S3 objects and DynamoDB items. They do not capture a whole emulator, resource definitions, or data from other AWS services. In particular, SQS queue messages are not exported because reading them changes delivery state and cannot provide a complete, consistent queue snapshot.
+
+[cols="2,2,3",options="header"]
+|===
+|Task type |Required properties |Behavior
+|`ExportS3ObjectsTask` |`bucketName`, `outputFile` |Export current objects in the explicit bucket. Optional `prefix` defaults to empty and is a literal key prefix.
+|`ReplayS3ObjectsTask` |`bucketName`, `objectsFile` |Replay exported object data into an existing bucket, replacing matching keys and preserving other keys.
+|`ExportDynamoDbItemsTask` |`tableName`, `outputFile` |Scan all table items with consistent reads and export typed AttributeValue JSON.
+|`PutDynamoDbItemsTask` |`tableName`, `itemsFile` |Replay exported items into an existing table; replace matching primary keys and preserve other items.
+|===
+
+Register these task types in your build. They accept `runtimeName`, `mode`, and `apiCallTimeoutSeconds` (default `30`). Custom instances inherit `awsEmulator.defaultMode`, initially `MANAGED`. Exports require an already active runtime and never start an owned emulator. For development captures set `mode` to `DEVELOPMENT`; for managed captures schedule exports after setup or as consumer finalizers, before managed cleanup. All tasks execute on configuration-cache reuse and remain excluded from up-to-date skipping and build-cache reuse.
+
+[source,kotlin]
+----
+import io.github.gregwhitaker.awsemulator.aws.s3.ExportS3ObjectsTask
+import io.github.gregwhitaker.awsemulator.aws.s3.ReplayS3ObjectsTask
+import io.github.gregwhitaker.awsemulator.aws.dynamodb.ExportDynamoDbItemsTask
+import io.github.gregwhitaker.awsemulator.model.EmulatorMode
+
+val capturedObjects = layout.projectDirectory.file("fixtures/captured-objects.json")
+tasks.register<ExportS3ObjectsTask>("captureAssets") {
+    mode.set(EmulatorMode.DEVELOPMENT)
+    bucketName.set("scenario-assets")
+    outputFile.set(capturedObjects)
+}
+tasks.register<ExportDynamoDbItemsTask>("captureProducts") {
+    mode.set(EmulatorMode.DEVELOPMENT)
+    tableName.set("scenario-products")
+    outputFile.set(layout.projectDirectory.file("fixtures/captured-items.json"))
+}
+tasks.register<ReplayS3ObjectsTask>("replayAssets") {
+    mode.set(EmulatorMode.DEVELOPMENT)
+    bucketName.set("scenario-assets")
+    objectsFile.set(capturedObjects)
+}
+----
+
+Use file paths for replay inputs, as above. Wiring replay to an export task's output provider adds an implicit dependency and recaptures data before replay. Add provisioning dependencies to replay tasks, or use a scenario's seed steps. For an exact dataset, clean the selected resources before provisioning and replay; replay alone does not delete extra objects or items.
+
+The link:{repo-url}/tree/main/examples/scenarios[scenario example] captures both files under `build/fixtures/scenario/` and defines a `replay` scenario. Run export and replay as separate invocations:
+
+[source,shell]
+----
+./gradlew -p examples/scenarios seedAwsEmulator
+./gradlew -p examples/scenarios exportScenario --configuration-cache
+./gradlew -p examples/scenarios resetAwsEmulatorReplay -PawsEmulator.resetScope=RESOURCES --configuration-cache
+./gradlew -p examples/scenarios stopAwsEmulator
+----
+
+Export follows every listing/scan page and rejects missing or repeated continuation tokens. Output ordering is deterministic for unchanged fixture values. Each file has a *16 MiB* limit, including JSON and base64 overhead. A failed or oversized export leaves the previous file intact; a successful empty export replaces it with an empty dataset. Each artifact is replaced after its complete export succeeds; exporting multiple artifacts is not atomic across services. Stop application writers during capture and replay. Even https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Scan.html[consistent DynamoDB scans] do not provide snapshot isolation.
+
+S3 fixtures have the following versioned format. `body` is base64, `contentType` is optional, and `metadata` contains string values. Keys are retained verbatim as JSON data and never become local filesystem paths. Replay validates the entire file, rejects duplicate fields/keys, unknown fields/versions and malformed data before connecting. Writes can still fail partway through; earlier writes remain.
+
+[source,json]
+----
+{"schemaVersion":1,"objects":[{"key":"assets/example.bin","body":"AAH/","contentType":"application/octet-stream","metadata":{"fixture":"captured"}}]}
+----
+
+Only current S3 object bytes, keys, content types, and user metadata are captured. Historical versions, delete markers, ACLs, tags, encryption settings, other HTTP headers, and bucket policies/versioning/notifications are excluded. Replaying into a versioned bucket creates new versions; identities, timestamps and ETags are not restored. DynamoDB exports use the same JSON array as regular item fixtures, preserve numbers as strings and binary/set/map/list types, and omit table/index/stream configuration. Empty S3 `objects` and DynamoDB arrays are valid and replay without writes.
+
+Unlike metadata reports, exported fixtures contain actual object and item data in plaintext/base64. Choose the output location and share or commit those files deliberately. The tasks log counts and resource names, not fixture contents.
 
 == Start Application Tasks After Seeding
 
