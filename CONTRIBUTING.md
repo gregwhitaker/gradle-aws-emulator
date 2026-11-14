@@ -412,7 +412,8 @@ build local publications, and run smoke or Docker tests before pushing.
 
 Follow [make a release](RELEASING.md#make-a-release): update the version and
 changelog, wait for CI, and push the matching tag. The workflow tests and publishes
-both plugins. See [after publishing](RELEASING.md#after-publishing) for release
+both plugins, then creates a GitHub Release using the tagged changelog section.
+See [after publishing](RELEASING.md#after-publishing) for release
 notes, first-publication documentation updates, and the next development version.
 
 ### Publish from your machine
