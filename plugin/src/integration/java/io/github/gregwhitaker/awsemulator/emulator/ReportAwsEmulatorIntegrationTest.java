@@ -64,7 +64,8 @@ class ReportAwsEmulatorIntegrationTest {
                 assertNotNull(clientSecret);
                 int keyCount = kms.listKeys().keys().size();
                 for (int run = 0; run < 2; run++) {
-                    var result = buildWithReport("development", "reportAwsEmulator", "reportAwsEmulator", "--runtime", "integration", "--fail-on-error");
+                    var result = buildWithReport("development", "reportAwsEmulator", "reportAwsEmulator", "--runtime", "integration");
+                    assertTrue(result.getOutput().contains("AWS Emulator report is incomplete"), result.getOutput());
                     if (run > 0) assertTrue(result.getOutput().contains("Reusing configuration cache"), result.getOutput());
                     var report = report("development", "reportAwsEmulator");
                     assertInventory(report);
@@ -80,6 +81,9 @@ class ReportAwsEmulatorIntegrationTest {
                     assertFalse(html.contains("private-log-body"));
                     if (run == 0) sqs.createQueue(r -> r.queueName("created-between-reports"));
                 }
+                String strict = runner(project, "reportAwsEmulator", "--runtime", "integration", "--fail-on-error").buildAndFail().getOutput();
+                assertTrue(strict.contains("AWS Emulator report is incomplete"), strict);
+                assertInventory(report("development", "reportAwsEmulator"));
                 assertEquals("private-message-body", sqs.receiveMessage(r -> r.queueUrl(queue)).messages().get(0).body());
                 assertEquals(1, s3.listBuckets().buckets().size());
                 assertEquals(keyCount, kms.listKeys().keys().size(), "Reporting must not materialize keys for unbound AWS aliases");
@@ -123,7 +127,7 @@ class ReportAwsEmulatorIntegrationTest {
                 }
                 """.formatted(connection.endpoint(), connection.credentials(), connection.certificate()), StandardOpenOption.APPEND);
             runner(project, "seed").build();
-            String output = buildWithReport("development", "reportAwsEmulatorIntegration", "reportAwsEmulatorIntegration", "--fail-on-error").getOutput();
+            String output = buildWithReport("development", "reportAwsEmulatorIntegration", "reportAwsEmulatorIntegration").getOutput();
             var report = report("development", "reportAwsEmulatorIntegration");
             assertFalse(service(report, "S3").path("resources").isEmpty(), output + "\n" + report.toPrettyString());
             assertInventory(report);
@@ -138,7 +142,13 @@ class ReportAwsEmulatorIntegrationTest {
         assertEquals("integration", report.path("runtime").path("name").asText());
         assertEquals(13, report.path("services").size());
         for (var section : report.path("services")) {
-            assertEquals("COMPLETE", section.path("status").asText(), section.toPrettyString());
+            // The pinned emulator implements template create/get, but SES v2 template listing is still a stub.
+            if (section.path("service").asText().equals("SES")) {
+                assertEquals("PARTIAL", section.path("status").asText(), section.toPrettyString());
+                assertEquals(1, section.path("issues").size(), section.toPrettyString());
+                assertEquals("ListEmailTemplates", section.path("issues").get(0).path("operation").asText());
+                assertEquals("UNSUPPORTED", section.path("issues").get(0).path("kind").asText());
+            } else assertEquals("COMPLETE", section.path("status").asText(), section.toPrettyString());
             assertFalse(section.path("resources").isEmpty(), section.toPrettyString());
         }
         assertEquals("report-files", resource(report, "S3").path("id").asText());
@@ -159,7 +169,7 @@ class ReportAwsEmulatorIntegrationTest {
         assertEquals("report-users", pool.path("name").asText());
         assertFalse(pool.path("clients").isEmpty());
         assertEquals("report-admins", pool.path("groups").get(0).path("name").asText());
-        assertEquals("AWS::SES::Template", resource(report, "SES", "report-template").path("type").asText());
+        assertEquals("AWS::SES::EmailIdentity", resource(report, "SES", "sender@example.test").path("type").asText());
         assertEquals("sns-events", resource(report, "SES", "report-mail").path("configuration").path("eventDestinations").get(0).path("name").asText());
         for (String omitted : List.of("private-ssm-value", "private-secret-value", "private-template-subject", "private-template-body",
                 "private-pattern", "private-user", "Private-Password123!")) assertFalse(report.toString().contains(omitted), omitted);
@@ -278,7 +288,6 @@ class ReportAwsEmulatorIntegrationTest {
             def report = tasks.register('reportAfterTests', ReportAwsEmulatorTask) {
                 runtimeName.set('integration')
                 mode.set(EmulatorMode.MANAGED)
-                failOnError.set(true)
             }
             def shouldFail = providers.gradleProperty('failConsumer').isPresent()
             tasks.register('verify') {
