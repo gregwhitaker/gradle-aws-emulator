@@ -25,14 +25,15 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.function.Function;
 
 /** Table lifecycle operations without Gradle project access or global SDK configuration. */
 final class DynamoDbTableOperations {
-    boolean create(DynamoDbClient client, CreateTableRequest request, int timeoutSeconds) {
+    boolean create(DynamoDbClient client, CreateTableRequest request, int timeoutSeconds, Function<String, String> keyArn) {
         boolean created = false;
+        TableDescription existing = null;
         try {
-            var table = client.describeTable(DescribeTableRequest.builder().tableName(request.tableName()).build()).table();
-            if (table != null && table.tableStatus() == TableStatus.ACTIVE) return false;
+            existing = client.describeTable(DescribeTableRequest.builder().tableName(request.tableName()).build()).table();
         } catch (ResourceNotFoundException missing) {
             try {
                 client.createTable(request);
@@ -41,9 +42,14 @@ final class DynamoDbTableOperations {
                 // A concurrent creator owns initialization. Wait for its table without changing it.
             }
         }
-        try (var waiter = waiter(client, timeoutSeconds)) {
-            waiter.waitUntilTableExists(DescribeTableRequest.builder().tableName(request.tableName()).build());
+        if (existing == null || existing.tableStatus() != TableStatus.ACTIVE) {
+            try (var waiter = waiter(client, timeoutSeconds)) {
+                existing = waiter.waitUntilTableExists(DescribeTableRequest.builder().tableName(request.tableName()).build())
+                    .matched().response().orElseThrow(() -> new GradleException(
+                        "DynamoDB table did not become ACTIVE: " + request.tableName())).table();
+            }
         }
+        if (!created) DynamoDbTableDrift.validate(request, existing, keyArn);
         return created;
     }
 

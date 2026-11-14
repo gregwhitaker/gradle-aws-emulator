@@ -99,6 +99,99 @@ class DynamoDbTasksIntegrationTest {
         assertManagedCleanup();
     }
 
+    @Test
+    void driftFailsWithoutChangingTheDevelopmentTableOrRerunningItsInitializer() throws Exception {
+        fixture();
+        try {
+            isolated("createProducts").build();
+            try (var client = new AwsClientFactory(developmentConnection(), 30).dynamoDb()) {
+                var before = client.describeTable(r -> r.tableName("catalog.products")).table();
+                var key = Map.of("id", text("seed"), "created", text("2026"));
+                client.putItem(r -> r.tableName("catalog.products").item(Map.of("id", text("seed"), "created", text("2026"), "value", text("keep"))));
+                for (int run = 0; run < 2; run++) {
+                    String output = isolated("conflictingProducts").buildAndFail().getOutput();
+                    assertDrift(output);
+                    assertFalse(output.contains("Initialized DynamoDB table"), output);
+                    if (run == 1) assertTrue(output.contains("Reusing configuration cache"), output);
+                }
+                var after = client.describeTable(r -> r.tableName("catalog.products")).table();
+                assertEquals(before.tableId(), after.tableId());
+                assertEquals(before.keySchema(), after.keySchema());
+                assertEquals(before.attributeDefinitions(), after.attributeDefinitions());
+                assertEquals(100L, after.provisionedThroughput().readCapacityUnits());
+                assertEquals(100L, after.provisionedThroughput().writeCapacityUnits());
+                assertEquals(ProjectionType.ALL, after.globalSecondaryIndexes().get(0).projection().projectionType());
+                assertEquals(2L, after.globalSecondaryIndexes().get(0).provisionedThroughput().readCapacityUnits());
+                assertEquals(before.localSecondaryIndexes().get(0).keySchema(), after.localSecondaryIndexes().get(0).keySchema());
+                assertEquals(before.sseDescription(), after.sseDescription());
+                assertEquals(before.streamSpecification(), after.streamSpecification());
+                assertEquals("keep", client.getItem(r -> r.tableName("catalog.products").key(key).consistentRead(true)).item().get("value").s());
+                String restored = isolated("createProducts").build().getOutput();
+                assertTrue(restored.contains("catalog.products (reused)"), restored);
+                assertFalse(restored.contains("Initialized DynamoDB table"), restored);
+            }
+        } finally {
+            runner(project, "stopAwsEmulator").build();
+        }
+        assertEquals("", containers());
+    }
+
+    @Test
+    void driftFailuresCleanUpTheManagedRuntimeIncludingOnConfigurationCacheReuse() throws Exception {
+        fixture();
+        for (int run = 0; run < 2; run++) {
+            String output = isolated("conflictingProducts", "-Pmanaged=true").buildAndFail().getOutput();
+            assertDrift(output);
+            assertTrue(output.contains("Initialized DynamoDB table: catalog.products"), output);
+            if (run == 1) assertTrue(output.contains("Reusing configuration cache"), output);
+            assertManagedCleanup();
+        }
+    }
+
+    @Test
+    void reusesEquivalentKmsKeyIdentifiersAndDetectsRetargetedAliases() throws Exception {
+        fixture();
+        try {
+            runner(project, "startAwsEmulator").build();
+            var clients = new AwsClientFactory(developmentConnection(), 30);
+            try (var kms = clients.kms(); var dynamo = clients.dynamoDb()) {
+                var first = kms.createKey(r -> {}).keyMetadata();
+                kms.createAlias(r -> r.aliasName("alias/products").targetKeyId(first.keyId()));
+                isolated("createProducts", "-PkmsKey=alias/products").build();
+                String reused = isolated("createProducts", "-PkmsKey=alias/products").build().getOutput();
+                assertTrue(reused.contains("Reusing configuration cache"), reused);
+                assertTrue(reused.contains("catalog.products (reused)"), reused);
+                String aliasArn = first.arn().substring(0, first.arn().indexOf(":key/")) + ":alias/products";
+                for (String identifier : List.of(first.keyId(), first.arn(), aliasArn)) {
+                    String output = isolated("createProducts", "-PkmsKey=" + identifier).build().getOutput();
+                    assertTrue(output.contains("catalog.products (reused)"), output);
+                    assertFalse(output.contains("Initialized DynamoDB table"), output);
+                }
+                var second = kms.createKey(r -> {}).keyMetadata();
+                kms.updateAlias(r -> r.aliasName("alias/products").targetKeyId(second.keyId()));
+                String output = isolated("createProducts", "-PkmsKey=alias/products").buildAndFail().getOutput();
+                assertTrue(output.contains("sseSpecification.kmsMasterKeyId: requested alias/products (" + second.arn() + "), existing " + first.arn()), output);
+                assertFalse(output.contains("Initialized DynamoDB table"), output);
+                assertEquals(first.arn(), dynamo.describeTable(r -> r.tableName("catalog.products")).table().sseDescription().kmsMasterKeyArn());
+            }
+        } finally {
+            runner(project, "stopAwsEmulator").build();
+        }
+        assertEquals("", containers());
+    }
+
+    private void assertDrift(String output) {
+        assertTrue(output.contains("DynamoDB table 'catalog.products' configuration mismatch"), output);
+        assertTrue(output.contains("keySchema: requested {HASH=created, RANGE=id}, existing {HASH=id, RANGE=created}"), output);
+        assertTrue(output.contains("attributeDefinitions: requested {category=S, created=S, id=N, price=N}"), output);
+        assertTrue(output.contains("provisionedThroughput.readCapacityUnits: requested 5, existing 100"), output);
+        assertTrue(output.contains("globalSecondaryIndexes[by-category].projection.projectionType: requested KEYS_ONLY, existing ALL"), output);
+        assertTrue(output.contains("localSecondaryIndexes[by-price].keySchema: requested {HASH=created, RANGE=price}"), output);
+        assertTrue(output.contains("streamSpecification.streamEnabled: requested false, existing true"), output);
+        assertTrue(output.contains("sseSpecification.enabled: requested false, existing true"), output);
+        assertTrue(output.contains("The existing table and its items were not changed."), output);
+    }
+
     private AttributeValue text(String value) { return AttributeValue.builder().s(value).build(); }
 
     private GradleRunner isolated(String... tasks) {
@@ -108,6 +201,7 @@ class DynamoDbTasksIntegrationTest {
         environment.put("AWS_PROFILE", "nonexistent-profile");
         environment.put("AWS_ENDPOINT_URL", "https://127.0.0.1:1");
         environment.put("AWS_ENDPOINT_URL_DYNAMODB", "https://127.0.0.1:1");
+        environment.put("AWS_ENDPOINT_URL_KMS", "https://127.0.0.1:1");
         return runner(project, tasks).withEnvironment(environment);
     }
 
@@ -205,6 +299,9 @@ class DynamoDbTasksIntegrationTest {
                         KeySchemaElement.builder().attributeName("price").keyType(KeyType.RANGE).build())
                     .projection(Projection.builder().projectionType(ProjectionType.ALL).build()).build())
                 streamSpecification.set(StreamSpecification.builder().streamEnabled(true).streamViewType(StreamViewType.NEW_AND_OLD_IMAGES).build())
+                sseSpecification.set(providers.gradleProperty("kmsKey").map {
+                    SSESpecification.builder().enabled(true).kmsMasterKeyId(it).build()
+                }.orElse(SSESpecification.builder().enabled(true).build()))
                 initializer.set("fixture.SeedProducts")
             }
             val create = tasks.register<CreateDynamoDbTableTask>("createProducts")
@@ -214,6 +311,28 @@ class DynamoDbTasksIntegrationTest {
                 mainClass.set("Modify")
             }
             val repeat = tasks.register<CreateDynamoDbTableTask>("repeatProducts") { dependsOn(modify) }
+            tasks.register<CreateDynamoDbTableTask>("conflictingProducts") {
+                dependsOn(create)
+                keySchema.set(listOf(
+                    KeySchemaElement.builder().attributeName("created").keyType(KeyType.HASH).build(),
+                    KeySchemaElement.builder().attributeName("id").keyType(KeyType.RANGE).build()))
+                attributeDefinitions.set(listOf("created", "category").map {
+                    AttributeDefinition.builder().attributeName(it).attributeType(ScalarAttributeType.S).build()
+                } + listOf("id", "price").map {
+                    AttributeDefinition.builder().attributeName(it).attributeType(ScalarAttributeType.N).build()
+                })
+                provisionedThroughput.set(ProvisionedThroughput.builder().readCapacityUnits(5L).writeCapacityUnits(6L).build())
+                globalSecondaryIndexes.set(listOf(GlobalSecondaryIndex.builder().indexName("by-category")
+                    .keySchema(KeySchemaElement.builder().attributeName("category").keyType(KeyType.HASH).build())
+                    .projection(Projection.builder().projectionType(ProjectionType.KEYS_ONLY).build())
+                    .provisionedThroughput(ProvisionedThroughput.builder().readCapacityUnits(7L).writeCapacityUnits(8L).build()).build()))
+                localSecondaryIndexes.set(listOf(LocalSecondaryIndex.builder().indexName("by-price")
+                    .keySchema(KeySchemaElement.builder().attributeName("created").keyType(KeyType.HASH).build(),
+                        KeySchemaElement.builder().attributeName("price").keyType(KeyType.RANGE).build())
+                    .projection(Projection.builder().projectionType(ProjectionType.KEYS_ONLY).build()).build()))
+                streamSpecification.set(StreamSpecification.builder().streamEnabled(false).build())
+                sseSpecification.set(SSESpecification.builder().enabled(false).build())
+            }
             tasks.register<CreateDynamoDbTableTask>("failedInitializer") {
                 tableName.set("failed-table")
                 initializer.set("fixture.FailingInitializer")

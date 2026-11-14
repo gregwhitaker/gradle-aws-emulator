@@ -37,6 +37,9 @@ dependencies {
 
 val createProducts = tasks.register<CreateDynamoDbTableTask>("createProducts") {
     tableName.set("example-products")
+    provisionedThroughput.set(providers.gradleProperty("productReadCapacity").map {
+        ProvisionedThroughput.builder().readCapacityUnits(it.toLong()).writeCapacityUnits(100L).build()
+    }.orElse(ProvisionedThroughput.builder().readCapacityUnits(100L).writeCapacityUnits(100L).build()))
     keySchema.add(KeySchemaElement.builder().attributeName("id").keyType(KeyType.HASH).build())
     attributeDefinitions.set(listOf("id", "category").map {
         AttributeDefinition.builder().attributeName(it).attributeType(ScalarAttributeType.S).build()

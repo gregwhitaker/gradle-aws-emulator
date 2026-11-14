@@ -13,6 +13,8 @@ Run [AWS Emulator](https://github.com/aws/aws-emulator) from your Gradle build. 
 
 No AWS account or AWS CLI is required. The first emulator run builds the pinned image; subsequent runs reuse it. Applying the plugin alone does not start Docker or opt existing tasks into the emulator.
 
+The tested emulator default is shared in [`gradle/emulator.properties`](gradle/emulator.properties). Daily upgrade PRs run compatibility checks and require maintainer review, including a separate CloudFormation provisioning audit; see the [upgrade procedure](CONTRIBUTING.md#aws-emulator-upgrades).
+
 ## Quick start
 
 ### Try the included example
@@ -68,6 +70,8 @@ Keep your application's AWS SDK and test dependencies. Use an SDK that supports 
 For Groovy DSL setup, see [getting started](docs/src/docs/asciidoc/getting-started.adoc). For regions, ports, images, and timeouts, see [configuration](docs/src/docs/asciidoc/configuration.adoc).
 
 The [S3 tasks](docs/src/docs/asciidoc/s3.adoc) also replace bucket policies, enable or suspend versioning, and configure bucket notifications. Use `deleteS3BucketPolicy --bucketName=<name>` to remove a development bucket's policy and `deleteSqsQueues --queueNames=<name1>,<name2>` to delete selected development queues and their messages. The [basic example](examples/basic/README.md) verifies versioned objects, S3-to-SQS notifications, and explicit queue deletion.
+
+[DynamoDB table creation](docs/src/docs/asciidoc/dynamodb.adoc#configuration-drift) checks an existing table's schema, indexes, capacity, encryption, and streams before reuse. Configuration drift fails with requested and existing values, preserving the table and its items. See the [DynamoDB example](examples/dynamodb/README.md) for initialization, reuse, and a runnable mismatch example.
 
 ## CloudFormation
 

@@ -24,6 +24,7 @@ The [build script](build.gradle.kts) registers `createProducts` and makes `integ
 | --- | --- |
 | Table name | `example-products` |
 | Partition key | `id`, a string |
+| Table capacity | 100 read and 100 write units; override reads with `-PproductReadCapacity=<units>` |
 | Global secondary index | `by-category`, keyed by the string attribute `category`, projecting all attributes |
 | Stream view | `NEW_IMAGE` |
 | Initializer class | `example.buildsrc.dynamodb.ProductTableInitializer` |
@@ -47,5 +48,19 @@ To create and inspect the same table in a development instance:
 ```
 
 The development instance remains running between Gradle invocations and is separate from the managed test instance. The initializer runs when the table is newly created. Stopping or restarting the instance discards the table and its items; run `stopAwsEmulator` when finished.
+
+## Detect configuration drift
+
+Existing tables are reused only when their schemas, indexes, capacity, encryption, and stream settings match. Reuse preserves items and does not rerun the initializer. The following sequence demonstrates a mismatch, then successful reuse with the original settings:
+
+```sh
+./gradlew -p examples/dynamodb createProducts --mode=DEVELOPMENT --configuration-cache
+# Expected failure: provisionedThroughput.readCapacityUnits: requested 5, existing 100
+./gradlew -p examples/dynamodb createProducts --mode=DEVELOPMENT -PproductReadCapacity=5 --configuration-cache
+./gradlew -p examples/dynamodb createProducts --mode=DEVELOPMENT --configuration-cache
+./gradlew -p examples/dynamodb stopAwsEmulator
+```
+
+The failed task leaves the original table and seeded item intact. To adopt different settings, explicitly delete the development table with `deleteDynamoDbTable --tableName=example-products` and recreate it with the desired properties. Deletion discards its items. Every managed run starts fresh, but tasks within the same runtime must agree on a shared table's definition.
 
 See the [DynamoDB guide](../../docs/src/docs/asciidoc/dynamodb.adoc) for all table properties, initializer requirements, and table deletion commands, or the [main README](../../README.md) for general plugin configuration.
