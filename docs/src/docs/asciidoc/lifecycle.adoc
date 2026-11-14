@@ -1,4 +1,4 @@
-= Development lifecycle
+= Development Lifecycle
 include::_partials/attributes.adoc[]
 :description: Prepare, start, stop, restart, inspect, and read logs from a persistent AWS Emulator instance.
 
@@ -8,7 +8,7 @@ toc::[]
 
 With an xref:external-emulators.adoc[external connection], the plugin owns no lifecycle. Start, stop, restart, prepare, cleanup, logs, and scenario reset commands are rejected. Status, doctor, connection exports, and scenario seeding use the external endpoint without Docker.
 
-== Task reference
+== Task Reference
 
 [cols="1,3",options="header"]
 |===
@@ -25,7 +25,7 @@ With an xref:external-emulators.adoc[external connection], the plugin owns no li
 |`exportAwsEmulatorConnection` |Start or reuse development and write sourceable `connection.sh` and `connection.ps1` in its home. See xref:connections.adoc#shell-exports[shell and IDE exports].
 |===
 
-== Start a development session
+== Start A Development Session
 
 Commands select the `default` runtime unless given `--runtime <name>`. Each xref:named-runtimes.adoc[named runtime] also has fixed lifecycle tasks, such as `startAwsEmulatorIntegration`, `stopAwsEmulatorIntegration`, and `cleanupAwsEmulatorIntegration`. Use the suffixed tasks to operate on several runtimes in one invocation. Status, doctor, logs, cleanup, stop, and restart are scoped to the selected name; other runtime owners are untouched.
 
@@ -43,7 +43,7 @@ In your own project, omit `-p examples/basic`. The start and status tasks report
 
 An unrelated container with the same name is never adopted or stopped. The plugin checks ownership before operating on containers.
 
-== Change settings or start fresh
+== Change Settings Or Start Fresh
 
 If the development instance is already running, changed settings require `restartAwsEmulator`:
 
@@ -58,7 +58,7 @@ The Docker image remains cached after an instance stops. `prepareAwsEmulator` ca
 
 To recreate resources and load a dataset after restarting, define a xref:scenarios.adoc[development scenario] and run `resetAwsEmulator`. Use `seedAwsEmulator` to load its fixtures without discarding other state.
 
-== Provision development resources
+== Provision Development Resources
 
 Set the default for custom resource tasks once on the extension:
 
@@ -95,7 +95,7 @@ Run `./gradlew createDevelopmentBucket` in that application. The task starts or 
 
 Use `MANAGED` resource tasks for xref:testing.adoc[tests opted in with `useWith`]. Development tasks do not seed the separate managed instance.
 
-== Recover from an interrupted build
+== Recover From An Interrupted Build
 
 Managed teardown saves complete available timestamped container logs in the runtime owner's `workingDirectory/logs/` (by default `.aws-emulator/logs/`) before removing the container and connection files. Each archive has a unique name containing the container ID; the build prints its path. Startup failures also save logs if a container was created. Archives are streamed to disk without the normal command-output buffer limit. Log retrieval or disk errors produce a warning and cleanup continues. Logs remain until explicitly deleted and may contain application output; credential files are never copied into the archive.
 

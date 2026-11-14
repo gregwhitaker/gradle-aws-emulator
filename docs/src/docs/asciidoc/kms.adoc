@@ -6,7 +6,7 @@ Create symmetric encryption keys and aliases, encrypt and decrypt local files, a
 
 toc::[]
 
-== Provision before tests
+== Provision Before Tests
 
 [source,kotlin]
 ----
@@ -41,7 +41,7 @@ awsEmulator { useWith(tests) }
 
 The output provider makes decryption depend on encryption. The key and both file tasks use the same managed runtime as the tests.
 
-== Task properties
+== Task Properties
 
 * `CreateKmsKeyTask`: `aliasName`. Creates/reuses an enabled `SYMMETRIC_DEFAULT` encryption key. The alias makes repeated setup stable.
 * `CreateKmsAliasTask`: `aliasName`, `keyId`, `overwrite` (default `false`). Changing an existing alias's target requires explicit overwrite.
@@ -50,11 +50,11 @@ The output provider makes decryption depend on encryption. The key and both file
 * `ScheduleKmsKeyDeletionTask`: `keyId`, `pendingWindowInDays` (7–30; default 30). Already-pending keys are left alone. This is scheduled deletion, not immediate deletion.
 * `EncryptKmsFileTask` and `DecryptKmsFileTask`: `keyId`, `inputFile`, `outputFile`, optional `encryptionContext` map (default empty). Use the same context for encryption and decryption.
 
-== File encryption and decryption
+== File Encryption And Decryption
 
 Encryption accepts up to 4096 plaintext bytes. Decryption accepts up to 6144 ciphertext bytes. Files are binary, not Base64 strings. Input and output must differ. Result files are replaced atomically when supported and use owner-only permissions on POSIX filesystems. Bodies are not printed. A managed key disappears when its emulator stops, so both tasks must share that runtime; the runnable example wires the decrypt input to the encrypt task's output provider.
 
-== Development commands
+== Development Commands
 
 Predefined commands: `listKmsKeys`, `deleteKmsAlias --aliasName=...`, and `scheduleKmsKeyDeletion --keyId=...`. Managed aliases starting with `alias/aws/` are reserved. Asymmetric keys, signing, imported key material, grants, and policy enforcement testing are outside this scope.
 
@@ -67,7 +67,7 @@ Predefined commands: `listKmsKeys`, `deleteKmsAlias --aliasName=...`, and `sched
 
 include::_partials/service-task-runtime.adoc[]
 
-== Runnable example
+== Runnable Example
 
 [source,shell]
 ----

@@ -6,7 +6,7 @@ Provision event buses and rules, route matching events to standard SQS queues, a
 
 toc::[]
 
-== Provision before tests
+== Provision Before Tests
 
 [source,kotlin]
 ----
@@ -48,7 +48,7 @@ awsEmulator { useWith(tests) }
 
 The target task configures delivery to the queue. See the xref:sqs.adoc[SQS guide] for queue settings and message fixtures.
 
-== Task properties
+== Task Properties
 
 [cols="1,2",options="header"]
 |===
@@ -64,7 +64,7 @@ The target task configures delivery to the queue. See the xref:sqs.adoc[SQS guid
 |`DeleteEventBusTask` |`eventBusName`; requires explicit deletion of its rules first
 |===
 
-== Event fixtures
+== Event Fixtures
 
 .fixtures/events.json
 [source,json]
@@ -76,11 +76,11 @@ The target task configures delivery to the queue. See the xref:sqs.adoc[SQS guid
 
 `source` and `detailType` are nonblank strings; `detail` must be a JSON object. This release uses a conservative 256 KiB entry/request limit and batches up to ten events. It verifies bus existence before publishing. Partial batch failures identify one-based fixture indexes; successful events are retained and are not automatically replayed. Rerunning a publisher can duplicate events.
 
-== Targets and repeated setup
+== Targets And Repeated Setup
 
 Target IDs make repeated setup stable. Existing conflicting targets/rules require `overwrite=true`; unrelated target IDs are preserved. The SQS convenience task preserves unrelated queue-policy statements and adds one rule-scoped grant. Deleting a rule leaves that grant in the queue policy; it does not delete the queue. FIFO targets, schedules, SNS targets, input transformations, and replay/archive management are not part of this initial task scope.
 
-== Cleanup and development commands
+== Cleanup And Development Commands
 
 Declare cleanup ordering explicitly when deleting dependent resources in one build. Configuration-cache execution can run independent tasks concurrently: use `tasks.named("deleteEventBus") { mustRunAfter("deleteEventBridgeRule") }` when both commands are selected. The runnable example configures this ordering.
 
@@ -96,7 +96,7 @@ Predefined commands: `listEventBuses`, `listEventBridgeRules`, `deleteEventBridg
 
 include::_partials/service-task-runtime.adoc[]
 
-== Runnable example
+== Runnable Example
 
 [source,shell]
 ----

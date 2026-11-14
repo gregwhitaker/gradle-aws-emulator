@@ -6,7 +6,7 @@ Provision log groups and streams for application tests, then retrieve or filter 
 
 toc::[]
 
-== Provision before tests
+== Provision Before Tests
 
 [source,kotlin]
 ----
@@ -42,7 +42,7 @@ tasks.register("verifyLogs") { dependsOn(filtered) }
 
 Have the tests write an application log event containing `ready` to the configured group and stream. Run `./gradlew verifyLogs` to provision the stream, run the tests, and retrieve the matching events before managed cleanup.
 
-== Task properties
+== Task Properties
 
 * `CreateLogGroupTask` / `DeleteLogGroupTask`: `logGroupName`.
 * `CreateLogStreamTask` / `DeleteLogStreamTask`: `logGroupName`, `logStreamName`. Create the group first using `dependsOn`.
@@ -50,11 +50,11 @@ Have the tests write an application log event containing `ready` to the configur
 * `GetLogEventsTask`: `logGroupName`, `logStreamName`, `outputFile`, optional `startTime` in epoch milliseconds, `maxEvents` (default 10000).
 * `FilterLogEventsTask`: `logGroupName`, `outputFile`, `filterPattern` (default empty), optional `startTime`, `maxEvents`, `minimumEvents` (default 0), `waitTimeoutSeconds` (default 30).
 
-== Reading and filtering events
+== Reading And Filtering Events
 
 Read tasks follow pagination and write JSON arrays without printing message bodies. `GetLogEventsTask` terminates when the forward token stops advancing. `FilterLogEventsTask` optionally polls until at least `minimumEvents` match; each poll replaces its snapshot rather than appending duplicates. Exceeding `maxEvents` fails rather than silently truncating. Raise the limit (maximum 1000000) or narrow the query. SDK calls retain the shared `apiCallTimeoutSeconds` deadline, including when a polling deadline expires during a call.
 
-== Development commands
+== Development Commands
 
 Predefined commands: `listLogGroups`, `deleteLogGroup --logGroupName=...`, and `deleteLogStream --logGroupName=... --logStreamName=...`. Log retention policies, subscriptions, Logs Insights, metrics, and alarms are outside this initial scope.
 
@@ -70,7 +70,7 @@ When deleting a stream and its group in the same build, declare `tasks.named("de
 
 include::_partials/service-task-runtime.adoc[]
 
-== Runnable example
+== Runnable Example
 
 [source,shell]
 ----

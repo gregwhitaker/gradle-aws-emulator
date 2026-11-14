@@ -1,11 +1,11 @@
-= Cognito User Pools and authentication
+= Cognito User Pools And Authentication
 include::_partials/attributes.adoc[]
 
 Create Cognito User Pools and public app clients, seed confirmed users and group memberships, and export runtime IDs for application tests or local development. Task types are in `io.github.gregwhitaker.awsemulator.aws.cognito` and use the `cognito-idp` service.
 
 toc::[]
 
-== Run the Spring Security example
+== Run The Spring Security Example
 
 [source,shell]
 ----
@@ -21,7 +21,7 @@ IMPORTANT: AWS Emulator `1.0.322` signs Cognito tokens with *ES256*, while AWS C
 
 Supported workflows are User Pool provisioning, public clients, administrative user fixtures, groups, password sign-in, and refresh. Identity Pools, hosted login/OAuth authorization endpoints, federation, SRP, MFA, Lambda triggers, custom schema management, and confidential client creation are outside this initial integration.
 
-== Tasks and defaults
+== Tasks And Defaults
 
 All task types share `mode` (custom instances inherit `awsEmulator.defaultMode`, initially `MANAGED`) and `apiCallTimeoutSeconds` (default `30`). They always execute against live state, with up-to-date skipping and build-cache reuse disabled. Configuration-cache reuse is supported. Applying the plugin or listing tasks does not start Docker.
 
@@ -52,7 +52,7 @@ The convenience commands `listCognitoUserPools`, `deleteCognitoUserPool`, and `d
 ./gradlew -p examples/cognito stopAwsEmulator
 ----
 
-== Reusable setup with Kotlin DSL
+== Reusable Setup With Kotlin DSL
 
 Apply the core plugin and Java plugin, then configure a resource set:
 
@@ -95,7 +95,7 @@ When the xref:spring-boot.adoc[Spring Boot companion] is applied, add `awsEmulat
 
 The provisioning, fixture, and export task types carry `@AwsEmulatorSetupTask` for the companion's ordinary-task auto-discovery. Resource-set instances use explicit resource-set attachment instead. Separate managed and development output files prevent one runtime's configuration from overwriting the other's.
 
-== Ordinary tasks with Groovy DSL
+== Ordinary Tasks With Groovy DSL
 
 [source,groovy]
 ----
@@ -130,7 +130,7 @@ awsEmulator { useWith(tests) }
 
 For ordinary task registrations targeting a persistent instance, select `EmulatorMode.DEVELOPMENT` on every resource task in the dependency chain and choose a development-specific output path.
 
-== User fixtures and repeat runs
+== User Fixtures And Repeat Runs
 
 .fixtures/users.json
 [source,json]
@@ -153,7 +153,7 @@ With `overwrite=false`, an existing enabled, confirmed user is reused only when 
 
 All entries are parsed and validated before SDK calls. Service failures can leave earlier entries or a newly created user in place; errors report the failing entry number and completed count without fixture values. After fixing a failure during password assignment, rerun with `overwrite=true` to complete the user. The task does not roll back or delete unrelated resources.
 
-== Consume generated configuration
+== Consume Generated Configuration
 
 `ExportCognitoConfigurationTask` writes these fields:
 

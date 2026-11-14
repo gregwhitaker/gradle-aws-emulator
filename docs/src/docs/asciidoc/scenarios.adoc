@@ -1,4 +1,4 @@
-= Data fixtures & development scenarios
+= Data Fixtures & Development Scenarios
 include::_partials/attributes.adoc[]
 :description: Load S3 files and DynamoDB JSON items, select named development datasets, and reset and reseed the emulator.
 
@@ -6,7 +6,7 @@ Use typed data tasks on their own, or combine provisioning and fixtures into a n
 
 toc::[]
 
-== Try the example
+== Try The Example
 
 From the repository root, with Docker running:
 
@@ -21,7 +21,7 @@ From the repository root, with Docker running:
 
 The link:{repo-url}/tree/main/examples/scenarios[runnable example] defines `demo`, `empty`, and `failed-orders`. `demo` loads files and products; `empty` creates resources without data; `failed-orders` loads a failed payment record.
 
-== Upload and inspect S3 objects
+== Upload And Inspect S3 Objects
 
 [source,kotlin]
 ----
@@ -66,7 +66,7 @@ The registered `listS3Objects` command defaults to `DEVELOPMENT`, follows all re
 
 Register downloads with an explicit local output file. Object keys are never interpreted as filesystem paths. The destination is replaced only after the full download succeeds. Downloads rerun even when the local file already exists.
 
-== Seed and clear DynamoDB items
+== Seed And Clear DynamoDB Items
 
 `PutDynamoDbItemsTask` reads a nonempty JSON array of DynamoDB attribute maps. Use explicit https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_AttributeValue.html[AttributeValue type tags] to preserve number precision, binary data, sets, lists, and maps:
 
@@ -111,7 +111,7 @@ Imports replace the entire existing item when its primary key matches; other ite
 Both item task types accept `tableName`, `mode`, `apiCallTimeoutSeconds`, `maxRetries`, and `retryDelayMillis`. `PutDynamoDbItemsTask` additionally requires `itemsFile`. Custom instances inherit `awsEmulator.defaultMode`, initially `MANAGED`; the registered purge command uses `DEVELOPMENT`.
 
 [[resource-sets]]
-== Reuse resources across tests and development
+== Reuse Resources Across Tests And Development
 
 Declare task configurations in `awsEmulator.resourceSets` to use the same resource and fixture definitions with managed tests, local Boot runs, and development scenarios:
 
@@ -172,7 +172,7 @@ The scenario example uses includes to share its bucket, table, and S3 fixtures a
 ./gradlew -p examples/scenarios stopAwsEmulator
 ----
 
-== Define development scenarios
+== Define Development Scenarios
 
 Prefer `resources(setProvider)` for definitions shared with managed tests or Boot runs. Existing task-based scenarios remain supported:
 
@@ -229,7 +229,7 @@ IMPORTANT: Reset removes *all resources* in the selected development emulator, i
 
 `restartAwsEmulator` retains its existing behavior: restart with empty state, without provisioning or fixtures. Reset builds on that lifecycle operation; it is not a persisted snapshot.
 
-== Start application tasks after seeding
+== Start Application Tasks After Seeding
 
 Add the scenario command as setup for a development consumer:
 

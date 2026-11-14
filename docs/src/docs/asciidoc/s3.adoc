@@ -1,4 +1,4 @@
-= S3 buckets & objects
+= S3 Buckets & Objects
 include::_partials/attributes.adoc[]
 :description: Create, list, purge, and delete S3 buckets; upload, list, and download objects.
 
@@ -6,7 +6,7 @@ The S3 module supplies typed tasks for buckets and objects. All task types live 
 
 toc::[]
 
-== Register resource tasks
+== Register Resource Tasks
 
 Make your test task depend on provisioning, then opt that same consumer into the emulator. Provisioning tasks default to the shared managed instance.
 
@@ -56,7 +56,7 @@ awsEmulator {
 
 NOTE: A managed provisioning task invoked alone creates resources that disappear when the build finishes. To keep resources available for a development session, select xref:lifecycle.adoc#provision-development-resources[`DEVELOPMENT` mode].
 
-== Task properties
+== Task Properties
 
 All properties use Gradle's lazy property API.
 
@@ -84,7 +84,7 @@ All properties use Gradle's lazy property API.
 
 Provisioning tasks always execute and are never restored from the build cache because they operate on live emulator state. The plugin supplies its own SDK dependencies for these tasks; the application declares its own dependencies.
 
-== S3 bucket behavior
+== S3 Bucket Behavior
 
 `CreateS3BucketTask` and `CreateS3BucketsTask` create general-purpose buckets in `awsEmulator.region`. For `us-east-1`, it omits the location constraint; for other regions, it sends the configured region.
 
@@ -94,7 +94,7 @@ These bucket tasks do not configure directory buckets, access points, or bucket 
 
 API: link:api/io/github/gregwhitaker/awsemulator/aws/s3/CreateS3BucketTask.html[CreateS3BucketTask].
 
-== Bulk creation
+== Bulk Creation
 
 [source,kotlin]
 ----
@@ -109,7 +109,7 @@ val createBuckets = tasks.register<CreateS3BucketsTask>("createTestBuckets") {
 
 API: link:api/io/github/gregwhitaker/awsemulator/aws/s3/CreateS3BucketsTask.html[CreateS3BucketsTask].
 
-== Upload and inspect objects
+== Upload And Inspect Objects
 
 Object tasks require an existing bucket. Use the bucket task from the registration example as a dependency:
 
@@ -136,7 +136,7 @@ See xref:scenarios.adoc#upload-and-inspect-s3-objects[S3 data fixtures] for cont
 
 API: link:api/io/github/gregwhitaker/awsemulator/aws/s3/UploadS3ObjectTask.html[UploadS3ObjectTask], link:api/io/github/gregwhitaker/awsemulator/aws/s3/UploadS3DirectoryTask.html[UploadS3DirectoryTask], link:api/io/github/gregwhitaker/awsemulator/aws/s3/ListS3ObjectsTask.html[ListS3ObjectsTask], link:api/io/github/gregwhitaker/awsemulator/aws/s3/DownloadS3ObjectTask.html[DownloadS3ObjectTask].
 
-== Module convenience tasks
+== Module Convenience Tasks
 
 The S3 module registers these tasks in the *AWS Emulator - S3* group. They use the persistent development emulator by default:
 
@@ -159,12 +159,12 @@ Every resource task accepts `--mode=MANAGED` or `--mode=DEVELOPMENT` and `--runt
 ./gradlew deleteS3Buckets --buckets=application-data --force
 ----
 
-=== Listing and cleanup
+=== Listing And Cleanup
 
 S3 listing follows all response pages and prints bucket names and creation dates. Purging retains the bucket but removes objects, historical versions, and delete markers, including when versioning is suspended. The task checks individual deletion errors even when the service accepts the batch. Deletion requires an empty bucket unless `force` is `true`; an already absent bucket succeeds. Purging and deleting require explicit bucket names.
 
 API: link:api/io/github/gregwhitaker/awsemulator/aws/s3/ListS3BucketsTask.html[ListS3BucketsTask], link:api/io/github/gregwhitaker/awsemulator/aws/s3/ListS3ObjectsTask.html[ListS3ObjectsTask], link:api/io/github/gregwhitaker/awsemulator/aws/s3/PurgeS3BucketsTask.html[PurgeS3BucketsTask], link:api/io/github/gregwhitaker/awsemulator/aws/s3/DeleteS3BucketsTask.html[DeleteS3BucketsTask].
 
-== SDK connection isolation
+== SDK Connection Isolation
 
 Provisioning clients use explicit emulator endpoints, regions, generated credentials, and per-client TLS trust. They bypass inherited proxy settings. They do not modify the Gradle daemon's credentials or global SSL configuration, and they do not require the AWS CLI.

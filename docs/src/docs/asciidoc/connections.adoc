@@ -6,7 +6,7 @@ The emulator uses signed requests over HTTPS. After readiness succeeds, the plug
 
 toc::[]
 
-== What the plugin supplies
+== What The Plugin Supplies
 
 [cols="1,2",options="header"]
 |===
@@ -26,7 +26,7 @@ Connection material is read or generated at execution time; credential values ar
 
 With xref:remote-docker.adoc[Docker tunnel transport], the plugin copies generated connection files from the container to a private local directory and forwards HTTPS to a loopback endpoint in the Gradle runner. The same credential and TLS checks apply, including certificate and hostname verification.
 
-== Use compatible SDK clients
+== Use Compatible SDK Clients
 
 Use an SDK that supports external endpoint configuration. The runnable example verifies AWS SDK for Java v2 `2.39.6`. An SDK client that hardcodes an endpoint will keep using it.
 
@@ -49,7 +49,7 @@ The environment setting alone does not control host-prefix injection in Java. Ow
 
 Explicit SDK credentials/endpoints and application-created SSL contexts can override the plugin's values. Use normal SDK providers as shown in the xref:getting-started.adoc#the-complete-example[example application].
 
-== Trusting other HTTPS services
+== Trusting Other HTTPS Services
 
 Each opted-in `Test` or `JavaExec` task, including the companion's local Spring Boot tasks, receives a combined trust store. It contains:
 
@@ -78,7 +78,7 @@ The combined certificate-only PKCS12 files use a fixed integrity password suppli
 
 The plugin's own provisioning tasks use per-client trust and explicit emulator connections. Their TLS settings are separate from the consuming application's JVM trust store.
 
-== Development connection files
+== Development Connection Files
 
 For a development instance on port `9297`, host-side files live under:
 
@@ -94,7 +94,7 @@ For a development instance on port `9297`, host-side files live under:
 Lifecycle tasks report the actual directory and endpoint. The emulator's own `config` contains container paths, so host consumers should use the generated `host-config` instead. Starting a development instance alone does not configure JVM tasks; `useWith` selects the separate managed runtime.
 
 [[shell-exports]]
-== Shell, PowerShell, and IDE exports
+== Shell, PowerShell, And IDE Exports
 
 Run `exportAwsEmulatorConnection` to start or reuse the persistent development instance and write two connection scripts. Default POSIX-shell usage:
 
@@ -124,7 +124,7 @@ Exports select development for owned runtimes because managed connection files a
 
 For an external connection, exports use the supplied endpoint and files and are written under `workingDirectory/external/<connection-id>/`. They do not start or stop anything. The supplied files and generated local exports remain after the build.
 
-== Upstream references
+== Upstream References
 
 * https://docs.aws.amazon.com/emulator/latest/userguide/getting-started-docker.html[AWS Emulator Docker installation]
 * https://docs.aws.amazon.com/emulator/latest/userguide/point-sdk-to-emulator.html[Point an SDK at AWS Emulator]

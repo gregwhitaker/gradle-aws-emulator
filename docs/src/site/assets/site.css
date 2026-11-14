@@ -64,10 +64,6 @@ kbd { border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; font: 1
 .nav-group a:hover { background: var(--hover); color: var(--heading); }
 .nav-group a[aria-current] { background: var(--active); color: var(--active-ink); border-left-color: var(--link); font-weight: 600; }
 .nav-group a span { color: var(--muted); }
-.nav-help { display: flex; align-items: center; gap: 10px; padding: 18px 0 0; border-top: 1px solid var(--line); color: var(--heading); text-decoration: none; font-size: 11px; }
-.nav-help > span:first-child { display: grid; place-items: center; width: 22px; height: 22px; border: 1px solid var(--line); border-radius: 50%; font: 12px var(--font-mono); }
-.nav-help > span:last-child { margin-left: auto; }
-.nav-help small { display: block; color: var(--muted); font-size: 9px; }
 
 /* Article typography and outline */
 #header, #content, .site-footer { width: var(--article-width); margin-left: var(--article-left); }

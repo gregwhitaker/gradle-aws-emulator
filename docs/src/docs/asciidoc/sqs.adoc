@@ -1,4 +1,4 @@
-= SQS queues & messages
+= SQS Queues & Messages
 include::_partials/attributes.adoc[]
 :description: Provision standard and FIFO SQS queues and deadletter queues, publish message fixtures, and list and purge queues.
 
@@ -6,7 +6,7 @@ The SQS module supplies typed tasks for queues, deadletter queues, and message f
 
 toc::[]
 
-== Register resource tasks
+== Register Resource Tasks
 
 Make your test task depend on provisioning, then opt that same consumer into the emulator. Provisioning tasks default to the shared managed instance.
 
@@ -58,7 +58,7 @@ awsEmulator {
 
 NOTE: A managed provisioning task invoked alone creates resources that disappear when the build finishes. To keep resources available for a development session, select xref:lifecycle.adoc#provision-development-resources[`DEVELOPMENT` mode].
 
-== Task properties
+== Task Properties
 
 All properties use Gradle's lazy property API.
 
@@ -83,7 +83,7 @@ All properties use Gradle's lazy property API.
 
 Provisioning tasks always execute and are never restored from the build cache because they operate on live emulator state. The plugin supplies its own SDK dependencies for these tasks; the application declares its own dependencies.
 
-== SQS queue behavior
+== SQS Queue Behavior
 
 `CreateSqsQueueTask` and `CreateSqsQueuesTask` support standard and FIFO queues. The singular task uses `attributes`; the bulk task uses `queueAttributes`. Both maps use AWS attribute names and string values.
 
@@ -91,7 +91,7 @@ An existing queue is reused when the explicitly requested attribute values match
 
 AWS service errors remain build failures.
 
-=== FIFO queues
+=== FIFO Queues
 
 Provide both a `.fifo` suffix and `FifoQueue = true`:
 
@@ -108,7 +108,7 @@ Add `createFifo` to your consumer's `dependsOn(...)` list to create the queue be
 
 API: link:api/io/github/gregwhitaker/awsemulator/aws/sqs/CreateSqsQueueTask.html[CreateSqsQueueTask].
 
-== Bulk creation
+== Bulk Creation
 
 [source,kotlin]
 ----
@@ -124,7 +124,7 @@ val createQueues = tasks.register<CreateSqsQueuesTask>("createTestQueues") {
 
 API: link:api/io/github/gregwhitaker/awsemulator/aws/sqs/CreateSqsQueuesTask.html[CreateSqsQueuesTask].
 
-== Deadletter queues
+== Deadletter Queues
 
 [source,kotlin]
 ----
@@ -145,7 +145,7 @@ The task creates or reuses the DLQ, reads its ARN from SQS, and sets the source'
 
 API: link:api/io/github/gregwhitaker/awsemulator/aws/sqs/CreateSqsQueueWithDlqTask.html[CreateSqsQueueWithDlqTask].
 
-== Publish message fixtures
+== Publish Message Fixtures
 
 Use the `createOrders` task from <<deadletter-queues>> as the publisher's dependency:
 
@@ -173,7 +173,7 @@ FIFO queues require `messageGroupId`. Every FIFO delivery receives a unique dedu
 
 API: link:api/io/github/gregwhitaker/awsemulator/aws/sqs/PublishSqsTask.html[PublishSqsTask].
 
-== Module convenience tasks
+== Module Convenience Tasks
 
 The SQS module registers these tasks in the *AWS Emulator - SQS* group. They use the persistent development emulator by default:
 
@@ -194,12 +194,12 @@ Every resource task accepts `--mode=MANAGED` or `--mode=DEVELOPMENT` and `--runt
 ./gradlew purgeSqsQueues --queueNames=application-events
 ----
 
-=== Listing and cleanup
+=== Listing And Cleanup
 
 SQS listing follows all response pages and prints queue names, URLs, and approximate available message counts. Purging resolves all selected names before requesting removal of their messages; it keeps the queues. The https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_PurgeQueue.html[SQS purge API] can take up to 60 seconds to remove available and in-flight messages. The task returns when the service accepts the requests and propagates service errors.
 
 API: link:api/io/github/gregwhitaker/awsemulator/aws/sqs/ListSqsQueuesTask.html[ListSqsQueuesTask], link:api/io/github/gregwhitaker/awsemulator/aws/sqs/PurgeSqsQueuesTask.html[PurgeSqsQueuesTask].
 
-== SDK connection isolation
+== SDK Connection Isolation
 
 Provisioning clients use explicit emulator endpoints, regions, generated credentials, and per-client TLS trust. They bypass inherited proxy settings. They do not modify the Gradle daemon's credentials or global SSL configuration, and they do not require the AWS CLI.

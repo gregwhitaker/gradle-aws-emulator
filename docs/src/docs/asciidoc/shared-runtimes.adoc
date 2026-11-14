@@ -1,4 +1,4 @@
-= Share a runtime across projects
+= Share A Runtime Across Projects
 include::_partials/attributes.adoc[]
 :description: Explicitly share one AWS Emulator runtime and resource setup between Gradle application modules.
 
@@ -6,7 +6,7 @@ Projects get isolated runtimes by default. Call `awsEmulator.useSharedRuntime(":
 
 toc::[]
 
-== Define the owner
+== Define The Owner
 
 Include `local-aws` and the application projects in your settings file. Make the core plugin available in the root build so sharing projects use the same plugin classes, including when some apply the Spring Boot companion:
 
@@ -39,7 +39,7 @@ awsEmulator {
 
 The owner can be a dedicated infrastructure project or an existing application or root project. It need not apply Java or have consumers of its own.
 
-== Select it in each application
+== Select It In Each Application
 
 Apply the core plugin or Spring Boot companion in each participating application, then select the owner:
 
@@ -69,7 +69,7 @@ Owner selection also applies to resource and lifecycle tasks in the consumer pro
 
 The owner supplies the complete xref:named-runtimes.adoc[named runtime] namespace. Declare names in the owner and select them in applications, for example `useWith(tasks.named<Test>("test"), "integration")` or `springBoot { runtimeName.set("development") }`. Consumer runtime definitions and settings are ignored. Lifecycle aliases in consumers select the corresponding owner runtime. Consumer aliases are created on request by a task rule; use the owner's `tasks --all` output to list its named lifecycle tasks.
 
-== Resource setup and modes
+== Resource Setup And Modes
 
 An owner can select xref:external-emulators.adoc[an external connection]. Configure `awsEmulator.external` in the owner; all consumers use its endpoint and files. In this case both modes share the same external state and no lifecycle cleanup occurs.
 
@@ -84,7 +84,7 @@ Each selected set's provisioning and fixtures run in the owner's project, once p
 
 Sharing does not order application consumers or isolate their data. Declare task dependencies for a finite publisher/consumer workflow, or coordinate long-running applications yourself. Concurrent tests that require independent data should use distinct resource names or keep separate runtime owners.
 
-== Configuration and lifecycle ownership
+== Configuration And Lifecycle Ownership
 
 The selected owner's emulator version, Docker image, platform, port, region, telemetry, memory, timeouts, and working directory are authoritative. These runtime settings in consumers are ignored. Connection settings and TLS files are still resolved during execution for each consumer; the Gradle daemon's credentials and global TLS configuration are unchanged.
 
@@ -121,7 +121,7 @@ The plugin exchanges immutable owner metadata through a project dependency and a
 
 The Spring Boot companion's local tasks and resource wiring support isolation. The upstream Spring Boot plugin has a separate xref:spring-boot.adoc#isolated-projects[limitation in multi-project builds] when packaging tasks are realized, including indirectly by tests.
 
-== Run the multi-project example
+== Run The Multi-Project Example
 
 The link:{repo-url}/tree/main/examples/multi-project[multi-project example] contains `local-aws`, `orders-api`, and `orders-worker`. Both modules have tests; separate finite application processes publish and consume an order through the shared queue.
 

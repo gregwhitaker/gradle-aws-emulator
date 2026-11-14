@@ -6,7 +6,7 @@ Provision streams before tests, publish UTF-8 record fixtures, and manage develo
 
 toc::[]
 
-== Provision before tests
+== Provision Before Tests
 
 [source,kotlin]
 ----
@@ -32,14 +32,14 @@ awsEmulator { useWith(tests) }
 
 The stream task waits for `ACTIVE` before records are published. Tests use their own Kinesis SDK client to consume the records.
 
-== Task properties
+== Task Properties
 
 * `CreateKinesisStreamTask`: `streamName`, `shardCount` (default 1), `waitTimeoutSeconds` (default 60). Creates/reuses a provisioned stream and waits for `ACTIVE`; conflicting shard counts or stream modes fail.
 * `PublishKinesisRecordsTask`: `streamName`, `fixtures`. Sends UTF-8 strings with partition keys through `PutRecords`.
 * `ListKinesisStreamsTask`: lists all stream names.
 * `DeleteKinesisStreamTask`: `streamName`, `waitTimeoutSeconds` (default 60). Waits for disappearance; missing streams are safe to repeat.
 
-== Record fixtures
+== Record Fixtures
 
 .fixtures/records.json
 [source,json]
@@ -52,11 +52,11 @@ The stream task waits for `ACTIVE` before records are published. Tests use their
 
 Both fields must be strings, and partition keys must be nonblank with at most 256 characters. This release conservatively limits each record, including its partition key, to 1 MiB and each batch to 500 records/5 MiB. Partial failures report one-based fixture indexes without replaying successful records. `PutRecords` does not guarantee ordering. Resharding, retention changes, and enhanced fan-out consumers are outside this scope.
 
-== SDK protocol settings
+== SDK Protocol Settings
 
 The pinned SDK defaults to CBOR, which this emulator workflow does not accept. Kinesis tasks therefore use a process-isolated Gradle worker with `aws.cborEnabled=false`; no Gradle daemon system property is changed. `awsEmulator.useWith(...)` sets `aws.cborEnabled=false` and `CBOR_ENABLED=false` for participating application JVMs. Configure JSON explicitly for separately launched SDK consumers.
 
-== Development commands
+== Development Commands
 
 Predefined commands: `listKinesisStreams` and `deleteKinesisStream --streamName=...`.
 
@@ -68,7 +68,7 @@ Predefined commands: `listKinesisStreams` and `deleteKinesisStream --streamName=
 
 include::_partials/service-task-runtime.adoc[]
 
-== Runnable example
+== Runnable Example
 
 [source,shell]
 ----

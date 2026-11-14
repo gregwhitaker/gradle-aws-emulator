@@ -1,9 +1,9 @@
-= SES email
+= SES Email
 include::_partials/attributes.adoc[]
 
 The SES module uses AWS SDK for Java v2's `sesv2` client. It provisions local resources, submits simple and raw messages, and reads message insights. These operations use the selected emulator's endpoint, credentials, and validated TLS connection.
 
-== Start with the runnable example
+== Start With The Runnable Example
 
 [source,shell]
 ----
@@ -13,7 +13,7 @@ The SES module uses AWS SDK for Java v2's `sesv2` client. It provisions local re
 
 The example provisions an email identity, a stored template, a configuration set, and an SNS event destination backed by SQS. It sends simple and raw messages, checks SDK acceptance and metadata, and receives simulated send/bounce notifications. Repeated runs reuse the configuration cache and recreate the managed resources. Containers are removed after success or ordinary task failure.
 
-== Provision and send
+== Provision And Send
 
 [source,kotlin]
 ----
@@ -64,7 +64,7 @@ tasks.register('sendWelcome', SendSesEmailTask) {
 }
 ----
 
-== Tasks and properties
+== Tasks And Properties
 
 All classes below are in `io.github.gregwhitaker.awsemulator.aws.ses`.
 
@@ -97,7 +97,7 @@ tasks.register<PutSesEmailTemplateTask>("putWelcomeTemplate") {
 }
 ----
 
-== Lifetimes and Spring Boot
+== Lifetimes And Spring Boot
 
 Custom tasks inherit `awsEmulator.defaultMode`, initially `MANAGED`. All live SES tasks execute each time and are excluded from up-to-date skipping and the build cache; configuration-cache reuse is supported. Send tasks submit a new message on each invocation. Their message IDs are valid only within the runtime that accepted them.
 
@@ -113,13 +113,13 @@ The module registers development convenience tasks `listSesEmailIdentities`, `de
 
 Identity, template, configuration-set, and event-destination provisioning tasks carry `@AwsEmulatorSetupTask`, so xref:spring-boot.adoc[Spring Boot local runs] discover them automatically. Sending and inspection require explicit dependencies. Declare dependencies between setup tasks, including the event destination's configuration set and SNS topic. You can also use these tasks in xref:scenarios.adoc[resource sets] shared by tests and development scenarios.
 
-== Observe sends through SNS and SQS
+== Observe Sends Through SNS And SQS
 
 Create a standard SNS topic and SQS subscription using xref:sns.adoc[`CreateSnsTopicWithSqsEndpointTask`], then register `PutSesSnsEventDestinationTask` with its topic ARN. The SNS topic must permit SES publication in workflows that enforce topic policies. Configure the application's SES `SendEmail` requests with the same `configurationSetName`; the send task has the same property.
 
 The runnable example verifies simulated `Send` and `Bounce` notifications for `bounce@simulator.amazonses.com` through SNS to SQS. These events include the message ID and common headers, and can exercise application bounce handling. A simulated `Delivery` event does not mean any external inbox received email. Message insights in the pinned emulator report acceptance (`SEND`); use the configured event destination to observe simulated bounce/delivery outcomes.
 
-== MailHog, Mailpit, and SMTP
+== MailHog, Mailpit, And SMTP
 
 AWS Emulator `1.0.322` records SES messages internally and does not relay them to an SMTP server. There is no `SMTP_HOST` or MailHog/Mailpit relay setting in this plugin. This is based on the pinned release's https://github.com/aws/aws-emulator/blob/v1.0.322/services/service-com-amazonaws-sesv2-simpleemailservice-v2/src/ops/send_email.rs[SendEmail implementation] and https://github.com/aws/aws-emulator/blob/v1.0.322/services/service-com-amazonaws-sesv2-simpleemailservice-v2/src/state.rs[message state]. Stored message bodies are not available through `GetMessageInsights`.
 
@@ -135,7 +135,7 @@ spring.mail.properties.mail.smtp.starttls.enable=false
 
 This configures an SMTP client only. It does not redirect an SES SDK client: the SES client speaks HTTPS, whereas MailHog/Mailpit expects SMTP. An application using the SES API needs a local SMTP implementation of its mail-sending abstraction, or a separate SES-to-SMTP adapter, to use those inboxes. This plugin does not implement that adapter or manage SMTP containers.
 
-== Pinned emulator coverage
+== Pinned Emulator Coverage
 
 The example and Docker tests verify AWS Emulator `1.0.322` with AWS SDK for Java v2 `2.39.6`. Supported workflows here include email-identity verification, template create/get/update/delete, configuration-set and SNS-destination setup, simple/raw sends, and message insights. Local email identities settle to verified without clicking an email verification link. Domain verification behavior depends on the emulator's domain handling; a domain that never becomes verified causes the identity task to time out.
 

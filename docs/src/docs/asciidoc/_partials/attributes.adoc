@@ -1,7 +1,7 @@
 :doctype: article
 :lang: en
 :toc: macro
-:toc-title: On this page
+:toc-title: On This Page
 :toclevels: 2
 :sectanchors:
 :idprefix:

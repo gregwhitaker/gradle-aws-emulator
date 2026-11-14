@@ -1,4 +1,4 @@
-= DynamoDB tables
+= DynamoDB Tables
 include::_partials/attributes.adoc[]
 :description: Create, initialize, list, and delete DynamoDB tables with AWS SDK for Java v2 and Gradle.
 
@@ -8,7 +8,7 @@ For declarative JSON item imports and clearing items while preserving a table, s
 
 toc::[]
 
-== Tasks and runtime selection
+== Tasks And Runtime Selection
 
 [cols="2,2,3",options="header"]
 |===
@@ -28,7 +28,7 @@ The two registered commands default to `EmulatorMode.DEVELOPMENT`. Custom task i
 
 Each command starts or reuses its selected emulator on demand. Listing an empty emulator succeeds. Deleting a missing table fails with a clear error, matching the LocalStack task's behavior. Other SDK errors remain build failures.
 
-== Create a table before tests
+== Create A Table Before Tests
 
 [source,kotlin]
 ----
@@ -56,7 +56,7 @@ awsEmulator {
 
 For a development session, set `mode` to `EmulatorMode.DEVELOPMENT` or run your creation task with `--mode=DEVELOPMENT`. A managed creation task invoked alone creates a table that disappears when the build finishes.
 
-=== Creation properties
+=== Creation Properties
 
 The schema properties accept immutable AWS SDK for Java v2 model objects using Gradle's lazy property API.
 
@@ -81,7 +81,7 @@ These are provisioned-capacity tables. Set each GSI's throughput separately. The
 
 An existing table is reused without changing its schema, indexes, capacity, encryption, streams, or items. Requested creation settings are validated but are not reconciled against existing settings. The task waits for an existing table in transition to become `ACTIVE`. To apply a different table definition, delete and recreate the development table or start a fresh managed build.
 
-== Table initializers
+== Table Initializers
 
 The initializer contract follows the LocalStack plugin, updated for SDK v2:
 
@@ -93,7 +93,7 @@ The plugin passes its authenticated emulator client and owns the client's lifeti
 
 An initializer failure fails the build with the original cause. Managed cleanup still runs. A development table remains available for inspection; retrying creation reuses that table and does not retry initialization. Delete and recreate it to rerun its initializer.
 
-=== Share the build classpath
+=== Share The Build Classpath
 
 When using `buildSrc`, depend on both the plugin and the SDK there. This places the task classes, initializer, and SDK types on the same build classpath and avoids loading separate copies of SDK model classes.
 
@@ -113,14 +113,14 @@ include::examples/dynamodb/buildSrc/build.gradle.kts[]
 
 The main build applies the plugin without a version because `buildSrc` supplies it. Application and test code still declare their own SDK dependencies.
 
-=== Initializer implementation
+=== Initializer Implementation
 
 [source,java]
 ----
 include::examples/dynamodb/buildSrc/src/main/java/example/buildsrc/dynamodb/ProductTableInitializer.java[]
 ----
 
-== Run the complete example
+== Run The Complete Example
 
 From the plugin repository root:
 

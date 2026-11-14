@@ -8,7 +8,7 @@ The examples use Java 17+, Gradle 8.14+, a local Docker engine with Linux contai
 
 toc::[]
 
-== Run the examples
+== Run The Examples
 
 From the repository root:
 
@@ -24,7 +24,7 @@ Each build provisions an SQS queue before the framework consumers start. Tests a
 
 The examples are independent composite builds. `classes testClasses` compiles either example without Docker; `test`, `run`, and `build` require Docker. Applying the plugin or running `help` does not start an emulator.
 
-== Attach an existing application
+== Attach An Existing Application
 
 First xref:getting-started.adoc#apply-from-a-checkout[include this checkout in plugin management] and apply `io.github.gregwhitaker.aws-emulator` alongside your chosen framework plugins. Both integrations use Gradle `JavaExec` and `Test` tasks:
 
@@ -110,7 +110,7 @@ include::examples/ktor/src/main/kotlin/example/Application.kt[]
 ----
 ====
 
-== Development, debugging, and failures
+== Development, Debugging, And Failures
 
 Both example builds accept `-Pdevelopment=true` for application runs. Use either example path:
 
@@ -136,7 +136,7 @@ To exercise managed cleanup after application or test failure:
 
 These commands intentionally fail after completing their SDK round trip. The same commands work with `examples/micronaut`.
 
-== Compatibility and verification
+== Compatibility And Verification
 
 [cols="1,2,2",options="header"]
 |===

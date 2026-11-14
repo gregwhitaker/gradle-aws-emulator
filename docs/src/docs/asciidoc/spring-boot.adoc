@@ -8,7 +8,7 @@ The companion is a separate artifact, `io.github.gregwhitaker:gradle-aws-emulato
 
 toc::[]
 
-== Apply from a checkout
+== Apply From A Checkout
 
 Use the xref:getting-started.adoc#apply-from-a-checkout[composite-build setup], then apply the companion:
 
@@ -54,7 +54,7 @@ tasks.register('createApplicationQueue', CreateSqsQueueTask) {
 
 Plugin application order does not matter. Until both Spring Boot and Java are present, the companion exposes its settings and the base emulator tasks, without registering the Boot tasks or starting Docker.
 
-== Automatic resource creation
+== Automatic Resource Creation
 
 An xref:external-emulators.adoc[external connection] applies to both local Boot tasks and their resource setup. Configure `awsEmulator.external` on the runtime owner. Both modes connect to that instance and leave it running after application exits or failures.
 
@@ -81,7 +81,7 @@ awsEmulator {
 
 Exclusions affect automatic discovery; explicit dependencies still run. To select all setup tasks manually, set `autoCreateResources` to `false` and use `setupTasks`. In that case, configure resource tasks to use `awsEmulator.springBoot.mode` yourself. Ordinary `bootRun`, test tasks, and standalone resource invocations retain their existing behavior.
 
-== Run and debug
+== Run And Debug
 
 For applications in different Gradle projects, `awsEmulator.useSharedRuntime(":local-aws", "application")` selects one owner and automatically attaches its named resources to both local Boot tasks. No additional `springBoot.resourceSets` attachment is needed for those sets. The owner's settings govern the shared runtime; the application's `springBoot.mode` still selects managed or development. See xref:shared-runtimes.adoc[sharing across projects].
 
@@ -146,7 +146,7 @@ awsEmulator {
 
 Hard process termination or Docker daemon failure can prevent cleanup, as described in xref:testing.adoc[Tests and Java execution].
 
-== Runnable example
+== Runnable Example
 
 The link:{repo-url}/tree/main/examples/spring-boot[Spring Boot example] sends and receives an SQS message and exits. From this repository:
 

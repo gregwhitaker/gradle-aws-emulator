@@ -1,4 +1,4 @@
-= Connect to an existing emulator
+= Connect To An Existing Emulator
 include::_partials/attributes.adoc[]
 :description: Use an externally managed AWS Emulator with explicit endpoint, credentials, and certificate files, without Docker lifecycle operations.
 
@@ -6,7 +6,7 @@ Use `awsEmulator.external` when another process, Docker Compose, or a CI service
 
 toc::[]
 
-== Configure the connection
+== Configure The Connection
 
 Start the emulator separately and make its credentials file and PEM CA certificate bundle available on the machine running Gradle.
 
@@ -55,7 +55,7 @@ Missing or invalid connection settings fail when a connection is needed. They ne
 
 API: link:api/io/github/gregwhitaker/awsemulator/emulator/ExternalEmulatorConnection.html[ExternalEmulatorConnection].
 
-== Consumers and resource setup
+== Consumers And Resource Setup
 
 Existing `useWith` wiring works for `Test`, `JavaExec`, and `Exec`, including Spring Boot's `bootRunLocal` and `bootRunLocalDebug`. Resource tasks, Kinesis worker processes, named resource sets, and `seedAwsEmulator` use the external connection too.
 
@@ -67,7 +67,7 @@ With `useSharedRuntime`, configure `external` on the selected owner project. The
 
 For SDK clients using a DNS endpoint, configure S3 path-style access, such as `S3Client.builder().forcePathStyle(true)`, to avoid bucket-prefixed hostnames. The plugin's own S3 tasks already use path-style access. Other SDK requirements are covered in xref:connections.adoc[credentials and TLS].
 
-== Lifecycle and diagnostics
+== Lifecycle And Diagnostics
 
 [cols="1,3",options="header"]
 |===
@@ -81,7 +81,7 @@ For SDK clients using a DNS endpoint, configure S3 path-style access, such as `S
 
 Use the emulator's actual owner to inspect its logs or stop/restart it.
 
-== Files and configuration cache
+== Files And Configuration Cache
 
 Credential values are read at execution time. The source credentials and certificate files are never copied, overwritten, or deleted. Keep them out of version control.
 

@@ -1,4 +1,4 @@
-= Resource reports
+= Resource Reports
 include::_partials/attributes.adoc[]
 :description: Capture live S3, SQS, SNS, DynamoDB, and CloudFormation configuration as standalone HTML and JSON.
 
@@ -6,7 +6,7 @@ toc::[]
 
 `reportAwsEmulator` captures resources currently present in an existing emulator, including resources created by Gradle tasks, CloudFormation, application code, or SDK calls. It uses the selected runtime's region, credentials, and verified HTTPS connection.
 
-== Inspect a development instance
+== Inspect A Development Instance
 
 [source,shell]
 ----
@@ -20,7 +20,7 @@ When setup and reporting share a Gradle invocation, declare the intended order w
 
 Each named runtime also has a fixed task, such as `reportAwsEmulatorIntegration`. With xref:shared-runtimes.adoc[shared ownership], the report inspects the owner's selected runtime and writes artifacts in the invoking project. With an xref:external-emulators.adoc[external connection], it connects using the supplied files without invoking Docker or managing lifecycle.
 
-== Output and coverage
+== Output And Coverage
 
 Both formats are written from the same snapshot:
 
@@ -43,7 +43,7 @@ The report queries each service's list/describe APIs and follows all response pa
 
 Object contents, message bodies, table items, credentials, CloudFormation templates, and parameter/output values are excluded. Reporting does not receive SQS messages or scan DynamoDB items. Collection happens over several requests, so concurrently changing resources may produce an incomplete snapshot. Message and item counts may be approximate or delayed.
 
-== Collection errors
+== Collection Errors
 
 Each service has a status:
 
@@ -62,7 +62,7 @@ By default, partial reports are written with a warning and the task succeeds. To
 
 Connection and filesystem errors always fail the task. Previous `index.html` and `report.json` files in the task's report directory are removed before connecting, so a failed connection cannot leave a previous successful report at those paths. Archive reports elsewhere when retaining multiple runs.
 
-== Capture a managed test instance
+== Capture A Managed Test Instance
 
 Register a typed report and attach it as a finalizer to the existing participating test task. Select the same runtime and `MANAGED` mode:
 
@@ -91,7 +91,7 @@ The {repo-url}/tree/main/examples/basic[basic example] offers this finalizer wit
 ./gradlew -p examples/basic integrationTest -PemulatorReport --configuration-cache
 ----
 
-== Task configuration
+== Task Configuration
 
 `io.github.gregwhitaker.awsemulator.emulator.ReportAwsEmulatorTask` supports:
 

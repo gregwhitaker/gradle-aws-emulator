@@ -1,4 +1,4 @@
-= SNS topics & subscriptions
+= SNS Topics & Subscriptions
 include::_partials/attributes.adoc[]
 :description: Provision standard and FIFO SNS topics, subscribe SQS queues, publish messages, and manage development topics.
 
@@ -6,7 +6,7 @@ The SNS module supplies typed tasks for topic creation, SQS subscriptions, listi
 
 toc::[]
 
-== Provision and publish before tests
+== Provision And Publish Before Tests
 
 === Kotlin DSL
 
@@ -64,7 +64,7 @@ awsEmulator {
 }
 ----
 
-== Task properties
+== Task Properties
 
 All properties use Gradle's lazy property API. Every task also accepts `mode` (custom instances inherit `awsEmulator.defaultMode`, initially `MANAGED`) and `apiCallTimeoutSeconds` (default `30`, positive). Tasks always execute against live emulator state, including on configuration-cache reuse, and never use the build cache.
 
@@ -83,7 +83,7 @@ Use `CreateSnsTopicTask` to create a topic without a subscriber. Attribute maps 
 
 Topic names allow 1–256 letters, numbers, underscores, or hyphens, including an optional `.fifo` suffix. The default subscriber queue name is `<topic>-subscriber`, with `-subscriber` before `.fifo`. SQS queue names have an 80-character limit, so longer topics need an explicit shorter `queueName`.
 
-== SQS delivery and repeated setup
+== SQS Delivery And Repeated Setup
 
 The subscription task resolves actual topic and queue ARNs from the emulator. It adds a queue policy statement granting only `sqs:SendMessage` to the SNS service, constrained to this topic's ARN, following the https://docs.aws.amazon.com/sns/latest/dg/subscribe-sqs-queue-to-sns-topic.html[AWS SNS-to-SQS setup]. Existing policy statements and queue messages are preserved. Repeated setup reuses that grant and the subscription, applying explicitly configured subscription attributes when they differ.
 
@@ -93,7 +93,7 @@ The subscription task resolves actual topic and queue ARNs from the emulator. It
 
 Provisioning involves multiple service calls. If a later call fails, earlier successful creations or subscription updates remain. SDK errors fail the build.
 
-== FIFO topics
+== FIFO Topics
 
 Set both a `.fifo` topic name and `FifoTopic=true`:
 
@@ -116,7 +116,7 @@ This creates `application-orders-subscriber.fifo` with `FifoQueue=true` inferred
 
 Publishing to FIFO topics requires `messageGroupId`. Each execution generates a fresh deduplication ID so repeated identical fixture messages remain separate deliveries. Set `messageDeduplicationId` explicitly when testing deduplication. Standard topics reject that property.
 
-== Development commands
+== Development Commands
 
 Register a provisioning task with `mode.set(EmulatorMode.DEVELOPMENT)` to leave its resources available between builds. The following module convenience tasks default to that same persistent development runtime:
 

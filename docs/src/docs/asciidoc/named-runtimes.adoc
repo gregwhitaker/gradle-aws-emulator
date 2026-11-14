@@ -1,4 +1,4 @@
-= Named runtimes
+= Named Runtimes
 include::_partials/attributes.adoc[]
 :description: Give test suites, local applications, and external emulator connections independent runtime settings within one Gradle project.
 
@@ -6,7 +6,7 @@ Use named runtimes when two test suites need separate AWS state, or when managed
 
 toc::[]
 
-== Define and select runtimes
+== Define And Select Runtimes
 
 .Kotlin DSL
 [source,kotlin]
@@ -46,7 +46,7 @@ Names start with a lowercase letter and contain letters, numbers, or single hyph
 
 API: link:api/io/github/gregwhitaker/awsemulator/emulator/NamedEmulatorRuntime.html[NamedEmulatorRuntime] and link:api/io/github/gregwhitaker/awsemulator/emulator/EmulatorRuntimeConfiguration.html[EmulatorRuntimeConfiguration].
 
-== Defaults and settings
+== Defaults And Settings
 
 Named runtimes inherit the top-level emulator version, image, platform, region, telemetry, Docker executable, Docker host/context/transport, memory limit, and timeouts through lazy conventions. Override any of these in the named runtime block. See xref:remote-docker.adoc[CI and remote Docker] for managed tunnels with named and shared owners.
 
@@ -58,7 +58,7 @@ Three settings differ:
 
 The default runtime keeps its existing paths and ownership identity. Adding a named runtime does not adopt, stop, or move an existing default development instance.
 
-== Resource tasks and reusable definitions
+== Resource Tasks And Reusable Definitions
 
 Set `runtimeName` on a resource task when wiring it with ordinary Gradle dependencies:
 
@@ -89,7 +89,7 @@ awsEmulator {
 
 A set creates separate task instances for each runtime name and mode. Consumers sharing that pair reuse the same setup graph. The attachment locks both `runtimeName` and `mode`; do not set them in resource-set definitions. One explicit task instance cannot provision two different runtimes; use separate tasks or a resource set.
 
-== Lifecycle and command-line selection
+== Lifecycle And Command-Line Selection
 
 Every named runtime gets lifecycle tasks with its name as a suffix, for example:
 
@@ -114,7 +114,7 @@ The original lifecycle tasks and module convenience commands accept `--runtime`:
 
 A command affects only its selected runtime. Cleanup does not scan other runtime owners. An external runtime rejects lifecycle operations as described in xref:external-emulators.adoc[existing emulators].
 
-== Scenarios and Spring Boot
+== Scenarios And Spring Boot
 
 Select a scenario's runtime with `runtimeName`:
 
@@ -146,7 +146,7 @@ awsEmulator {
 
 Declare the `development` runtime first. Both local Boot tasks and their setup use it. Automatic setup discovery leaves tasks explicitly assigned to other runtimes alone; unassigned tasks follow Boot's selection. Explicit setup dependencies must target the same runtime.
 
-== External and shared runtimes
+== External And Shared Runtimes
 
 A named runtime can configure `external { endpoint.set(...); credentialsFile.set(...); certificateFile.set(...) }` while another runtime owns a managed container. Both modes of an external runtime use its supplied endpoint. Different names pointing to the same external endpoint share AWS state; the plugin does not isolate or clean up that server.
 

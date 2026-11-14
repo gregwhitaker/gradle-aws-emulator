@@ -1,4 +1,4 @@
-= Getting started
+= Getting Started
 include::_partials/attributes.adoc[]
 :description: Apply the AWS Emulator Gradle plugin from a checkout and run the included integration example.
 
@@ -8,7 +8,7 @@ If an emulator is already running elsewhere, use xref:external-emulators.adoc[an
 
 toc::[]
 
-== Run the included example
+== Run The Included Example
 
 From the plugin repository root:
 
@@ -21,7 +21,7 @@ The example creates S3 buckets, standard/FIFO SQS queues and a FIFO DLQ, publish
 
 No AWS account, AWS CLI, or personal AWS credentials are needed. The plugin supplies the emulator connection at task execution time.
 
-== Apply from a checkout
+== Apply From A Checkout
 
 Version {revnumber} is unpublished. Include the plugin repository in your application's plugin management instead of resolving a version from the Gradle Plugin Portal. Adjust the relative path for your checkout layout.
 
@@ -79,7 +79,7 @@ TIP: An available host port is selected automatically, supporting parallel proje
 
 For projects with separate unit and integration suites, attach the existing `integrationTest` task instead of `test`. The complete example below registers an integration suite and opts it in explicitly with `useWith`.
 
-== The complete example
+== The Complete Example
 
 The following files are included directly from `examples/basic` during site generation.
 
@@ -118,7 +118,7 @@ include::examples/basic/src/integration/messages/events.jsonl[]
 
 The example deliberately configures invalid credentials before opting in. The plugin replaces those settings for the forked JVM. See xref:connections.adoc[credentials and TLS] for the boundaries of this configuration.
 
-== Verify cleanup after failure
+== Verify Cleanup After Failure
 
 From the plugin repository root:
 

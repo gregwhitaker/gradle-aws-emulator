@@ -1,4 +1,4 @@
-= Containerized CI and remote Docker
+= Containerized CI And Remote Docker
 include::_partials/attributes.adoc[]
 :description: Run managed AWS Emulator instances from containerized Gradle runners and remote Docker engines.
 
@@ -6,7 +6,7 @@ Use `DockerTransport.TUNNEL` when the Gradle runner and Docker engine have diffe
 
 toc::[]
 
-== Configure a managed runtime
+== Configure A Managed Runtime
 
 [source,kotlin]
 ----
@@ -39,7 +39,7 @@ The `docker` CLI must be installed in the Gradle runner. Set either `docker.cont
 
 For a CI service container already exposed through `DOCKER_HOST`, only `transport.set(DockerTransport.TUNNEL)` and the usual managed consumer wiring are needed. The default port setting reserves an available loopback port in the runner.
 
-== Named and shared runtimes
+== Named And Shared Runtimes
 
 Named runtimes lazily inherit the default runtime's Docker selection and transport:
 
@@ -69,7 +69,7 @@ Each name has its own container, local endpoint, connection files, and cleanup. 
 
 Configuration-cache reuse and Isolated Projects are supported. Docker calls and generated credential reads occur during execution. Applying the plugin and listing tasks do not contact the engine.
 
-== Connectivity and lifecycle
+== Connectivity And Lifecycle
 
 The plugin starts an owned container on the selected engine, copies its credentials and TLS files into the runner's private runtime directory, and forwards HTTPS over Docker's control connection. Consumers receive a loopback URL such as `https://127.0.0.1:42317`. Certificate and hostname verification remain enabled.
 
@@ -79,7 +79,7 @@ The tunnel belongs to the managed build service. When participating tasks finish
 
 `TUNNEL` supports `MANAGED` instances. Persistent development commands such as `startAwsEmulator`, `restartAwsEmulator`, and connection export are rejected before starting a container. The default `DIRECT` transport continues to support local managed and development instances through loopback port publication and bind mounts. Use xref:external-emulators.adoc[an external connection] for a persistent remote instance managed elsewhere.
 
-== Images and diagnostics
+== Images And Diagnostics
 
 The default pinned image includes the tools required by the tunnel. A custom image must run AWS Emulator as its entrypoint, accept the normal CLI options, and write `emulator_credentials`, `ca.pem`, and `truststore.p12` under `/home/emulator/.aws/emulator/9297/`. It must provide `/bin/bash` with TCP redirections and `wait -n`, and `cat`. The image user needs write access to `/home/emulator`.
 
@@ -87,7 +87,7 @@ Each active HTTPS connection uses a Docker exec stream; the tunnel allows up to 
 
 `doctorAwsEmulator` reports the selected transport and Docker daemon. It does not probe another build's loopback tunnel. A forced Gradle process termination or loss of the Docker connection can leave a container behind. `cleanupAwsEmulator` removes stopped, owned tunneled containers, but skips running ones because another runner's local lock files cannot prove that its build is inactive. Inspect the reported container ID and stop/remove it through Docker only after its owning job has ended.
 
-== Run the examples
+== Run The Examples
 
 The named and shared examples accept `-PdockerTunnel=true`, plus either `-PdockerContext=<name>` or `-PdockerHost=<address>`:
 

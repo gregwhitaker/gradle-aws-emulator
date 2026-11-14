@@ -6,13 +6,13 @@ Use the failing task and its reported endpoint or runtime directory to narrow th
 
 toc::[]
 
-== The plugin cannot be resolved
+== The Plugin Cannot Be Resolved
 
 Version {revnumber} has not been published to the Gradle Plugin Portal. Configure `pluginManagement { includeBuild(...) }` in your application's settings, pointing at this checkout. Apply the plugin without a version in the consuming build.
 
 Check that Java is at least 17 and Gradle is at least 8.14. See xref:getting-started.adoc#apply-from-a-checkout[apply from a checkout].
 
-== Docker is unavailable or startup times out
+== Docker Is Unavailable Or Startup Times Out
 
 Confirm the selected Docker engine is running Linux containers and that the configured `dockerExecutable` is available in the Gradle runner. The first run needs network access to build or pull the image. For containerized runners and remote engines, select `DockerTransport.TUNNEL`; see xref:remote-docker.adoc[CI and remote Docker].
 
@@ -30,7 +30,7 @@ Use `buildTimeoutSeconds` for slow image builds or pulls, `commandTimeoutSeconds
 
 These status/log tasks inspect the development instance. For managed failures, inspect the failed task's output and the printed archive path under `.aws-emulator/logs/` (or the owner's custom `workingDirectory/logs/`). Complete available timestamped logs are saved before managed teardown, including ordinary task failures and failed startups that created a container. Archive failure prints a warning and does not prevent cleanup. Logs survive cleanup until explicitly deleted.
 
-== A port is already in use
+== A Port Is Already In Use
 
 The plugin selects an available port by default. If you configured a fixed port, remove that setting to restore automatic selection for concurrent projects, builds, or a managed instance alongside a persistent development instance.
 
@@ -38,11 +38,11 @@ With `DIRECT`, automatic selection has a short race before Docker binds the port
 
 An explicit `port.set(...)` takes precedence over `-PawsEmulator.port=...`. Leave the build-script port unset to retain the command-line override and automatic fallback; see xref:configuration.adoc#configure-a-project[configuration].
 
-== Development settings changed
+== Development Settings Changed
 
 `startAwsEmulator` only reuses an instance whose settings match. Use `restartAwsEmulator` to apply changed settings. Restarting discards the emulator's in-memory AWS resources.
 
-== A test ran without prepared resources
+== A Test Ran Without Prepared Resources
 
 Check both pieces of wiring:
 
@@ -55,19 +55,19 @@ Pass provisioning tasks or their wrapper task as setup arguments to `useWith`, f
 
 Tests that are skipped or have no sources do not start the emulator themselves, but their provisioning dependencies can still execute.
 
-== SQS attributes conflict
+== SQS Attributes Conflict
 
 An existing queue is reused only when explicitly requested attributes match the returned strings. The task fails instead of updating or purging a queue on mismatch. Check the requested values, including the formatting of JSON-valued attributes.
 
 For FIFO queues, use both a `.fifo` suffix and the `FifoQueue` attribute set to the string `true`. Use distinct queue names when concurrent tests share an instance.
 
-== HTTPS or authentication fails
+== HTTPS Or Authentication Fails
 
 Use a compatible SDK and its normal endpoint and credential providers. Explicit client settings can override the plugin. For host-prefix operations in Java, configure `SdkAdvancedClientOption.DISABLE_HOST_PREFIX_INJECTION`.
 
 The plugin merges the selected JVM's default roots, any configured custom trust store, and the emulator certificate. For a private HTTPS service, configure its CA in the consuming task's custom trust store. If trust preparation fails, check the source path (relative to the task's working directory), type, provider, and password. See xref:connections.adoc[credentials and TLS]. Check that host clients use `host-config`, not the emulator's config with container paths.
 
-== A container remains after interruption
+== A Container Remains After Interruption
 
 Ordinary task failures trigger managed cleanup. A hard kill or unavailable Docker daemon can prevent it. Preview and remove stale managed containers owned by the selected runtime project:
 
@@ -81,6 +81,6 @@ Cleanup archives logs before removal and verifies ownership labels, the runtime-
 
 For `TUNNEL`, cleanup skips running containers because another runner's filesystem cannot prove that its build has ended. It can remove stopped, owned tunneled containers even when their original runner directory is unavailable. See xref:remote-docker.adoc#images-and-diagnostics[remote cleanup and diagnostics].
 
-== A shell or IDE uses an old connection
+== A Shell Or IDE Uses An Old Connection
 
 Run `exportAwsEmulatorConnection` again, source the printed POSIX or PowerShell script, and launch a fresh application/IDE process. Restart changes generated credentials and may change the port. An existing IDE process does not automatically inherit later shell changes. Remove explicit SDK endpoints, credential settings, and per-service environment overrides from its run configuration. See xref:connections.adoc#shell-exports[shell and IDE exports].

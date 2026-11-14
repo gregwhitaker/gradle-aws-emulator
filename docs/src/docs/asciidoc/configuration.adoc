@@ -6,7 +6,7 @@ Configure the `awsEmulator` extension using Gradle's lazy properties. Top-level 
 
 toc::[]
 
-== Extension reference
+== Extension Reference
 
 [cols="1,1,3",options="header"]
 |===
@@ -39,7 +39,7 @@ The `useSharedRuntime(ownerProject, resourceSets...)` method selects an absolute
 
 API: link:api/io/github/gregwhitaker/awsemulator/emulator/AwsEmulatorExtension.html[AwsEmulatorExtension].
 
-== Configure a project
+== Configure A Project
 
 .Kotlin DSL
 [source,kotlin]
@@ -69,7 +69,7 @@ awsEmulator {
 
 Managed and development instances select available ports by default. The default runtime reads `awsEmulator.port`, so `-PawsEmulator.port=9297` requests a fixed port without changing the build script. An explicit `port.set(...)` replaces that convention and takes precedence over the command-line property. Named runtimes select their own ports independently.
 
-== Image and platform overrides
+== Image And Platform Overrides
 
 Leave `image` unset to build the pinned AWS package. Set it only for an image whose entrypoint runs AWS Emulator, binds `0.0.0.0`, and accepts the emulator's normal CLI flags.
 
@@ -77,13 +77,13 @@ Leave `image` unset to build the pinned AWS package. Set it only for an image wh
 
 The initial build or pull needs network access. Images stay in Docker's cache when the plugin removes runtime containers.
 
-== Runtime files
+== Runtime Files
 
 Add `.aws-emulator/`, or your chosen `workingDirectory`, to the application's `.gitignore`. It contains generated local credentials while instances run. Managed and development runtime homes are isolated within this directory.
 
 The plugin does not modify your personal AWS configuration. See xref:connections.adoc[credentials and TLS] for the host-side connection files and how consuming JVMs receive them.
 
-== Resource task configuration
+== Resource Task Configuration
 
 `runtimeName`, `mode`, and `apiCallTimeoutSeconds` belong to individual provisioning tasks. Custom tasks default to runtime `default`, mode `awsEmulator.defaultMode` (initially `EmulatorMode.MANAGED`), and `30` seconds per SDK operation. Select another declared runtime with `runtimeName.set("integration")` or `--runtime integration`.
 

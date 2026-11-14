@@ -1,4 +1,4 @@
-= Tests & process execution
+= Tests & Process Execution
 include::_partials/attributes.adoc[]
 :description: Connect Gradle Test, JavaExec, and Exec tasks to a managed or development AWS Emulator instance.
 
@@ -10,7 +10,7 @@ To use an already-running emulator, configure xref:external-emulators.adoc[`awsE
 
 For independent suites in one project, declare xref:named-runtimes.adoc[named runtimes] and select them with `useWith(task, "integration", setupTasks...)` or `useWith(task, "integration", EmulatorMode.DEVELOPMENT, setupTasks...)`. Existing overloads select `default`. `useWithRuntime(task, runtimeNameProvider, modeProvider, setupTasks...)` supports lazy selections. Typed setup tasks inherit the selected name unless explicitly assigned; conflicting names fail before execution. Reusable resource sets create separate tasks for each name and mode.
 
-== Opt in tests
+== Opt In Tests
 
 The method supports Gradle `Test`, `JavaExec`, and `Exec` tasks, including subclasses. Applying the plugin alone does not modify your tests. Prefer a separate `integrationTest` task for tests that need AWS so ordinary unit tests run independently of the emulator.
 
@@ -32,7 +32,7 @@ awsEmulator {
 
 These snippets configure tasks that already exist. The plugin does not create `integrationTest`; the xref:getting-started.adoc#the-complete-example[included example] demonstrates creating a test source set and task.
 
-== Run a Java application
+== Run A Java Application
 
 For an existing `JavaExec` task, such as `run` from Gradle's application plugin:
 
@@ -56,7 +56,7 @@ awsEmulator.useWith(tasks.named<JavaExec>("run"), EmulatorMode.DEVELOPMENT, crea
 
 Import `io.github.gregwhitaker.awsemulator.model.EmulatorMode`. Setup arguments accept Gradle dependency notation, including task providers and names. The mode may also be a `Provider<EmulatorMode>`. Configure resource tasks with the same mode as their consumer. Development instances require explicit `stopAwsEmulator`; one-argument `useWith` calls retain their managed behavior.
 
-== Run Python, Node, or AWS CLI commands
+== Run Python, Node, Or AWS CLI Commands
 
 [source,kotlin]
 ----
@@ -80,7 +80,7 @@ In Groovy, register with `tasks.register('pythonTests', Exec) { commandLine 'pyt
 
 The plugin does not install external commands or SDKs. Use compatible SDKs with their normal environment providers; explicit client configuration can override the supplied values. `Exec` supplies environment values only; JVM system properties and combined JVM trust stores require `Test` or `JavaExec`. See xref:connections.adoc#shell-exports[connection exports] for commands and IDE applications outside Gradle. The repository's `examples/processes` build includes runnable Python/Node HTTPS probes and a signed AWS CLI STS call.
 
-== Provision before consumers run
+== Provision Before Consumers Run
 
 Pass the required resource tasks as setup arguments to `useWith`; it adds their task dependencies and checks their runtime selection. Their initial `MANAGED` default uses the same instance as `useWith` in that project. If you change `awsEmulator.defaultMode`, align each consumer with its resources by passing that property to `useWith`, or explicitly set the provisioning tasks to `MANAGED` for managed tests.
 
@@ -104,7 +104,7 @@ Declare emulator setup through `useWith` to get this validation; unrelated Gradl
 
 See xref:s3.adoc#s3-bucket-behavior[S3 bucket behavior] for region selection and reuse. To provision queues before tests, see the xref:sqs.adoc[SQS guide].
 
-== Execution and cleanup
+== Execution And Cleanup
 
 * The service starts the managed emulator on demand and waits for HTTPS readiness.
 * The plugin supplies the child process's endpoint, region, credential paths, and TLS trust at execution time.
@@ -114,13 +114,13 @@ See xref:s3.adoc#s3-bucket-behavior[S3 bucket behavior] for region selection and
 
 Opted-in tasks with work always execute. Up-to-date skipping and build-cache reuse are disabled because each managed run starts with fresh external state. Configuration-cache reuse is supported: connection files are generated for the current execution instead of being stored in the configuration cache.
 
-== Parallel builds
+== Parallel Builds
 
 The default `port` value of `0` selects an available port for each instance, supporting concurrent projects and builds without additional configuration. With `DIRECT`, the plugin supplies that same nonzero port to Docker and the emulator. A competing process can still claim the selected port before Docker binds it; startup then fails and the plugin cleans up.
 
 Tasks sharing an instance also share AWS resources. Use distinct bucket and queue names when tests run concurrently. A fixed port can also conflict with a development instance that remains running.
 
-== Use the normal SDK providers
+== Use The Normal SDK Providers
 
 Your application should use an AWS SDK that supports external endpoint configuration. The example verifies AWS SDK for Java v2 `2.39.6`.
 

@@ -1,4 +1,4 @@
-== Runtime selection
+== Runtime Selection
 
 Custom resource tasks inherit `awsEmulator.defaultMode`, initially `MANAGED`. Make the consuming test or application task depend on provisioning and opt that consumer in with `awsEmulator.useWith(...)`. Provisioning and consumers must select the same runtime name and mode; see xref:configuration.adoc#resource-task-configuration[resource task defaults] to configure a shared development default.
 

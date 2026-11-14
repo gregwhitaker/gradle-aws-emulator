@@ -103,7 +103,7 @@
     disclosure.id = 'toc';
     const summary = document.createElement('summary');
     summary.id = 'toctitle';
-    summary.textContent = 'On this page';
+    summary.textContent = 'On This Page';
     disclosure.append(summary, toc.querySelector('ul'));
     toc.replaceWith(disclosure);
     const wide = window.matchMedia('(min-width: 1280px)');

@@ -3,7 +3,7 @@ include::_partials/attributes.adoc[]
 
 Deploy local JSON or YAML templates into AWS Emulator with a provisioning check before the task connects. The plugin rejects resource types that emulator 1.0.322 would merely record as successful without creating service resources.
 
-== Start with the runnable example
+== Start With The Runnable Example
 
 [source,shell]
 ----
@@ -16,7 +16,7 @@ Validation runs locally without Docker. The integration example deploys an S3 bu
 
 See {repo-url}/tree/main/examples/cloudformation[the runnable example] for persistent deployment, parameter updates, output consumption, and an intentionally rejected template.
 
-== Provision before tests
+== Provision Before Tests
 
 [source,kotlin]
 ----
@@ -76,7 +76,7 @@ tasks.named('test') { dependsOn(stack) }
 awsEmulator { useWith(tasks.named('test')) }
 ----
 
-== Provisioning guard
+== Provisioning Guard
 
 The support catalogue is audited against AWS Emulator `v1.0.322`, commit `7753983c6e495ec3612695b1336bf4936fc7b7fd`. It follows the upstream {repo-url}/blob/main/plugin/src/main/resources/io/github/gregwhitaker/awsemulator/aws/cloudformation/provisioned-types-1.0.322.txt[170 exact native provisioning type names and source references]. Nested stacks are excluded from deployment, leaving 169 accepted native types.
 
@@ -111,7 +111,7 @@ The selected runtime's configured version determines the catalogue. For xref:ext
 
 Deployment always performs the same check itself before acquiring its connection or submitting a stack. A rejected template does not start that task's emulator; other dependencies in the build may independently use Docker.
 
-== Tasks and properties
+== Tasks And Properties
 
 All task classes are in `io.github.gregwhitaker.awsemulator.aws.cloudformation`.
 
@@ -130,7 +130,7 @@ Create/update/delete waits use `waitTimeoutSeconds` (default 120). Each SDK call
 
 `templateFile` may come from a generating task's `flatMap` provider. It is read at execution, including on configuration-cache reuse. Input and output files must differ. Templates are submitted inline; remote `TemplateURL` inputs and change sets are not exposed.
 
-== Lifetimes and Spring Boot
+== Lifetimes And Spring Boot
 
 Custom deployment, deletion, and listing tasks inherit `awsEmulator.defaultMode`, initially `MANAGED`. They use the existing `mode`, `runtimeName`, verified TLS, and credential handling. Tasks that access live stack state always execute, even if template inputs and output files are unchanged; build-cache reuse is disabled.
 

@@ -30,7 +30,7 @@ awsEmulator {
 --
 
 [[try-a-working-build]]
-== Run the example
+== Run The Example
 
 From this repository's root, run the included example:
 
@@ -45,16 +45,16 @@ From this repository's root, run the included example:
 
 ++++
 <div class="runtime-flow" aria-label="What the example does">
-  <div class="runtime-step"><span class="step-number">01</span><div><strong>Provision resources</strong><span>Create S3 buckets and SQS queues in a fresh emulator.</span></div></div>
-  <div class="runtime-step"><span class="step-number">02</span><div><strong>Send SDK requests</strong><span>Run signed AWS SDK requests against your local resources.</span></div></div>
-  <div class="runtime-step"><span class="step-number">03</span><div><strong>Remove the container</strong><span>Remove the managed container when the build finishes.</span></div></div>
+  <div class="runtime-step"><span class="step-number">01</span><div><strong>Provision Resources</strong><span>Create S3 buckets and SQS queues in a fresh emulator.</span></div></div>
+  <div class="runtime-step"><span class="step-number">02</span><div><strong>Send SDK Requests</strong><span>Run signed AWS SDK requests against your local resources.</span></div></div>
+  <div class="runtime-step"><span class="step-number">03</span><div><strong>Remove The Container</strong><span>Remove the managed container when the build finishes.</span></div></div>
 </div>
 ++++
 
 The first run builds the emulator image; later runs reuse it. Run the command again to check configuration-cache reuse. Follow the xref:getting-started.adoc[getting started guide] to add the plugin to your own application.
 
 [[choose-the-right-lifetime]]
-== Runtime modes
+== Runtime Modes
 
 Use a managed instance for build tasks or a persistent development instance for local applications.
 
@@ -62,14 +62,14 @@ Use a managed instance for build tasks or a persistent development instance for 
 <div class="lifecycle-grid">
   <a href="testing.html" class="lifecycle-card">
     <span class="card-eyebrow">01 / TESTS &amp; BUILD TASKS</span>
-    <strong>Managed instance <span aria-hidden="true">↗</span></strong>
+    <strong>Managed Instance <span aria-hidden="true">↗</span></strong>
     <p>A managed instance shared by participating tasks. Starts when needed and cleans up when they finish, including ordinary task failures.</p>
     <code>awsEmulator.useWith(…)</code>
     <span class="card-link">Test integration <span aria-hidden="true">→</span></span>
   </a>
   <a href="lifecycle.html" class="lifecycle-card">
     <span class="card-eyebrow">02 / LOCAL DEVELOPMENT</span>
-    <strong>Development instance <span aria-hidden="true">↗</span></strong>
+    <strong>Development Instance <span aria-hidden="true">↗</span></strong>
     <p>A development instance that stays running between builds. It survives Gradle and application exits until you explicitly stop it.</p>
     <code>./gradlew startAwsEmulator</code>
     <span class="card-link">Lifecycle tasks <span aria-hidden="true">→</span></span>
@@ -82,7 +82,7 @@ Managed and development instances use separate containers and working directorie
 xref:external-emulators.adoc[External connections] use an existing emulator's endpoint, credentials, and CA certificate.
 
 [[what-you-can-do]]
-== AWS resources
+== AWS Resources
 
 Create and configure resources with service-specific Gradle tasks.
 
@@ -105,13 +105,13 @@ Create and configure resources with service-specific Gradle tasks.
 ++++
 
 [[make-it-part-of-your-workflow]]
-== Integration guides
+== Integration Guides
 
 ++++
 <div class="guide-links">
   <a href="spring-boot.html"><span>01</span><div><strong>Spring Boot</strong><p>Run and debug Spring Boot with automatic resource setup.</p></div><span aria-hidden="true">→</span></a>
-  <a href="scenarios.html"><span>02</span><div><strong>Fixtures and scenarios</strong><p>Load fixtures, choose a scenario, and reset your environment.</p></div><span aria-hidden="true">→</span></a>
-  <a href="shared-runtimes.html"><span>03</span><div><strong>Shared runtimes</strong><p>Share one emulator across multiple Gradle projects.</p></div><span aria-hidden="true">→</span></a>
+  <a href="scenarios.html"><span>02</span><div><strong>Fixtures And Scenarios</strong><p>Load fixtures, choose a scenario, and reset your environment.</p></div><span aria-hidden="true">→</span></a>
+  <a href="shared-runtimes.html"><span>03</span><div><strong>Shared Runtimes</strong><p>Share one emulator across multiple Gradle projects.</p></div><span aria-hidden="true">→</span></a>
 </div>
 ++++
 
