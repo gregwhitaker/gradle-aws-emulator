@@ -1,0 +1,170 @@
+= S3 buckets & objects
+include::_partials/attributes.adoc[]
+:description: Create, list, purge, and delete S3 buckets; upload, list, and download objects.
+
+The S3 module supplies typed tasks for buckets and objects. All task types live in `io.github.gregwhitaker.awsemulator.aws.s3` and use the *AWS Emulator - S3* task group. Each task starts the selected emulator on demand and waits until it is ready.
+
+toc::[]
+
+== Register resource tasks
+
+Make your test task depend on provisioning, then opt that same consumer into the emulator. Provisioning tasks default to the shared managed instance.
+
+=== Kotlin DSL
+
+[source,kotlin]
+----
+import io.github.gregwhitaker.awsemulator.aws.s3.CreateS3BucketTask
+
+plugins {
+    java
+    id("io.github.gregwhitaker.aws-emulator")
+}
+
+val createBucket = tasks.register<CreateS3BucketTask>("createTestBucket") {
+    bucketName.set("application-test-data")
+}
+val tests = tasks.named<Test>("test") {
+    dependsOn(createBucket)
+}
+awsEmulator {
+    useWith(tests)
+}
+----
+
+=== Groovy DSL
+
+[source,groovy]
+----
+import io.github.gregwhitaker.awsemulator.aws.s3.CreateS3BucketTask
+
+plugins {
+    id 'java'
+    id 'io.github.gregwhitaker.aws-emulator'
+}
+
+def createBucket = tasks.register('createTestBucket', CreateS3BucketTask) {
+    bucketName.set('application-test-data')
+}
+def tests = tasks.named('test') {
+    dependsOn(createBucket)
+}
+awsEmulator {
+    useWith(tests)
+}
+----
+
+NOTE: A managed provisioning task invoked alone creates resources that disappear when the build finishes. To keep resources available for a development session, select xref:lifecycle.adoc#provision-development-resources[`DEVELOPMENT` mode].
+
+== Task properties
+
+All properties use Gradle's lazy property API.
+
+[cols="1,1,2",options="header"]
+|===
+|Task type |Required |Optional
+|`CreateS3BucketTask` |`bucketName` |`mode`, `apiCallTimeoutSeconds`
+|`CreateS3BucketsTask` |`buckets` |`mode`, `apiCallTimeoutSeconds`
+|`ListS3BucketsTask` |None |`mode`, `apiCallTimeoutSeconds`
+|`PurgeS3BucketsTask` |`buckets` |`mode`, `apiCallTimeoutSeconds`
+|`DeleteS3BucketsTask` |`buckets` |`force` (default `false`), `mode`, `apiCallTimeoutSeconds`
+|`UploadS3ObjectTask` |`bucketName`, `objectKey`, `sourceFile` |`contentType`, `metadata`, `mode`, `apiCallTimeoutSeconds`
+|`UploadS3DirectoryTask` |`bucketName`, `sourceDirectory` |`prefix`, `contentTypes`, `metadata`, `mode`, `apiCallTimeoutSeconds`
+|`ListS3ObjectsTask` |`bucketName` |`prefix`, `mode`, `apiCallTimeoutSeconds`
+|`DownloadS3ObjectTask` |`bucketName`, `objectKey`, `outputFile` |`mode`, `apiCallTimeoutSeconds`
+|===
+
+[cols="1,1,3",options="header"]
+|===
+|Shared property |Default |Meaning
+|`mode` |`EmulatorMode.MANAGED` for custom instances |Select the build-owned runtime or the persistent `DEVELOPMENT` runtime. The module convenience tasks default to `DEVELOPMENT`.
+|`runtimeName` |`default` |Select a declared named runtime. Its name and lifecycle mode must match the consumer; see xref:named-runtimes.adoc[named runtimes].
+|`apiCallTimeoutSeconds` |`30` |Positive timeout for each SDK operation, including retries.
+|===
+
+Provisioning tasks always execute and are never restored from the build cache because they operate on live emulator state. The plugin supplies its own SDK dependencies for these tasks; the application declares its own dependencies.
+
+== S3 bucket behavior
+
+`CreateS3BucketTask` and `CreateS3BucketsTask` create general-purpose buckets in `awsEmulator.region`. For `us-east-1`, it omits the location constraint; for other regions, it sends the configured region.
+
+If an accessible bucket already exists, the task reuses it without another `CreateBucket` call. Its objects and configuration remain intact. A region mismatch reported by `HeadBucket` fails the task.
+
+These bucket tasks do not configure directory buckets, access points, or bucket policies. Use the object tasks below to seed bucket contents.
+
+API: link:api/io/github/gregwhitaker/awsemulator/aws/s3/CreateS3BucketTask.html[CreateS3BucketTask].
+
+== Bulk creation
+
+[source,kotlin]
+----
+import io.github.gregwhitaker.awsemulator.aws.s3.CreateS3BucketsTask
+
+val createBuckets = tasks.register<CreateS3BucketsTask>("createTestBuckets") {
+    buckets.set(listOf("application-data", "application-uploads"))
+}
+----
+
+`buckets` is a `ListProperty<String>`. Bulk creation uses the singular task's region and reuse checks. All names are validated before starting the emulator. Duplicate names are processed once.
+
+API: link:api/io/github/gregwhitaker/awsemulator/aws/s3/CreateS3BucketsTask.html[CreateS3BucketsTask].
+
+== Upload and inspect objects
+
+Object tasks require an existing bucket. Use the bucket task from the registration example as a dependency:
+
+[source,kotlin]
+----
+import io.github.gregwhitaker.awsemulator.aws.s3.UploadS3DirectoryTask
+
+val uploadAssets = tasks.register<UploadS3DirectoryTask>("uploadTestAssets") {
+    dependsOn(createBucket)
+    bucketName.set(createBucket.flatMap { it.bucketName })
+    sourceDirectory.set(layout.projectDirectory.dir("fixtures/assets"))
+    prefix.set("assets")
+}
+tasks.named<Test>("test") {
+    dependsOn(uploadAssets)
+}
+----
+
+`UploadS3DirectoryTask` preserves relative paths under the configured prefix. `UploadS3ObjectTask` uploads one file to an explicit object key. Uploads replace matching keys and preserve other objects; they do not synchronize deletions.
+
+`ListS3ObjectsTask` follows all response pages and prints object keys and sizes. `DownloadS3ObjectTask` writes to an explicit `outputFile`, replacing it only after the full download succeeds. Object tasks execute again on subsequent builds, including configuration-cache reuse.
+
+See xref:scenarios.adoc#upload-and-inspect-s3-objects[S3 data fixtures] for content types, metadata, directory handling, and development datasets.
+
+API: link:api/io/github/gregwhitaker/awsemulator/aws/s3/UploadS3ObjectTask.html[UploadS3ObjectTask], link:api/io/github/gregwhitaker/awsemulator/aws/s3/UploadS3DirectoryTask.html[UploadS3DirectoryTask], link:api/io/github/gregwhitaker/awsemulator/aws/s3/ListS3ObjectsTask.html[ListS3ObjectsTask], link:api/io/github/gregwhitaker/awsemulator/aws/s3/DownloadS3ObjectTask.html[DownloadS3ObjectTask].
+
+== Module convenience tasks
+
+The S3 module registers these tasks in the *AWS Emulator - S3* group. They use the persistent development emulator by default:
+
+[cols="1,2",options="header"]
+|===
+|Task |CLI options
+|`listS3Buckets` |None required
+|`listS3Objects` |`--bucketName=application-data`, optional `--prefix=assets/`
+|`purgeS3Buckets` |`--buckets=one,two`
+|`deleteS3Buckets` |`--buckets=one,two`, optional `--force`
+|===
+
+Every resource task accepts `--mode=MANAGED` or `--mode=DEVELOPMENT` and `--runtime <name>`. Custom instances of the task types default to `MANAGED`. Ensure provisioning and consuming tasks select the same runtime name and mode.
+
+[source,shell]
+----
+./gradlew listS3Buckets
+./gradlew listS3Objects --bucketName=application-data --prefix=assets/
+./gradlew purgeS3Buckets --buckets=application-data
+./gradlew deleteS3Buckets --buckets=application-data --force
+----
+
+=== Listing and cleanup
+
+S3 listing follows all response pages and prints bucket names and creation dates. Purging retains the bucket but removes objects, historical versions, and delete markers, including when versioning is suspended. The task checks individual deletion errors even when the service accepts the batch. Deletion requires an empty bucket unless `force` is `true`; an already absent bucket succeeds. Purging and deleting require explicit bucket names.
+
+API: link:api/io/github/gregwhitaker/awsemulator/aws/s3/ListS3BucketsTask.html[ListS3BucketsTask], link:api/io/github/gregwhitaker/awsemulator/aws/s3/ListS3ObjectsTask.html[ListS3ObjectsTask], link:api/io/github/gregwhitaker/awsemulator/aws/s3/PurgeS3BucketsTask.html[PurgeS3BucketsTask], link:api/io/github/gregwhitaker/awsemulator/aws/s3/DeleteS3BucketsTask.html[DeleteS3BucketsTask].
+
+== SDK connection isolation
+
+Provisioning clients use explicit emulator endpoints, regions, generated credentials, and per-client TLS trust. They bypass inherited proxy settings. They do not modify the Gradle daemon's credentials or global SSL configuration, and they do not require the AWS CLI.

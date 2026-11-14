@@ -99,7 +99,7 @@ awsEmulator {
 }
 ----
 
-See xref:resources.adoc[S3 and SQS resources] for queue attributes, FIFO queues, and reuse behavior.
+See xref:s3.adoc#s3-bucket-behavior[S3 bucket behavior] for region selection and reuse. To provision queues before tests, see the xref:sqs.adoc[SQS guide].
 
 == Execution and cleanup
 

@@ -22,12 +22,12 @@ The [build script](build.gradle.kts) provisions resources and fixtures before ru
 
 | Service | Example behavior |
 | --- | --- |
-| SSM Parameter Store | Seeds string, string-list, and encrypted parameters from [parameters.json](fixtures/parameters.json), then reads their values. |
-| Secrets Manager | Seeds a database secret from [secrets.json](fixtures/secrets.json), then reads it. |
-| EventBridge and SQS | Creates an event bus, rule, and queue target; publishes [events.json](fixtures/events.json); verifies that the matching event reaches SQS. |
-| Kinesis Data Streams | Creates a stream, publishes [records.json](fixtures/records.json), and consumes the records. |
-| KMS | Creates a key with alias `alias/example-services`, then encrypts and decrypts [plaintext.txt](fixtures/plaintext.txt) with an encryption context. |
-| CloudWatch Logs | Creates a log group and stream, writes an application log event, then retrieves and filters events. |
+| [SSM Parameter Store](../../docs/src/docs/asciidoc/parameter-store.adoc) | Seeds string, string-list, and encrypted parameters from [parameters.json](fixtures/parameters.json), then reads their values. |
+| [Secrets Manager](../../docs/src/docs/asciidoc/secrets-manager.adoc) | Seeds a database secret from [secrets.json](fixtures/secrets.json), then reads it. |
+| [EventBridge](../../docs/src/docs/asciidoc/eventbridge.adoc) and [SQS](../../docs/src/docs/asciidoc/sqs.adoc) | Creates an event bus, rule, and queue target; publishes [events.json](fixtures/events.json); verifies that the matching event reaches SQS. |
+| [Kinesis Data Streams](../../docs/src/docs/asciidoc/kinesis.adoc) | Creates a stream, publishes [records.json](fixtures/records.json), and consumes the records. |
+| [KMS](../../docs/src/docs/asciidoc/kms.adoc) | Creates a key with alias `alias/example-services`, then encrypts and decrypts [plaintext.txt](fixtures/plaintext.txt) with an encryption context. |
+| [CloudWatch Logs](../../docs/src/docs/asciidoc/cloudwatch-logs.adoc) | Creates a log group and stream, writes an application log event, then retrieves and filters events. |
 
 The [settings file](settings.gradle.kts) includes the plugin from this checkout through `pluginManagement`, so no plugin publication is needed.
 
@@ -75,4 +75,4 @@ When updating existing parameter or secret fixtures in a development instance, a
 
 Development instances are separate from managed test instances. Stopping or restarting an instance discards its resources; run `stopAwsEmulator` when finished.
 
-See the [services guide](../../docs/src/docs/asciidoc/services.adoc) for task properties, fixture formats, and overwrite behavior, or the [main README](../../README.md) for general plugin configuration.
+See the individual service guides linked above for task properties, fixture formats, and overwrite behavior, or the [main README](../../README.md) for general plugin configuration.

@@ -1,0 +1,82 @@
+= Kinesis Data Streams
+include::_partials/attributes.adoc[]
+:description: Create Kinesis Data Streams, publish record fixtures, and list or delete development streams.
+
+Provision streams before tests, publish UTF-8 record fixtures, and manage development streams. Task types live in `io.github.gregwhitaker.awsemulator.aws.kinesis`.
+
+toc::[]
+
+== Provision before tests
+
+[source,kotlin]
+----
+import io.github.gregwhitaker.awsemulator.aws.kinesis.CreateKinesisStreamTask
+import io.github.gregwhitaker.awsemulator.aws.kinesis.PublishKinesisRecordsTask
+
+plugins {
+    java
+    id("io.github.gregwhitaker.aws-emulator")
+}
+
+val stream = tasks.register<CreateKinesisStreamTask>("createOrdersStream") {
+    streamName.set("application-orders")
+}
+val records = tasks.register<PublishKinesisRecordsTask>("publishTestRecords") {
+    dependsOn(stream)
+    streamName.set("application-orders")
+    fixtures.set(layout.projectDirectory.file("fixtures/records.json"))
+}
+val tests = tasks.named<Test>("test") { dependsOn(records) }
+awsEmulator { useWith(tests) }
+----
+
+The stream task waits for `ACTIVE` before records are published. Tests use their own Kinesis SDK client to consume the records.
+
+== Task properties
+
+* `CreateKinesisStreamTask`: `streamName`, `shardCount` (default 1), `waitTimeoutSeconds` (default 60). Creates/reuses a provisioned stream and waits for `ACTIVE`; conflicting shard counts or stream modes fail.
+* `PublishKinesisRecordsTask`: `streamName`, `fixtures`. Sends UTF-8 strings with partition keys through `PutRecords`.
+* `ListKinesisStreamsTask`: lists all stream names.
+* `DeleteKinesisStreamTask`: `streamName`, `waitTimeoutSeconds` (default 60). Waits for disappearance; missing streams are safe to repeat.
+
+== Record fixtures
+
+.fixtures/records.json
+[source,json]
+----
+[
+  {"partitionKey":"order-1","data":"first-record"},
+  {"partitionKey":"order-2","data":"second-record"}
+]
+----
+
+Both fields must be strings, and partition keys must be nonblank with at most 256 characters. This release conservatively limits each record, including its partition key, to 1 MiB and each batch to 500 records/5 MiB. Partial failures report one-based fixture indexes without replaying successful records. `PutRecords` does not guarantee ordering. Resharding, retention changes, and enhanced fan-out consumers are outside this scope.
+
+== SDK protocol settings
+
+The pinned SDK defaults to CBOR, which this emulator workflow does not accept. Kinesis tasks therefore use a process-isolated Gradle worker with `aws.cborEnabled=false`; no Gradle daemon system property is changed. `awsEmulator.useWith(...)` sets `aws.cborEnabled=false` and `CBOR_ENABLED=false` for participating application JVMs. Configure JSON explicitly for separately launched SDK consumers.
+
+== Development commands
+
+Predefined commands: `listKinesisStreams` and `deleteKinesisStream --streamName=...`.
+
+[source,shell]
+----
+./gradlew listKinesisStreams
+./gradlew deleteKinesisStream --streamName=application-orders
+----
+
+include::_partials/service-task-runtime.adoc[]
+
+== Runnable example
+
+[source,shell]
+----
+./gradlew -p examples/services verifyServices --configuration-cache
+----
+
+The example creates a stream, publishes record fixtures, and consumes them with AWS SDK for Java v2. Run the command twice to check configuration-cache reuse against a fresh managed emulator. `-PfailExample=true` deliberately fails the application test to demonstrate cleanup. See link:{repo-url}/tree/main/examples/services[the runnable example] for its complete setup and persistent development commands.
+
+API: link:api/io/github/gregwhitaker/awsemulator/aws/kinesis/CreateKinesisStreamTask.html[CreateKinesisStreamTask], link:api/io/github/gregwhitaker/awsemulator/aws/kinesis/PublishKinesisRecordsTask.html[PublishKinesisRecordsTask], link:api/io/github/gregwhitaker/awsemulator/aws/kinesis/ListKinesisStreamsTask.html[ListKinesisStreamsTask], link:api/io/github/gregwhitaker/awsemulator/aws/kinesis/DeleteKinesisStreamTask.html[DeleteKinesisStreamTask].
+
+include::_partials/service-verification.adoc[]

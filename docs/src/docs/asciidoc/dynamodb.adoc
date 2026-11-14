@@ -2,7 +2,7 @@
 include::_partials/attributes.adoc[]
 :description: Create, initialize, list, and delete DynamoDB tables with AWS SDK for Java v2 and Gradle.
 
-`DynamoDbModule` groups the DynamoDB tasks under *AWS Emulator - DynamoDB*. It follows the same module structure and runtime selection as the S3 and SQS tasks.
+`DynamoDbModule` groups the DynamoDB tasks under *AWS Emulator - DynamoDB*. Each task selects a managed or development runtime.
 
 For declarative JSON item imports and clearing items while preserving a table, see xref:scenarios.adoc#seed-and-clear-dynamodb-items[DynamoDB data fixtures]. These tasks complement the Java initializer described here.
 

@@ -96,6 +96,11 @@ public abstract class AwsEmulatorService implements BuildService<AwsEmulatorServ
     }
 
     public EmulatorConnection managedConnection() { return isExternal() ? external().connect() : runtime().managedConnection(); }
+    /** Resolves an existing runtime for reporting without starting an owned emulator. */
+    public EmulatorConnection inspectionConnection(io.github.gregwhitaker.awsemulator.model.EmulatorMode mode) {
+        return isExternal() ? external().connect() : runtime().inspectionConnection(
+            mode == io.github.gregwhitaker.awsemulator.model.EmulatorMode.MANAGED);
+    }
     public synchronized EmulatorConnection developmentConnection() {
         if (restartFailure != null) throw new GradleException("Cannot seed the development emulator after its restart failed in this build.", restartFailure);
         return isExternal() ? external().connect() : runtime().developmentConnection();

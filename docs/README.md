@@ -46,7 +46,7 @@ After a successful deployment, the site is available at <https://gregwhitaker.gi
 
 - Add top-level pages in `src/docs/asciidoc/`. Each page starts with a title followed by `include::_partials/attributes.adoc[]`.
 - Use `xref:page.adoc#section-id[Label]` for internal links. Top-level pages are discovered automatically at configuration time. Add each new page to the navigation in `_partials/docinfo-header.html`.
-- Give each supported AWS service its own navigation entry, in alphabetical order. Entries can link to a guide page or a service heading within a shared page; preserve those heading IDs when editing. The active entry and previous/next links follow section navigation, including browser back and forward.
+- Give each supported AWS service its own guide page, linked directly from the alphabetized AWS resources navigation and homepage list. Keep service task references on that service's page and cross-link related workflows. Preserve heading IDs when editing. The active entry and previous/next links follow page navigation, including browser back and forward.
 - Keep reusable partials under `_partials/`; they are included, not rendered as standalone pages.
 - The getting-started guide includes the actual build scripts, SDK test, and message fixtures from `examples/basic`. `prepareDocs` stages those files so source changes invalidate generation.
 - The Micronaut and Ktor guide includes build scripts and application code from `examples/micronaut` and `examples/ktor`; `prepareDocs` stages these examples too.

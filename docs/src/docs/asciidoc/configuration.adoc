@@ -86,4 +86,4 @@ The plugin does not modify your personal AWS configuration. See xref:connections
 
 `runtimeName`, `mode`, and `apiCallTimeoutSeconds` belong to individual provisioning tasks. The defaults are `default`, `EmulatorMode.MANAGED`, and `30` seconds per SDK operation. Select another declared runtime with `runtimeName.set("integration")` or `--runtime integration`.
 
-See xref:resources.adoc#task-properties[resource task properties] for required bucket/queue names and optional SQS attributes.
+Each service guide lists its task properties. See xref:s3.adoc#task-properties[S3 task properties] for buckets and objects, or xref:sqs.adoc#task-properties[SQS task properties] for queues and message fixtures.

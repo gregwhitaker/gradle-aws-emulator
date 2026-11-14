@@ -66,6 +66,40 @@ public final class EmulatorRuntime implements AutoCloseable {
         return workspace.withLock("development.lock", () -> startDevelopment().connection());
     }
 
+    /** Connects to an existing instance without preparing images, starting containers, or changing resources. */
+    public synchronized EmulatorConnection inspectionConnection(boolean managedMode) {
+        if (managedMode) {
+            if (managed == null) throw new GradleException("No managed AWS Emulator is active in this build. "
+                + "Run the report after a participating task, or attach it as that task's finalizer.");
+            requireInspectable(docker.find(managed.container().id()), managed.connection());
+            return managed.connection();
+        }
+        requireDirectDevelopment();
+        return workspace.withLock("development.lock", () -> {
+            Container container = docker.find(settings.developmentName());
+            if (container == null || !container.running()) throw new GradleException("AWS Emulator development instance is not running. "
+                + "Run startAwsEmulator for the selected runtime before reportAwsEmulator.");
+            docker.requireOwner(container);
+            if (!settings.fingerprint().equals(container.config())) throw new GradleException(
+                "The development AWS Emulator uses different settings. Run restartAwsEmulator to apply them.");
+            EmulatorConnection connection = instance(container).connection();
+            requireInspectable(container, connection);
+            return connection;
+        });
+    }
+
+    private void requireInspectable(Container container, EmulatorConnection connection) {
+        if (container == null || !container.running()) throw new GradleException("The AWS Emulator stopped before the report could be captured.");
+        docker.requireOwner(container);
+        if (!connection.filesExist()) throw new GradleException("AWS Emulator connection files are missing; cannot capture a report.");
+        try {
+            if (health.ready(connection.port(), connection.trustStore())) return;
+        } catch (Exception e) {
+            throw new GradleException("Cannot verify AWS Emulator HTTPS health for the report.", e);
+        }
+        throw new GradleException("AWS Emulator is not ready; cannot capture a report.");
+    }
+
     public synchronized void stopDevelopment() {
         workspace.withLock("development.lock", () -> {
             stopDevelopmentInstance();

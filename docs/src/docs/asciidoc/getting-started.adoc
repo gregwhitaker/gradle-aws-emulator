@@ -129,4 +129,4 @@ From the plugin repository root:
 
 This command is expected to fail its test. The managed container is still removed after the build's consumers finish.
 
-Next, xref:resources.adoc[provision the resources your application needs] or xref:lifecycle.adoc[start a persistent development instance].
+Next, follow a service guide such as xref:s3.adoc[S3] or xref:sqs.adoc[SQS] to provision the resources your application needs, or xref:lifecycle.adoc[start a persistent development instance].

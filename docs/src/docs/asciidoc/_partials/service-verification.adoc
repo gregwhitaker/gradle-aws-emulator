@@ -1,0 +1,3 @@
+== Verified scope
+
+The examples exercise these workflows against the pinned AWS Emulator `1.0.322`, using AWS SDK for Java v2 `2.39.6`. They establish the behavior used by these tasks, not complete AWS service equivalence. https://docs.aws.amazon.com/emulator/latest/userguide/fidelity.html[AWS Emulator fidelity] varies by operation and release.

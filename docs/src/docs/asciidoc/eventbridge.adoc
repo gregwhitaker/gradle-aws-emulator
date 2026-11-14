@@ -1,0 +1,110 @@
+= EventBridge
+include::_partials/attributes.adoc[]
+:description: Create EventBridge buses, rules, and SQS targets; publish event fixtures and manage development rules.
+
+Provision event buses and rules, route matching events to standard SQS queues, and publish JSON event fixtures. Task types live in `io.github.gregwhitaker.awsemulator.aws.eventbridge`.
+
+toc::[]
+
+== Provision before tests
+
+[source,kotlin]
+----
+import io.github.gregwhitaker.awsemulator.aws.eventbridge.*
+import io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueueTask
+
+plugins {
+    java
+    id("io.github.gregwhitaker.aws-emulator")
+}
+
+val bus = tasks.register<CreateEventBusTask>("createOrdersBus") {
+    eventBusName.set("application-orders")
+}
+val rule = tasks.register<PutEventBridgeRuleTask>("createOrdersRule") {
+    dependsOn(bus)
+    eventBusName.set("application-orders")
+    ruleName.set("orders")
+    eventPattern.set("""{"source":["app.orders"]}""")
+}
+val queue = tasks.register<CreateSqsQueueTask>("createEventQueue") {
+    queueName.set("application-events")
+}
+val target = tasks.register<PutEventBridgeSqsTargetTask>("connectEventQueue") {
+    dependsOn(rule, queue)
+    eventBusName.set("application-orders")
+    ruleName.set("orders")
+    queueName.set("application-events")
+    targetId.set("orders-queue")
+}
+val events = tasks.register<PublishEventBridgeEventsTask>("publishTestEvents") {
+    dependsOn(target)
+    eventBusName.set("application-orders")
+    fixtures.set(layout.projectDirectory.file("fixtures/events.json"))
+}
+val tests = tasks.named<Test>("test") { dependsOn(events) }
+awsEmulator { useWith(tests) }
+----
+
+The target task configures delivery to the queue. See the xref:sqs.adoc[SQS guide] for queue creation and message consumption setup.
+
+== Task properties
+
+[cols="1,2",options="header"]
+|===
+|Task type |Configuration
+|`CreateEventBusTask` |`eventBusName`; reuses an existing bus
+|`PutEventBridgeRuleTask` |`eventBusName`, `ruleName`, JSON `eventPattern`, `overwrite` (default `false`); creates an enabled rule
+|`PutEventBridgeSqsTargetTask` |`eventBusName`, `ruleName`, `queueName`, `targetId`, `overwrite`; resolves a standard queue and grants this rule permission to send messages
+|`PutEventBridgeTargetsTask` |`eventBusName`, `ruleName`, `targets` map of target IDs to standard SQS ARNs, `overwrite`; queue policies must be configured separately
+|`PublishEventBridgeEventsTask` |`eventBusName`, `fixtures` JSON file
+|`ListEventBusesTask` |Lists buses and ARNs
+|`ListEventBridgeRulesTask` |`eventBusName`; lists rules and their targets
+|`DeleteEventBridgeRuleTask` |`eventBusName`, `ruleName`; removes the rule's targets, then the rule
+|`DeleteEventBusTask` |`eventBusName`; requires explicit deletion of its rules first
+|===
+
+== Event fixtures
+
+.fixtures/events.json
+[source,json]
+----
+[
+  {"source":"app.orders","detailType":"OrderCreated","detail":{"id":"order-1"}}
+]
+----
+
+`source` and `detailType` are nonblank strings; `detail` must be a JSON object. This release uses a conservative 256 KiB entry/request limit and batches up to ten events. It verifies bus existence before publishing. Partial batch failures identify one-based fixture indexes; successful events are retained and are not automatically replayed. Rerunning a publisher can duplicate events.
+
+== Targets and repeated setup
+
+Target IDs make repeated setup stable. Existing conflicting targets/rules require `overwrite=true`; unrelated target IDs are preserved. The SQS convenience task preserves unrelated queue-policy statements and adds one rule-scoped grant. Deleting a rule leaves that grant in the queue policy; it does not delete the queue. FIFO targets, schedules, SNS targets, input transformations, and replay/archive management are not part of this initial task scope.
+
+== Cleanup and development commands
+
+Declare cleanup ordering explicitly when deleting dependent resources in one build. Configuration-cache execution can run independent tasks concurrently: use `tasks.named("deleteEventBus") { mustRunAfter("deleteEventBridgeRule") }` when both commands are selected. The runnable example configures this ordering.
+
+Predefined commands: `listEventBuses`, `listEventBridgeRules`, `deleteEventBridgeRule`, and `deleteEventBus`. Rule commands accept `--eventBusName` and `--ruleName` as applicable. The default event bus cannot be deleted.
+
+[source,shell]
+----
+./gradlew listEventBuses
+./gradlew listEventBridgeRules --eventBusName=application-orders
+./gradlew deleteEventBridgeRule --eventBusName=application-orders --ruleName=orders
+./gradlew deleteEventBus --eventBusName=application-orders
+----
+
+include::_partials/service-task-runtime.adoc[]
+
+== Runnable example
+
+[source,shell]
+----
+./gradlew -p examples/services verifyServices --configuration-cache
+----
+
+The example routes a matching EventBridge event to a standard SQS queue and verifies delivery with AWS SDK for Java v2. Run the command twice to check configuration-cache reuse against a fresh managed emulator. `-PfailExample=true` deliberately fails the application test to demonstrate cleanup. See link:{repo-url}/tree/main/examples/services[the runnable example] for its complete setup and persistent development commands.
+
+API: link:api/io/github/gregwhitaker/awsemulator/aws/eventbridge/CreateEventBusTask.html[CreateEventBusTask], link:api/io/github/gregwhitaker/awsemulator/aws/eventbridge/PutEventBridgeRuleTask.html[PutEventBridgeRuleTask], link:api/io/github/gregwhitaker/awsemulator/aws/eventbridge/PutEventBridgeSqsTargetTask.html[PutEventBridgeSqsTargetTask], link:api/io/github/gregwhitaker/awsemulator/aws/eventbridge/PutEventBridgeTargetsTask.html[PutEventBridgeTargetsTask], link:api/io/github/gregwhitaker/awsemulator/aws/eventbridge/PublishEventBridgeEventsTask.html[PublishEventBridgeEventsTask], link:api/io/github/gregwhitaker/awsemulator/aws/eventbridge/ListEventBusesTask.html[ListEventBusesTask], link:api/io/github/gregwhitaker/awsemulator/aws/eventbridge/ListEventBridgeRulesTask.html[ListEventBridgeRulesTask], link:api/io/github/gregwhitaker/awsemulator/aws/eventbridge/DeleteEventBridgeRuleTask.html[DeleteEventBridgeRuleTask], link:api/io/github/gregwhitaker/awsemulator/aws/eventbridge/DeleteEventBusTask.html[DeleteEventBusTask].
+
+include::_partials/service-verification.adoc[]

@@ -1,0 +1,81 @@
+= KMS
+include::_partials/attributes.adoc[]
+:description: Create local KMS keys and aliases, encrypt and decrypt files, and schedule key deletion.
+
+Create symmetric encryption keys and aliases, encrypt and decrypt local files, and manage development keys. Task types live in `io.github.gregwhitaker.awsemulator.aws.kms`.
+
+toc::[]
+
+== Provision before tests
+
+[source,kotlin]
+----
+import io.github.gregwhitaker.awsemulator.aws.kms.CreateKmsKeyTask
+import io.github.gregwhitaker.awsemulator.aws.kms.EncryptKmsFileTask
+import io.github.gregwhitaker.awsemulator.aws.kms.DecryptKmsFileTask
+
+plugins {
+    java
+    id("io.github.gregwhitaker.aws-emulator")
+}
+
+val key = tasks.register<CreateKmsKeyTask>("createTestKey") {
+    aliasName.set("alias/application-tests")
+}
+val encrypt = tasks.register<EncryptKmsFileTask>("encryptFixture") {
+    dependsOn(key)
+    keyId.set("alias/application-tests")
+    inputFile.set(layout.projectDirectory.file("fixtures/plaintext.txt"))
+    outputFile.set(layout.buildDirectory.file("fixtures/ciphertext.bin"))
+    encryptionContext.put("application", "tests")
+}
+val decrypt = tasks.register<DecryptKmsFileTask>("decryptFixture") {
+    keyId.set("alias/application-tests")
+    inputFile.set(encrypt.flatMap { it.outputFile })
+    outputFile.set(layout.buildDirectory.file("fixtures/decrypted.txt"))
+    encryptionContext.put("application", "tests")
+}
+val tests = tasks.named<Test>("test") { dependsOn(decrypt) }
+awsEmulator { useWith(tests) }
+----
+
+The output provider makes decryption depend on encryption. The key and both file tasks use the same managed runtime as the tests.
+
+== Task properties
+
+* `CreateKmsKeyTask`: `aliasName`. Creates/reuses an enabled `SYMMETRIC_DEFAULT` encryption key. The alias makes repeated setup stable.
+* `CreateKmsAliasTask`: `aliasName`, `keyId`, `overwrite` (default `false`). Changing an existing alias's target requires explicit overwrite.
+* `ListKmsKeysTask`: lists key IDs and ARNs.
+* `DeleteKmsAliasTask`: `aliasName`; does not delete its key.
+* `ScheduleKmsKeyDeletionTask`: `keyId`, `pendingWindowInDays` (7–30; default 30). Already-pending keys are left alone. This is scheduled deletion, not immediate deletion.
+* `EncryptKmsFileTask` and `DecryptKmsFileTask`: `keyId`, `inputFile`, `outputFile`, optional `encryptionContext` map (default empty). Use the same context for encryption and decryption.
+
+== File encryption and decryption
+
+Encryption accepts up to 4096 plaintext bytes. Decryption accepts up to 6144 ciphertext bytes. Files are binary, not Base64 strings. Input and output must differ. Result files are replaced atomically when supported and use owner-only permissions on POSIX filesystems. Bodies are not printed. A managed key disappears when its emulator stops, so both tasks must share that runtime; the runnable example wires the decrypt input to the encrypt task's output provider.
+
+== Development commands
+
+Predefined commands: `listKmsKeys`, `deleteKmsAlias --aliasName=...`, and `scheduleKmsKeyDeletion --keyId=...`. Managed aliases starting with `alias/aws/` are reserved. Asymmetric keys, signing, imported key material, grants, and policy enforcement testing are outside this scope.
+
+[source,shell]
+----
+./gradlew listKmsKeys
+./gradlew deleteKmsAlias --aliasName=alias/application-tests
+./gradlew scheduleKmsKeyDeletion --keyId=<key-id>
+----
+
+include::_partials/service-task-runtime.adoc[]
+
+== Runnable example
+
+[source,shell]
+----
+./gradlew -p examples/services verifyServices --configuration-cache
+----
+
+The example creates a key alias and verifies a file encryption and decryption round trip with an encryption context. Run the command twice to check configuration-cache reuse against a fresh managed emulator. `-PfailExample=true` deliberately fails the application test to demonstrate cleanup. See link:{repo-url}/tree/main/examples/services[the runnable example] for its complete setup and persistent development commands.
+
+API: link:api/io/github/gregwhitaker/awsemulator/aws/kms/CreateKmsKeyTask.html[CreateKmsKeyTask], link:api/io/github/gregwhitaker/awsemulator/aws/kms/CreateKmsAliasTask.html[CreateKmsAliasTask], link:api/io/github/gregwhitaker/awsemulator/aws/kms/ListKmsKeysTask.html[ListKmsKeysTask], link:api/io/github/gregwhitaker/awsemulator/aws/kms/DeleteKmsAliasTask.html[DeleteKmsAliasTask], link:api/io/github/gregwhitaker/awsemulator/aws/kms/ScheduleKmsKeyDeletionTask.html[ScheduleKmsKeyDeletionTask], link:api/io/github/gregwhitaker/awsemulator/aws/kms/EncryptKmsFileTask.html[EncryptKmsFileTask], link:api/io/github/gregwhitaker/awsemulator/aws/kms/DecryptKmsFileTask.html[DecryptKmsFileTask].
+
+include::_partials/service-verification.adoc[]

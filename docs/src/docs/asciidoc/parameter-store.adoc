@@ -1,0 +1,101 @@
+= Parameter Store
+include::_partials/attributes.adoc[]
+:description: Create, list, and delete Parameter Store values, including StringList and SecureString parameters.
+
+Provision application parameters before tests, load JSON fixtures, and inspect or delete development parameters. Task types live in `io.github.gregwhitaker.awsemulator.aws.ssm`.
+
+toc::[]
+
+== Provision before tests
+
+=== Kotlin DSL
+
+[source,kotlin]
+----
+import io.github.gregwhitaker.awsemulator.aws.ssm.PutSsmParametersTask
+
+plugins {
+    java
+    id("io.github.gregwhitaker.aws-emulator")
+}
+
+val parameters = tasks.register<PutSsmParametersTask>("seedParameters") {
+    fixtures.set(layout.projectDirectory.file("fixtures/parameters.json"))
+}
+val tests = tasks.named<Test>("test") { dependsOn(parameters) }
+awsEmulator { useWith(tests) }
+----
+
+=== Groovy DSL
+
+[source,groovy]
+----
+import io.github.gregwhitaker.awsemulator.aws.ssm.PutSsmParametersTask
+
+plugins {
+    id 'java'
+    id 'io.github.gregwhitaker.aws-emulator'
+}
+
+def parameters = tasks.register('seedParameters', PutSsmParametersTask) {
+    fixtures.set(layout.projectDirectory.file('fixtures/parameters.json'))
+}
+def tests = tasks.named('test') { dependsOn(parameters) }
+awsEmulator { useWith(tests) }
+----
+
+== Task properties
+
+[cols="1,2",options="header"]
+|===
+|Task type |Configuration
+|`PutSsmParameterTask` |`parameterName`, `value`, `type` (default `String`), optional `keyId`, `overwrite` (default `false`)
+|`PutSsmParametersTask` |`fixtures` JSON file, `overwrite`
+|`ListSsmParametersTask` |Lists parameter names, without values
+|`DeleteSsmParametersTask` |Explicit `names` list
+|===
+
+== Fixture format
+
+.fixtures/parameters.json
+[source,json]
+----
+[
+  {"name":"/app/url","value":"http://localhost:8080"},
+  {"name":"/app/features","value":"catalog,checkout","type":"StringList"},
+  {"name":"/app/token","value":"local-token","type":"SecureString"}
+]
+----
+
+Every entry requires string `name` and `value`. `type` accepts `String`, `StringList`, or `SecureString` and defaults to `String`. An optional `keyId` requires `SecureString`; declare a dependency on xref:kms.adoc#provision-before-tests[`CreateKmsKeyTask`] when referring to a custom key alias. Parameters use the Standard tier, with a 4096-byte value limit. Parameter policies are outside these task types.
+
+include::_partials/configuration-fixture-validation.adoc[]
+
+== Reuse and overwrite behavior
+
+Identical values are reused without creating new versions. Different values require `overwrite=true`. Changing a parameter's type requires explicit deletion and recreation. Explicit key identifiers are compared with the identifier reported by the service; consistently use the same key ID or alias. Metadata commands and provisioning errors omit values; applications read values through their SDKs.
+
+== Development commands
+
+[source,shell]
+----
+./gradlew listSsmParameters
+./gradlew deleteSsmParameters --names=/app/url --names=/app/features
+----
+
+Select names for deletion with repeated `--names` options. Stopping a managed emulator discards its entire in-memory state.
+
+include::_partials/service-task-runtime.adoc[]
+
+== Runnable example
+
+[source,shell]
+----
+./gradlew -p examples/services verifyServices --configuration-cache
+----
+
+The example seeds string, string-list, and encrypted parameters from JSON and reads them using AWS SDK for Java v2. Run the command twice to check configuration-cache reuse against a fresh managed emulator. `-PfailExample=true` deliberately fails the application test to demonstrate cleanup. See link:{repo-url}/tree/main/examples/services[the runnable example] for its complete setup and persistent development commands.
+
+API: link:api/io/github/gregwhitaker/awsemulator/aws/ssm/PutSsmParameterTask.html[PutSsmParameterTask], link:api/io/github/gregwhitaker/awsemulator/aws/ssm/PutSsmParametersTask.html[PutSsmParametersTask], link:api/io/github/gregwhitaker/awsemulator/aws/ssm/ListSsmParametersTask.html[ListSsmParametersTask], link:api/io/github/gregwhitaker/awsemulator/aws/ssm/DeleteSsmParametersTask.html[DeleteSsmParametersTask].
+
+include::_partials/service-verification.adoc[]

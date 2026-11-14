@@ -38,6 +38,7 @@ public final class EmulatorModule {
         Provider<AwsEmulatorService> service = registerService(project, extension, AwsEmulatorExtension.DEFAULT_RUNTIME);
         extension.attach(project, service);
         project.getTasks().withType(AbstractAwsEmulatorTask.class).configureEach(extension::configureRuntime);
+        ReportModule.load(project);
         registerLifecycleTasks(project, AwsEmulatorExtension.DEFAULT_RUNTIME);
         extension.getRuntimes().all(runtime -> {
             inheritSettings(extension, runtime);
@@ -56,6 +57,9 @@ public final class EmulatorModule {
         register(project, runtimeName, "doctorAwsEmulator", DoctorAwsEmulatorTask.class, "Diagnoses Docker, images, ports, and project-owned emulator connections.");
         register(project, runtimeName, "cleanupAwsEmulator", CleanupAwsEmulatorTask.class, "Archives logs and removes stale project-owned managed containers.");
         register(project, runtimeName, "exportAwsEmulatorConnection", ExportAwsEmulatorConnectionTask.class, "Exports development connection settings for POSIX shells and PowerShell.");
+        register(project, runtimeName, "reportAwsEmulator", ReportAwsEmulatorTask.class, "Writes HTML and JSON inventories of an existing AWS Emulator.");
+        project.getTasks().named("reportAwsEmulator" + NamedEmulatorRuntime.taskSuffix(runtimeName), ReportAwsEmulatorTask.class)
+            .configure(task -> task.getMode().convention(io.github.gregwhitaker.awsemulator.model.EmulatorMode.DEVELOPMENT));
     }
 
     private static AwsEmulatorExtension registerExtension(Project project) {

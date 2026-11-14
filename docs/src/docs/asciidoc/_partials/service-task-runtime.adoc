@@ -1,0 +1,7 @@
+== Runtime selection
+
+Custom resource tasks default to `MANAGED`. Make the consuming test or application task depend on provisioning and opt that consumer in with `awsEmulator.useWith(...)`. Provisioning and consumers must select the same runtime name and mode.
+
+Every task accepts `runtimeName` (default `default`), `mode`, and `apiCallTimeoutSeconds` (default `30`, positive). Predefined inspection and deletion commands default to `DEVELOPMENT`; select another mode with `--mode=MANAGED` or another declared runtime with `--runtime <name>`. For persistent setup, see xref:lifecycle.adoc#provision-development-resources[development resource tasks].
+
+Resource tasks always execute against live emulator state and do not use the build cache. Configuration-cache reuse is supported. Applying the plugin and listing tasks do not start Docker. Task input values may be stored in Gradle's configuration cache; fixtures should contain local test values.

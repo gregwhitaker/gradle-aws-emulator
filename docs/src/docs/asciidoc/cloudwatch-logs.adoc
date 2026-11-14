@@ -1,0 +1,84 @@
+= CloudWatch Logs
+include::_partials/attributes.adoc[]
+:description: Create CloudWatch log groups and streams, retrieve and filter events, and manage development logs.
+
+Provision log groups and streams for application tests, then retrieve or filter events into local JSON files. Task types live in `io.github.gregwhitaker.awsemulator.aws.cloudwatchlogs`.
+
+toc::[]
+
+== Provision before tests
+
+[source,kotlin]
+----
+import io.github.gregwhitaker.awsemulator.aws.cloudwatchlogs.CreateLogGroupTask
+import io.github.gregwhitaker.awsemulator.aws.cloudwatchlogs.CreateLogStreamTask
+import io.github.gregwhitaker.awsemulator.aws.cloudwatchlogs.FilterLogEventsTask
+
+plugins {
+    java
+    id("io.github.gregwhitaker.aws-emulator")
+}
+
+val logGroup = tasks.register<CreateLogGroupTask>("createTestLogGroup") {
+    logGroupName.set("/application/tests")
+}
+val logStream = tasks.register<CreateLogStreamTask>("createTestLogStream") {
+    dependsOn(logGroup)
+    logGroupName.set("/application/tests")
+    logStreamName.set("application")
+}
+val tests = tasks.named<Test>("test") { dependsOn(logStream) }
+awsEmulator { useWith(tests) }
+
+val filtered = tasks.register<FilterLogEventsTask>("filterTestLogs") {
+    dependsOn(tests)
+    logGroupName.set("/application/tests")
+    filterPattern.set("ready")
+    minimumEvents.set(1)
+    outputFile.set(layout.buildDirectory.file("logs/filtered.json"))
+}
+tasks.register("verifyLogs") { dependsOn(filtered) }
+----
+
+Have the tests write an application log event containing `ready` to the configured group and stream. Run `./gradlew verifyLogs` to provision the stream, run the tests, and retrieve the matching events before managed cleanup.
+
+== Task properties
+
+* `CreateLogGroupTask` / `DeleteLogGroupTask`: `logGroupName`.
+* `CreateLogStreamTask` / `DeleteLogStreamTask`: `logGroupName`, `logStreamName`. Create the group first using `dependsOn`.
+* `ListLogGroupsTask`: lists group names.
+* `GetLogEventsTask`: `logGroupName`, `logStreamName`, `outputFile`, optional `startTime` in epoch milliseconds, `maxEvents` (default 10000).
+* `FilterLogEventsTask`: `logGroupName`, `outputFile`, `filterPattern` (default empty), optional `startTime`, `maxEvents`, `minimumEvents` (default 0), `waitTimeoutSeconds` (default 30).
+
+== Reading and filtering events
+
+Read tasks follow pagination and write JSON arrays without printing message bodies. `GetLogEventsTask` terminates when the forward token stops advancing. `FilterLogEventsTask` optionally polls until at least `minimumEvents` match; each poll replaces its snapshot rather than appending duplicates. Exceeding `maxEvents` fails rather than silently truncating. Raise the limit (maximum 1000000) or narrow the query. SDK calls retain the shared `apiCallTimeoutSeconds` deadline, including when a polling deadline expires during a call.
+
+== Development commands
+
+Predefined commands: `listLogGroups`, `deleteLogGroup --logGroupName=...`, and `deleteLogStream --logGroupName=... --logStreamName=...`. Log retention policies, subscriptions, Logs Insights, metrics, and alarms are outside this initial scope.
+
+When deleting a stream and its group in the same build, declare `tasks.named("deleteLogGroup") { mustRunAfter("deleteLogStream") }`. Configuration-cache execution can run independent tasks concurrently. The runnable example configures this ordering.
+
+
+[source,shell]
+----
+./gradlew listLogGroups
+./gradlew deleteLogStream --logGroupName=/application/tests --logStreamName=application
+./gradlew deleteLogGroup --logGroupName=/application/tests
+----
+
+include::_partials/service-task-runtime.adoc[]
+
+== Runnable example
+
+[source,shell]
+----
+./gradlew -p examples/services verifyServices --configuration-cache
+----
+
+The example writes an application log event through AWS SDK for Java v2, then retrieves and filters the events into JSON files. Run the command twice to check configuration-cache reuse against a fresh managed emulator. `-PfailExample=true` deliberately fails the application test to demonstrate cleanup. See link:{repo-url}/tree/main/examples/services[the runnable example] for its complete setup and persistent development commands.
+
+API: link:api/io/github/gregwhitaker/awsemulator/aws/cloudwatchlogs/CreateLogGroupTask.html[CreateLogGroupTask], link:api/io/github/gregwhitaker/awsemulator/aws/cloudwatchlogs/DeleteLogGroupTask.html[DeleteLogGroupTask], link:api/io/github/gregwhitaker/awsemulator/aws/cloudwatchlogs/CreateLogStreamTask.html[CreateLogStreamTask], link:api/io/github/gregwhitaker/awsemulator/aws/cloudwatchlogs/DeleteLogStreamTask.html[DeleteLogStreamTask], link:api/io/github/gregwhitaker/awsemulator/aws/cloudwatchlogs/ListLogGroupsTask.html[ListLogGroupsTask], link:api/io/github/gregwhitaker/awsemulator/aws/cloudwatchlogs/GetLogEventsTask.html[GetLogEventsTask], link:api/io/github/gregwhitaker/awsemulator/aws/cloudwatchlogs/FilterLogEventsTask.html[FilterLogEventsTask].
+
+include::_partials/service-verification.adoc[]

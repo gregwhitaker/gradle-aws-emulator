@@ -64,4 +64,4 @@ To create buckets and a standard queue that remain available between Gradle invo
 
 The development instance is separate from the managed test instance. Stopping or restarting it discards its resources. Run `stopAwsEmulator` when finished.
 
-See the [main README](../../README.md) for the full S3/SQS task reference, lifecycle commands, and SDK connection details.
+See the [S3 guide](../../docs/src/docs/asciidoc/s3.adoc) and [SQS guide](../../docs/src/docs/asciidoc/sqs.adoc) for their task references. The [main README](../../README.md) covers lifecycle commands and SDK connection details.
