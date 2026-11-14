@@ -1,6 +1,6 @@
 # Documentation site
 
-This Gradle subproject generates a static, offline-capable HTML guide with the plugin's Java API reference. It uses [AsciidoctorJ](https://docs.asciidoctor.org/asciidoctorj/latest/) through a pinned JVM CLI dependency. Java 17+ and the repository's Gradle wrapper are sufficient; no Node, Python, Ruby installation, Docker daemon, or AWS account is required to build the site.
+This Gradle subproject generates a static, offline-capable HTML guide with the plugins' and standalone libraries' Java API references. It uses [AsciidoctorJ](https://docs.asciidoctor.org/asciidoctorj/latest/) through a pinned JVM CLI dependency. Java 17+ and the repository's Gradle wrapper are sufficient; no Node, Python, Ruby installation, Docker daemon, or AWS account is required to build the site.
 
 Run these commands from the repository root:
 

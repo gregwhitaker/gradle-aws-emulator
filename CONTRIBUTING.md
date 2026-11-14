@@ -244,6 +244,31 @@ to the generated site.
 - Include documentation and example updates for public changes. Keep generated
   `build/`, `.gradle/`, and `.aws-emulator/` contents out of commits.
 
+## Standalone Java libraries
+
+`emulator-core/` publishes `io.github.gregwhitaker:aws-emulator-core`; `testcontainers/` publishes
+`io.github.gregwhitaker:testcontainers-aws-emulator`. Both use `pluginVersion` and the
+`build.library-publishing` convention, with source and Javadoc artifacts. Their production
+classpaths do not include Gradle or JUnit. The plugin depends on the shared core library;
+it retains its existing Docker lifecycle and does not depend on Testcontainers.
+
+Run `./gradlew :emulator-core:test :testcontainers:test` without Docker and
+`./gradlew :testcontainers:integrationTest` for signed requests, TLS isolation, and lifecycle
+checks against Docker. Root `build`, `dockerTest`, and coverage reports include the libraries.
+The standalone checkout example is `./gradlew -p examples/testcontainers test --configuration-cache`.
+
+Local publication uses `./gradlew publishToMavenLocal`; use `-Dmaven.repo.local=/absolute/path`
+for an isolated repository. `scripts/smoke-test-publication.sh` verifies both plugins and the
+standalone library as consumers of published artifacts, including configuration-cache reuse.
+
+The plain Java libraries are not uploaded by `publishPlugins`. Before releasing the Gradle
+plugin, publish `aws-emulator-core` with the same version to Maven Central using your Maven
+Central publishing process (including its required signing and metadata). The Portal workflow
+checks that its POM is available before uploading either plugin. Publish the standalone
+Testcontainers library to Maven Central with its matching shared-core dependency as well.
+This repository currently configures local publication; Maven Central credentials, signing,
+and upload configuration must be supplied separately. Do not release a plugin whose shared dependency is unavailable.
+
 ## Publish to the Gradle Plugin Portal
 
 Both plugin modules apply `build.publishing` from the `publishing` subproject of
@@ -261,7 +286,7 @@ The release version comes from `pluginVersion` in the root `gradle.properties`. 
 Run these commands from the repository root without publishing credentials or uploading artifacts:
 
 ```sh
-./gradlew build :plugin:publishToMavenLocal :spring-boot-plugin:publishToMavenLocal -Dmaven.repo.local="$PWD/build/publication-check"
+./gradlew build publishToMavenLocal -Dmaven.repo.local="$PWD/build/publication-check"
 bash scripts/smoke-test-publication.sh "$PWD/build/publication-check"
 ./gradlew dockerTest
 ```

@@ -1,0 +1,76 @@
+= Standalone Testcontainers
+include::_partials/attributes.adoc[]
+:description: Run AWS Emulator directly from Java tests with Testcontainers, generated credentials, and verified HTTPS.
+
+`testcontainers-aws-emulator` is a standalone Java 17+ library using Testcontainers 2.0.5. It runs independently of the Gradle emulator plugin, including through an IDE's JUnit runner or Maven.
+
+toc::[]
+
+== Try the example
+
+From the checkout root:
+
+[source,shell]
+----
+./gradlew -p examples/testcontainers test --configuration-cache
+----
+
+Repeat the command to reuse configuration while testing a fresh emulator. The example creates an S3 bucket and round-trips an object over verified HTTPS. Its build applies only Gradle's Java plugin and substitutes the library from this checkout.
+
+Version {revnumber} is unreleased. To use another local build, publish both Java libraries:
+
+[source,shell]
+----
+./gradlew :emulator-core:publishToMavenLocal :testcontainers:publishToMavenLocal
+----
+
+Use `mavenLocal()` and `mavenCentral()` in that consumer and add `io.github.gregwhitaker:testcontainers-aws-emulator:{revnumber}` to its test dependencies. Add `org.testcontainers:testcontainers-junit-jupiter:2.0.5` for JUnit integration, plus the application's AWS SDK service modules and JUnit dependencies. JUnit and Gradle APIs are not dependencies of the library itself.
+
+== Use the container
+
+Import `io.github.gregwhitaker.awsemulator.testcontainers.AwsEmulatorContainer`:
+
+[source,java]
+----
+@Container
+static final AwsEmulatorContainer aws = new AwsEmulatorContainer();
+----
+
+Annotate the test class with `@Testcontainers`. A static container is shared by the class's test methods and stopped after the class. Alternatively, use try-with-resources and call `start()` explicitly.
+
+Configure SDK clients explicitly:
+
+[source,java]
+----
+try (var s3 = S3Client.builder()
+        .endpointOverride(aws.getEndpoint())
+        .region(Region.of(aws.getRegion()))
+        .credentialsProvider(aws.getCredentialsProvider())
+        .httpClientBuilder(aws.getHttpClientBuilder())
+        .forcePathStyle(true)
+        .build()) {
+    s3.createBucket(request -> request.bucket("example-bucket"));
+}
+----
+
+The HTTP builder applies trust to that SDK client only; it retains certificate and hostname verification. No global SSL context, JVM properties, or environment variables are changed. For operations using host prefixes, set `SdkAdvancedClientOption.DISABLE_HOST_PREFIX_INJECTION` as described in xref:connections.adoc[credentials and TLS].
+
+== Configuration and lifecycle
+
+The default constructor builds pinned emulator release `1.0.322`. Pass a release string to build another version, or a `DockerImageName` to use a compatible custom image. Image preparation is deferred until startup, selects the Docker daemon's AMD64 or ARM64 architecture, and caches the built image for later runs.
+
+Use `withRegion(...)` (default `us-east-1`), `withTelemetryEnabled(...)` (default `false`), and `withStartupTimeout(...)` (default 120 seconds, excluding image preparation). Containers enable authentication, use internal port 9297 and a random mapped host port, and have a 2 GiB memory limit.
+
+The container stores generated files in a 16 MiB in-memory `/home/emulator` directory owned by UID 1000. Custom images need the `cat` utility and should use UID 1000 (or root), or override the mount ownership through `withTmpFs(...)`.
+
+The library copies generated credentials, CA, and trust-store files through Docker's API into a private temporary directory. It verifies the HTTPS health endpoint before returning from startup. `getCredentialsFile()` and `getCertificateFile()` expose files for other consumers; they remain valid until stop. Normal stop and failed startup clean up the container and exported files. Restart starts with fresh AWS state. Persistent `withReuse(true)` is unsupported.
+
+The Docker host must be reachable and covered by the emulator's certificate. Local environments using `localhost` or `127.0.0.1` are the intended default. Remote hosts, custom aliases, or applications in other containers may need additional routing and valid certificates. Certificate verification is never disabled. Standard Testcontainers Docker configuration applies; the library does not require the Docker CLI.
+
+== Relationship to the Gradle plugin
+
+The Gradle plugin keeps its existing managed and development lifecycles and does not depend on Testcontainers. Both adapters use `aws-emulator-core` for image definitions, credential parsing, TLS trust, and health checks.
+
+When Testcontainers owns the emulator, provision resources in Java test setup. A JUnit-started container does not exist when preceding Gradle provisioning tasks run. To use xref:external-emulators.adoc[external connection mode], an external owner must start the container and provide its connection files before the Gradle tasks execute, and keep it alive until they finish.
+
+See the link:{repo-url}/tree/main/examples/testcontainers[complete example], link:testcontainers-api/index.html[Testcontainers API], and link:runtime-api/index.html[shared runtime API].

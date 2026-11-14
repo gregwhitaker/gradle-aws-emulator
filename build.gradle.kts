@@ -22,14 +22,17 @@ plugins {
 
 description = "Build, verification, and documentation for the AWS Emulator Gradle plugin"
 
-tasks.named("assemble") { dependsOn(":plugin:assemble", ":spring-boot-plugin:assemble", ":docs:assemble") }
-tasks.named("check") { dependsOn(":plugin:check", ":spring-boot-plugin:check", ":docs:check") }
-tasks.named("clean") { dependsOn(":plugin:clean", ":spring-boot-plugin:clean", ":docs:clean") }
+for (lifecycle in listOf("assemble", "check", "clean")) {
+    tasks.named(lifecycle) {
+        dependsOn(listOf("emulator-core", "testcontainers", "plugin", "spring-boot-plugin", "docs")
+            .map { ":$it:$lifecycle" })
+    }
+}
 
 // Preserve the 0.1 command while keeping real-emulator tests in their own source set.
 tasks.register("dockerTest") {
     group = "verification"
-    description = "Runs both integration suites against Docker and generates coverage reports."
+    description = "Runs plugin and standalone Testcontainers integration suites against Docker."
     dependsOn("jacocoIntegrationTestReport")
 }
 

@@ -6,6 +6,8 @@ Opt existing `Test`, `JavaExec`, or `Exec` tasks into the emulator with `awsEmul
 
 toc::[]
 
+For Java tests that own their emulator directly through JUnit or another test runner, see xref:testcontainers.adoc[standalone Testcontainers]. The Gradle lifecycle described here remains independent.
+
 To use an already-running emulator, configure xref:external-emulators.adoc[`awsEmulator.external`]. The same consumer wiring applies. Both modes use that endpoint, and no external resources or connection source files are removed after the build.
 
 For independent suites in one project, declare xref:named-runtimes.adoc[named runtimes] and select them with `useWith(task, "integration", setupTasks...)` or `useWith(task, "integration", EmulatorMode.DEVELOPMENT, setupTasks...)`. Existing overloads select `default`. `useWithRuntime(task, runtimeNameProvider, modeProvider, setupTasks...)` supports lazy selections. Typed setup tasks inherit the selected name unless explicitly assigned; conflicting names fail before execution. Reusable resource sets create separate tasks for each name and mode.

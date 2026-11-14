@@ -1,9 +1,10 @@
 # Examples
 
-Standalone Kotlin DSL builds demonstrating the AWS Emulator Gradle plugin with AWS SDK for Java v2 and JUnit 5. Each example uses the plugin from this checkout, so publishing or installing the plugin is unnecessary.
+Standalone Kotlin DSL builds demonstrating the AWS Emulator Gradle plugin with AWS SDK for Java v2 and JUnit 5. Examples use this checkout through composite builds, so publishing is unnecessary. The standalone Testcontainers example consumes the Java library without applying the emulator plugin.
 
 | Example | Demonstrates |
 | --- | --- |
+| [Standalone Testcontainers](testcontainers/README.md) | JUnit-owned AWS Emulator, explicit SDK TLS and credentials, and S3 requests without the Gradle emulator plugin. |
 | [Basic](basic/README.md) | S3 buckets, standard and FIFO SQS queues, a dead-letter queue, message fixtures, and signed STS requests. |
 | [Named runtimes](named-runtimes/README.md) | Independent test suites and development scenarios within one project, reusable resources, and an optional external connection. |
 | [Existing emulator](external/README.md) | Explicit endpoint, credentials, and CA files; SQS/Kinesis provisioning and tests without managing the emulator's lifecycle. |

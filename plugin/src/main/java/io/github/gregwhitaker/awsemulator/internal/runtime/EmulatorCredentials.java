@@ -17,28 +17,14 @@
 package io.github.gregwhitaker.awsemulator.internal.runtime;
 
 import org.gradle.api.GradleException;
-import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
-import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
-import software.amazon.awssdk.profiles.ProfileFile;
 import java.nio.file.Path;
 
-/** Reads only explicit emulator credentials and keeps parser diagnostics from exposing their contents. */
+/** Adapts shared credential parsing to Gradle diagnostics. */
 public final class EmulatorCredentials {
     private EmulatorCredentials() {}
-
     public static AwsCredentials read(Path file) {
-        try {
-            var profile = ProfileFile.builder().type(ProfileFile.Type.CREDENTIALS).content(file)
-                .build().profile("default").orElseThrow();
-            String access = profile.property("aws_access_key_id").filter(value -> !value.isBlank()).orElseThrow();
-            String secret = profile.property("aws_secret_access_key").filter(value -> !value.isBlank()).orElseThrow();
-            String token = profile.property("aws_session_token").filter(value -> !value.isBlank()).orElse(null);
-            return token == null ? AwsBasicCredentials.create(access, secret) : AwsSessionCredentials.create(access, secret, token);
-        } catch (RuntimeException e) {
-            // Profile parser exceptions may quote the offending line, including credential values.
-            throw new GradleException("Cannot read AWS Emulator credentials. Supply a readable credentialsFile with "
-                + "a [default] profile containing aws_access_key_id and aws_secret_access_key.");
-        }
+        try { return io.github.gregwhitaker.awsemulator.runtime.EmulatorCredentials.read(file); }
+        catch (IllegalArgumentException e) { throw new GradleException(e.getMessage()); }
     }
 }

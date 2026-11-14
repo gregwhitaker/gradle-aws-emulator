@@ -41,6 +41,7 @@ publishing {
 }
 
 dependencies {
+    implementation(project(":emulator-core"))
     implementation(platform("software.amazon.awssdk:bom:2.39.6"))
     implementation("software.amazon.awssdk:s3") {
         exclude(group = "software.amazon.awssdk", module = "apache-client")
