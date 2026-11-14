@@ -71,7 +71,14 @@ public final class DockerImageBuilder {
     }
 
     public static String dockerfile(String version, String platform) {
-        return io.github.gregwhitaker.awsemulator.runtime.EmulatorImage.dockerfile(version, platform);
+        String architecture = platform.equals("linux/arm64") ? "aarch64" : "x86_64";
+        return "FROM public.ecr.aws/amazonlinux/amazonlinux:2023-minimal\n"
+            + "ADD https://downloads.aws.com/aws-emulator/packages/aws-emulator/LTS/aws-emulator-" + version
+            + "-1-" + architecture + ".rpm /tmp/aws-emulator.rpm\n"
+            + "RUN rpm -i /tmp/aws-emulator.rpm && rm /tmp/aws-emulator.rpm "
+            + "&& mkdir -p /home/emulator && chown 1000 /home/emulator\n"
+            + "USER 1000\nENV HOME=/home/emulator\nEXPOSE 9297\n"
+            + "ENTRYPOINT [\"aws-emulator\", \"--bind\", \"0.0.0.0\"]\n";
     }
 
     public record Image(String reference, String platform) {}

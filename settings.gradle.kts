@@ -19,4 +19,4 @@ pluginManagement {
 }
 
 rootProject.name = "gradle-aws-emulator"
-include("emulator-core", "testcontainers", "plugin", "spring-boot-plugin", "docs")
+include("plugin", "spring-boot-plugin", "docs")

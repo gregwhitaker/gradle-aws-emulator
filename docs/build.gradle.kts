@@ -98,21 +98,19 @@ val indexGuide = tasks.register<JavaExec>("indexGuide") {
 val site = tasks.register<Sync>("site") {
     description = "Generates the complete static site in docs/build/site."
     group = "documentation"
-    dependsOn(renderDocs, indexGuide, ":plugin:javadoc", ":spring-boot-plugin:javadoc", ":emulator-core:javadoc", ":testcontainers:javadoc")
+    dependsOn(renderDocs, indexGuide, ":plugin:javadoc", ":spring-boot-plugin:javadoc")
     val apiHeadFile = layout.projectDirectory.file("src/templates/api-head.html")
     val apiHeaderFile = layout.projectDirectory.file("src/templates/api-header.html")
     val apiHead = providers.fileContents(apiHeadFile).asText.get()
     val apiHeader = providers.fileContents(apiHeaderFile).asText.get()
     inputs.files(apiHeadFile, apiHeaderFile).withPathSensitivity(PathSensitivity.RELATIVE)
-    inputs.file(layout.projectDirectory.file("build.gradle.kts")).withPathSensitivity(PathSensitivity.NONE)
     from(renderedPages) {
         // Exclude obsolete pages left by earlier renders; Sync removes them from the site.
         include(pageNames.map { it.removeSuffix(".adoc") + ".html" })
     }
     from("src/site")
     from(searchAssets)
-    for ((module, destination) in listOf("plugin" to "api", "spring-boot-plugin" to "spring-boot-api",
-        "emulator-core" to "runtime-api", "testcontainers" to "testcontainers-api")) {
+    for ((module, destination) in listOf("plugin" to "api", "spring-boot-plugin" to "spring-boot-api")) {
         from(project(":$module").layout.buildDirectory.dir("docs/javadoc")) {
             into(destination)
             filteringCharset = "UTF-8"
@@ -132,21 +130,6 @@ val site = tasks.register<Sync>("site") {
                 // The shared theme uses system fonts; skip the doclet's unused font import.
                 filter { line: String ->
                     if (line.trim() == "@import url('resources/fonts/dejavu.css');") "" else line
-                }
-            }
-            filesMatching("constant-values.html") {
-                // Some doclets link to a two-component package group but give a
-                // single-package section its full name. Preserve both anchors.
-                val constantGroups = mutableSetOf<String>()
-                filter { line: String ->
-                    Regex("""<section class="constants-summary" id="([^"]+)">""").replace(line) { section ->
-                        val packageName = section.groupValues[1]
-                        val group = packageName.split('.').take(2).joinToString(".")
-                        val firstGroup = constantGroups.add(group)
-                        if (firstGroup && group != packageName) {
-                            """<span id="$group" aria-hidden="true"></span>${section.value}"""
-                        } else section.value
-                    }
                 }
             }
         }

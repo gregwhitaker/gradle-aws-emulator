@@ -174,12 +174,6 @@ Micronaut and Ktor use the core plugin with their existing `run` and `test` task
 
 Browse the [examples](examples/README.md) and follow the included instructions to run them locally.
 
-## Standalone Testcontainers
-
-The separate [`testcontainers-aws-emulator`](testcontainers/README.md) Java library runs AWS Emulator directly from JUnit, IDEs, or other Java test runners. It provides an `AwsEmulatorContainer` with generated credentials, verified HTTPS, and automatic cleanup. It requires Java 17+ and Testcontainers 2.0.5, and has no Gradle API dependency.
-
-Try the checkout example with `./gradlew -p examples/testcontainers test --configuration-cache`. Version 0.2.0 is unreleased; see the module README for local publication. Both libraries share image, credential, TLS, and health support through [`aws-emulator-core`](emulator-core/README.md). The Gradle plugin retains its existing managed and development lifecycles and does not depend on Testcontainers.
-
 ## Documentation
 
 See the [documentation website](https://gregwhitaker.github.io/gradle-aws-emulator/) for the user guide and Java API reference.

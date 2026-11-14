@@ -50,7 +50,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6.4.1
         with:
           gradle-version: ${{ matrix.gradle }}
-      - run: gradle build publishToMavenLocal "-Dmaven.repo.local=${{ runner.temp }}/plugin-publication" --no-daemon
+      - run: gradle build :plugin:publishToMavenLocal :spring-boot-plugin:publishToMavenLocal "-Dmaven.repo.local=${{ runner.temp }}/plugin-publication" --no-daemon
       - name: Smoke-test published plugins and configuration-cache reuse
         shell: bash
         env:
@@ -79,6 +79,4 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v6.4.1
-      - run: ./gradlew :plugin:integrationTest :spring-boot-plugin:integrationTest :testcontainers:integrationTest --no-daemon
-      - name: Run standalone JUnit example
-        run: ./gradlew -p examples/testcontainers test --configuration-cache --configuration-cache-problems=fail --no-daemon
+      - run: ./gradlew :plugin:integrationTest :spring-boot-plugin:integrationTest --no-daemon

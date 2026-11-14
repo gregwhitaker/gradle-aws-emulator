@@ -32,7 +32,7 @@ if [[ -z "$version" || "$version" == *$'\n'* ]]; then
 fi
 log="$(mktemp)"
 trap 'rm -f "$log"' EXIT
-for consumer in core spring-boot testcontainers; do
+for consumer in core spring-boot; do
   args=(-p "smoke-tests/$consumer" build "-PpluginVersion=$version"
     "-PpluginRepository=$repository" --configuration-cache
     --configuration-cache-problems=fail --no-daemon --console=plain)

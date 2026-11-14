@@ -28,14 +28,14 @@ jacoco {
 if (project == rootProject) {
     repositories { mavenCentral() }
 
-    val coverageModules = listOf("emulator-core", "testcontainers", "plugin", "spring-boot-plugin").map { project(":$it") }
+    val coverageModules = listOf(project(":plugin"), project(":spring-boot-plugin"))
     for ((reportName, suites) in listOf(
         "jacocoTestReport" to listOf("test", "functionalTest"),
         "jacocoIntegrationTestReport" to listOf("integrationTest")
     )) {
         tasks.register<JacocoReport>(reportName) {
             group = "verification"
-            description = "Generates combined coverage for ${suites.joinToString()} in all Java modules."
+            description = "Generates combined coverage for ${suites.joinToString()} in both plugins."
             dependsOn(coverageModules.map { "${it.path}:$reportName" })
             classDirectories.from(coverageModules.map { it.layout.buildDirectory.dir("classes/java/main") })
             sourceDirectories.from(coverageModules.map { it.layout.projectDirectory.dir("src/main/java") })
@@ -70,9 +70,6 @@ pluginManager.withPlugin("java-gradle-plugin") {
         }
     }
 
-}
-
-pluginManager.withPlugin("java") {
     tasks.named<JacocoReport>("jacocoTestReport") {
         description = "Generates coverage from unit and Docker-free functional tests."
         dependsOn(tasks.named("test"), tasks.named("functionalTest"))
