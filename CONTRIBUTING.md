@@ -388,6 +388,9 @@ to the generated site.
 
 ## Publish to the Gradle Plugin Portal
 
+Follow the [release guide](RELEASING.md) for prerequisites, version and changelog
+preparation, verification, tagging, publication, and post-release work.
+
 Both plugin modules apply `build.publishing` from the `publishing` subproject of
 the included `build-logic` build. Its configuration lives in
 `build-logic/publishing/src/main/kotlin/build.publishing.gradle.kts`. It applies
@@ -400,59 +403,21 @@ The release version comes from `pluginVersion` in the root `gradle.properties`. 
 
 ### Verify the publication locally
 
-Run these commands from the repository root without publishing credentials or uploading artifacts:
-
-```sh
-./gradlew build :plugin:publishToMavenLocal :spring-boot-plugin:publishToMavenLocal -Dmaven.repo.local="$PWD/build/publication-check"
-bash scripts/smoke-test-publication.sh "$PWD/build/publication-check"
-./gradlew dockerTest
-```
-
-The first command writes the implementation and marker publications to `build/publication-check/` without changing your usual Maven local repository. The smoke consumers restrict emulator artifacts to that repository, verify public task types and transitive dependencies, and package a minimal application with Spring Boot without starting Docker. The companion consumer applies only the companion ID, checking its dependency on the core artifact. Each consumer runs twice, and the script fails unless the second run reuses the configuration cache. The script requires Bash (Git Bash on Windows); set `GRADLE` to a Gradle executable to check another installed distribution. Portal validation with `--validate-only` also requires publishing credentials and contacts the Portal, but does not upload the release.
+The release workflow runs verification automatically. Use the
+[optional local checks](RELEASING.md#optional-local-checks) to check metadata,
+build local publications, and run smoke or Docker tests before pushing.
 
 ### Publish with GitHub Actions
 
-Create a [Plugin Portal account and API key](https://plugins.gradle.org/docs/publish-plugin), linked to the `gregwhitaker` GitHub account so the Portal can verify the plugin namespace. Add the key and secret to this repository's GitHub Actions secrets as `GRADLE_PUBLISH_KEY` and `GRADLE_PUBLISH_SECRET`.
-
-To release through GitHub Actions:
-
-1. Set `pluginVersion` to the release version. Use `MAJOR.MINOR.PATCH` or a SemVer prerelease such as `0.2.0-rc.1`, without `SNAPSHOT` or build metadata. Finalize the top changelog section with that exact version and a real release date, for example `## 0.2.0 — 2026-11-12`, replacing `Unreleased` only when releasing. Commit the release changes.
-2. Push that commit and a matching version tag, for example `v0.2.0` for `pluginVersion=0.2.0`.
-3. The [publish workflow](.github/workflows/publish.yml) checks the tag and dated changelog, builds both plugins and docs, runs unit/functional/Docker integration tests, publishes to an isolated local repository, and checks both smoke consumers including configuration-cache reuse before validating and uploading both plugins. It can also be dispatched manually against a matching version tag.
-
-Before tagging, run the metadata guard locally (no credentials or network needed), substituting your version:
-
-```sh
-python3 -m unittest discover -s scripts/tests -v
-python3 scripts/verify-release.py --ref-type tag --ref-name v0.2.0
-```
-
-The guard intentionally rejects the current `Unreleased` changelog. Passing it verifies metadata, not the build or Portal approval. Review successful CI, including both Docker architectures, for the intended release commit before pushing the tag.
-
-For example, from the intended release commit:
-
-```sh
-git tag v0.2.0
-git push origin v0.2.0
-```
+Follow [make a release](RELEASING.md#make-a-release): update the version and
+changelog, wait for CI, and push the matching tag. The workflow tests and publishes
+both plugins. See [after publishing](RELEASING.md#after-publishing) for release
+notes, first-publication documentation updates, and the next development version.
 
 ### Publish from your machine
 
-To publish locally, provide `GRADLE_PUBLISH_KEY` and `GRADLE_PUBLISH_SECRET` in your environment, or put `gradle.publish.key` and `gradle.publish.secret` in your user-level `~/.gradle/gradle.properties`. Keep credentials out of this repository. After running the validation commands above:
-
-```sh
-./gradlew :plugin:publishPlugins --validate-only :spring-boot-plugin:publishPlugins --validate-only
-./gradlew :plugin:publishPlugins :spring-boot-plugin:publishPlugins
-```
-
-The two Portal publications are not atomic. If the core uploads but the companion fails, inspect both versions on the Portal before retrying. Do not blindly rerun the full publish workflow against an already published core version; validate and publish only the missing companion from the same release commit after resolving the failure. Never replace an uploaded version with different artifacts.
-
-The first publication requires [Portal approval](https://plugins.gradle.org/docs/publish-plugin#approval). Published versions are immutable; use a new version for subsequent releases. After approval, update the publication-status text in the [README](README.md) and the user guide. Applications can then apply the released plugin without a composite build:
-
-```kotlin
-plugins {
-    id("io.github.gregwhitaker.aws-emulator") version "0.2.0"
-}
-```
+Use [failure recovery](RELEASING.md#if-publication-fails) if a release uploads
+only one plugin. Check Portal status first, then publish only the missing module
+from the same release tag after the Actions run finishes.
 
 This project is licensed under the [Apache License 2.0](LICENSE).
