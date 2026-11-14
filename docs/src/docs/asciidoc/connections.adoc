@@ -24,6 +24,8 @@ The plugin removes inherited AWS credential, profile, and service-endpoint envir
 
 Connection material is read or generated at execution time; credential values are not serialized into the configuration cache. Authentication remains enabled. Readiness checks validate the certificate and endpoint hostname. See xref:external-emulators.adoc[existing emulators] for using supplied files without Docker.
 
+With xref:remote-docker.adoc[Docker tunnel transport], the plugin copies generated connection files from the container to a private local directory and forwards HTTPS to a loopback endpoint in the Gradle runner. The same credential and TLS checks apply, including certificate and hostname verification.
+
 == Use compatible SDK clients
 
 Use an SDK that supports external endpoint configuration. The runnable example verifies AWS SDK for Java v2 `2.39.6`. An SDK client that hardcodes an endpoint will keep using it.

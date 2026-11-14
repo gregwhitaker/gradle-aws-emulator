@@ -26,6 +26,8 @@ Each project README includes run commands, source links, and instructions for ma
 
 Use Java 17 or later, a running local Docker engine configured for Linux containers, and the repository's Gradle wrapper. The `docker` command must be available for examples that own their runtime; the existing-emulator example only needs connection details. No AWS account or AWS CLI is required.
 
+The named-runtime and multi-project examples also support containerized CI and remote engines through `-PdockerTunnel=true`. Select the daemon with `-PdockerContext=<name>` or `-PdockerHost=<address>`, or use Docker's environment. See the [remote Docker guide](../docs/src/docs/asciidoc/remote-docker.adoc).
+
 Run the documented commands from the **repository root**. The examples are independent builds selected with `-p examples/<example>`; they are not subprojects of the root build. The first run downloads dependencies and builds the emulator image, which later runs reuse.
 
 See the [main README](../README.md) for plugin configuration and the [documentation README](../docs/README.md) for instructions to generate the HTML guide and API reference.

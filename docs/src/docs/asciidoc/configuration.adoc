@@ -14,10 +14,13 @@ toc::[]
 |`emulatorVersion` |`1.0.322` |Pinned AWS Emulator package used when building an image.
 |`image` |Unset |Use this Docker image instead of building one. Pull it if it is missing locally.
 |`platform` |`auto` |Detect the Docker engine architecture, or select `linux/amd64` or `linux/arm64`.
-|`port` |`9297` |Host and container port. `0` selects a port. Also configurable with `-PawsEmulator.port=...`.
+|`port` |`9297` |Local endpoint port; also the container port with `DIRECT`. `0` selects a port. Also configurable with `-PawsEmulator.port=...`.
 |`region` |`us-east-1` |Region passed to consuming SDKs and resource provisioning.
 |`telemetryEnabled` |`false` |Explicitly enable the emulator's AWS telemetry.
 |`dockerExecutable` |`docker` |Docker command name or absolute executable path.
+|`docker.host` |Empty |Docker daemon address passed as `--host`, such as `ssh://builder@example.com`. Mutually exclusive with `docker.context`.
+|`docker.context` |Empty |Docker context name passed as `--context`. With both selection properties empty, Docker uses its existing context/environment.
+|`docker.transport` |`DockerTransport.DIRECT` |`DIRECT` uses local port publication and bind mounts. `TUNNEL` supports managed runtimes in containerized CI and on remote engines; see xref:remote-docker.adoc[remote Docker].
 |`memoryLimit` |`2g` |Container memory limit. Swap is capped at the same total.
 |`startupTimeoutSeconds` |`60` |HTTPS readiness deadline after the container starts, or while connecting to an external emulator.
 |`commandTimeoutSeconds` |`60` |Timeout for each normal Docker command.

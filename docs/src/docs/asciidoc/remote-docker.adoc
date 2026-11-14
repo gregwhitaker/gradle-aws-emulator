@@ -1,0 +1,107 @@
+= Containerized CI and remote Docker
+include::_partials/attributes.adoc[]
+:description: Run managed AWS Emulator instances from containerized Gradle runners and remote Docker engines.
+
+Use `DockerTransport.TUNNEL` when the Gradle runner and Docker engine have different filesystems or network namespaces. This includes CI job containers, Docker-in-Docker service containers, and engines reached through SSH or a Docker context.
+
+toc::[]
+
+== Configure a managed runtime
+
+[source,kotlin]
+----
+import io.github.gregwhitaker.awsemulator.model.DockerTransport
+
+awsEmulator {
+    port.set(0)
+    docker {
+        transport.set(DockerTransport.TUNNEL)
+        context.set("ci") // Optional: use an existing Docker context
+    }
+    useWith(tasks.named<Test>("test"))
+}
+----
+
+.Groovy DSL
+[source,groovy]
+----
+import io.github.gregwhitaker.awsemulator.model.DockerTransport
+
+awsEmulator {
+    port.set(0)
+    docker {
+        transport.set(DockerTransport.TUNNEL)
+        host.set('ssh://builder@example.com')
+    }
+    useWith(tasks.named('test'))
+}
+----
+
+The `docker` CLI must be installed in the Gradle runner. Set either `docker.context` or `docker.host`, or leave both empty to use Docker's existing context/environment, including `DOCKER_HOST` and `DOCKER_CONTEXT`. Explicit selection is passed to every Docker command, including image preparation, file copying, forwarding, logs, and cleanup. Authentication and SSH/TLS settings come from Docker's client configuration; the plugin does not manage Docker credentials.
+
+For a CI service container already exposed through `DOCKER_HOST`, only `transport.set(DockerTransport.TUNNEL)` and the usual managed consumer wiring are needed. Select `port.set(0)` to reserve an available loopback port in the runner.
+
+== Named and shared runtimes
+
+Named runtimes lazily inherit the default runtime's Docker selection and transport:
+
+[source,kotlin]
+----
+awsEmulator {
+    docker {
+        transport.set(DockerTransport.TUNNEL)
+        context.set("ci")
+    }
+    runtimes {
+        register("integration")
+        register("acceptance")
+        register("otherEngine") {
+            docker {
+                context.set("") // Clear the inherited context when selecting a host
+                host.set("ssh://builder@another-host")
+            }
+        }
+    }
+    useWith(tasks.named<Test>("integrationTest"), "integration")
+    useWith(tasks.named<Test>("acceptanceTest"), "acceptance")
+}
+----
+
+Each name has its own container, local endpoint, connection files, and cleanup. For xref:shared-runtimes.adoc[shared runtimes], put these settings in the owner project. Consumers select `useSharedRuntime(":local-aws")` and a runtime name normally; the owner's Docker settings apply to all consumers. Provisioning tasks, resource sets, and managed Spring Boot consumers use the same connection.
+
+Configuration-cache reuse and Isolated Projects are supported. Docker calls and generated credential reads occur during execution. Applying the plugin and listing tasks do not contact the engine.
+
+== Connectivity and lifecycle
+
+The plugin starts an owned container on the selected engine, copies its credentials and TLS files into the runner's private runtime directory, and forwards HTTPS over Docker's control connection. Consumers receive a loopback URL such as `https://127.0.0.1:42317`. Certificate and hostname verification remain enabled.
+
+No emulator port is published on the Docker host, and the emulator does not bind-mount the runner's workspace. The container uses port `9297` internally; `awsEmulator.port` chooses the runner's endpoint port. Consumers must run in the runner's network namespace and be able to read its generated connection files.
+
+The tunnel belongs to the managed build service. When participating tasks finish, including ordinary task and provisioning failures, it closes forwarding processes, archives container logs, removes the container, and deletes copied connection files. Logs remain under the selected runtime's `workingDirectory/logs`. Emulator state is in memory and is discarded with the container.
+
+`TUNNEL` supports `MANAGED` instances. Persistent development commands such as `startAwsEmulator`, `restartAwsEmulator`, and connection export are rejected before starting a container. The default `DIRECT` transport continues to support local managed and development instances through loopback port publication and bind mounts. Use xref:external-emulators.adoc[an external connection] for a persistent remote instance managed elsewhere.
+
+== Images and diagnostics
+
+The default pinned image includes the tools required by the tunnel. A custom image must run AWS Emulator as its entrypoint, accept the normal CLI options, and write `emulator_credentials`, `ca.pem`, and `truststore.p12` under `/home/emulator/.aws/emulator/9297/`. It must provide `/bin/bash` with TCP redirections and `wait -n`, and `cat`. The image user needs write access to `/home/emulator`.
+
+Each active HTTPS connection uses a Docker exec stream; the tunnel allows up to 64 simultaneous connections per runtime. Network latency to the engine also affects startup and SDK requests. Adjust `startupTimeoutSeconds`, `commandTimeoutSeconds`, and resource tasks' `apiCallTimeoutSeconds` for the CI environment.
+
+`doctorAwsEmulator` reports the selected transport and Docker daemon. It does not probe another build's loopback tunnel. A forced Gradle process termination or loss of the Docker connection can leave a container behind. `cleanupAwsEmulator` removes stopped, owned tunneled containers, but skips running ones because another runner's local lock files cannot prove that its build is inactive. Inspect the reported container ID and stop/remove it through Docker only after its owning job has ended.
+
+== Run the examples
+
+The named and shared examples accept `-PdockerTunnel=true`, plus either `-PdockerContext=<name>` or `-PdockerHost=<address>`:
+
+[source,shell]
+----
+./gradlew -p examples/named-runtimes integrationTest acceptanceTest \
+  -PdockerTunnel=true -PdockerContext=ci --configuration-cache
+
+./gradlew -p examples/multi-project verifySharedRuntime \
+  -PdockerTunnel=true -PdockerHost=ssh://builder@example.com --configuration-cache
+----
+
+Repeat a command to verify configuration-cache reuse. Omit the selection property to use the runner's Docker environment. The same commands work against a local engine for trying tunnel mode before configuring CI.
+
+API: link:api/io/github/gregwhitaker/awsemulator/emulator/DockerRuntimeConfiguration.html[DockerRuntimeConfiguration] and link:api/io/github/gregwhitaker/awsemulator/model/DockerTransport.html[DockerTransport].

@@ -69,3 +69,13 @@ The root build declares the core plugin with `apply false` so all sharing projec
 The same `useSharedRuntime(":local-aws", "application")` call works with the Spring Boot companion. Its `bootRunLocal` and `bootRunLocalDebug` tasks automatically receive the owner resources in their selected mode. Long-running Boot applications in different projects can run with `--parallel`; configure separate application HTTP and debug ports. Selecting a shared runtime does not start ordinary `bootRun` or opt tests in automatically.
 
 Sharing is explicit and limited to projects in the same Gradle build. Omit the resource-set names to share only the runtime. Separate Gradle invocations get separate managed instances; development invocations can reuse the owner's persistent instance. Sharing does not order application tasks or isolate their resource data.
+
+## Containerized CI and remote Docker
+
+The owner project configures Docker once for both consumers:
+
+```sh
+./gradlew -p examples/multi-project verifySharedRuntime -PdockerTunnel=true --configuration-cache
+```
+
+Add `-PdockerContext=ci` or `-PdockerHost=ssh://builder@example.com` to select the engine explicitly; otherwise Docker uses its existing environment/context. No shared host paths or published emulator ports are needed. Both consumers use the owner's managed tunnel and provisioning. Repeat the command to verify configuration-cache reuse. Use this with managed runs; `-Pdevelopment=true` requires the default direct transport. See the [remote Docker guide](../../docs/src/docs/asciidoc/remote-docker.adoc).

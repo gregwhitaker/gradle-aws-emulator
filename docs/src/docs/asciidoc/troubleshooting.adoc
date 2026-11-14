@@ -14,7 +14,7 @@ Check that Java is at least 17 and Gradle is at least 8.14. See xref:getting-sta
 
 == Docker is unavailable or startup times out
 
-Confirm the local Docker engine is running Linux containers and that the configured `dockerExecutable` is available. The first run needs network access to build or pull the image.
+Confirm the selected Docker engine is running Linux containers and that the configured `dockerExecutable` is available in the Gradle runner. The first run needs network access to build or pull the image. For containerized runners and remote engines, select `DockerTransport.TUNNEL`; see xref:remote-docker.adoc[CI and remote Docker].
 
 Run `./gradlew doctorAwsEmulator` for a read-only report of the configured Docker executable, daemon, platform, image availability, port, project-owned containers, generated connection files, and HTTPS health. It reports diagnostic errors without starting an emulator or building/pulling an image. Missing connection files and changed settings are identified in the report.
 
@@ -34,7 +34,7 @@ These status/log tasks inspect the development instance. For managed failures, i
 
 Use `port.set(0)` for concurrent projects, builds, or a managed instance alongside a persistent development instance. A fixed default of `9297` can collide with another process.
 
-Automatic selection has a short race before Docker binds the port. If another process claims it, startup fails and cleans up. Retry after resolving the competing process.
+With `DIRECT`, automatic selection has a short race before Docker binds the port. If another process claims it, startup fails and cleans up. Retry after resolving the competing process. `TUNNEL` reserves its local listener atomically and publishes no emulator port on the engine.
 
 If you configure `port.set(0)` explicitly, `-PawsEmulator.port=...` no longer controls it unless your property expression reads that override. The xref:configuration.adoc#configure-a-project[configuration examples] preserve this behavior.
 
@@ -76,6 +76,8 @@ Ordinary task failures trigger managed cleanup. A hard kill or unavailable Docke
 ----
 
 Cleanup archives logs before removal and verifies ownership labels, the runtime-home marker, and the managed lifetime lock. It skips instances still leased by an active build and all development instances. Legacy running containers without a lifetime lock are skipped because activity cannot be established; identify and stop those individually before retrying. A running development instance intentionally survives Gradle; use `stopAwsEmulator` when that session is finished.
+
+For `TUNNEL`, cleanup skips running containers because another runner's filesystem cannot prove that its build has ended. It can remove stopped, owned tunneled containers even when their original runner directory is unavailable. See xref:remote-docker.adoc#images-and-diagnostics[remote cleanup and diagnostics].
 
 == A shell or IDE uses an old connection
 

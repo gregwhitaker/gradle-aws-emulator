@@ -25,6 +25,7 @@ import javax.inject.Inject;
 /** Connection and lifecycle settings shared by the default runtime and named runtimes. */
 public abstract class EmulatorRuntimeConfiguration {
     private final ExternalEmulatorConnection external = getObjects().newInstance(ExternalEmulatorConnection.class);
+    private final DockerRuntimeConfiguration docker = getObjects().newInstance(DockerRuntimeConfiguration.class);
 
     @Inject protected abstract ObjectFactory getObjects();
 
@@ -34,7 +35,7 @@ public abstract class EmulatorRuntimeConfiguration {
     public abstract Property<String> getImage();
     /** Docker platform: auto, linux/amd64, or linux/arm64. */
     public abstract Property<String> getPlatform();
-    /** Port shared by the host and container. Zero asks the plugin to select a port. */
+    /** Local endpoint port. DIRECT also uses it in the container; zero selects an available port. */
     public abstract Property<Integer> getPort();
     /** Region supplied to resource clients and opted-in consumers. */
     public abstract Property<String> getRegion();
@@ -52,6 +53,10 @@ public abstract class EmulatorRuntimeConfiguration {
     public abstract Property<Integer> getBuildTimeoutSeconds();
     /** Runtime files, locks, and logs; use a distinct directory for each named runtime. */
     public abstract DirectoryProperty getWorkingDirectory();
+    /** Docker client selection and managed-runtime transport. */
+    public DockerRuntimeConfiguration getDocker() { return docker; }
+    /** Configures Docker without contacting a daemon until execution. */
+    public void docker(Action<? super DockerRuntimeConfiguration> action) { action.execute(docker); }
     /** Connection to an existing emulator. Disabled unless enabled explicitly or configured with {@link #external(Action)}. */
     public ExternalEmulatorConnection getExternal() { return external; }
     /**

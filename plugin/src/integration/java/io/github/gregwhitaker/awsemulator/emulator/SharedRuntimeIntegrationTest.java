@@ -20,6 +20,7 @@ import io.github.gregwhitaker.awsemulator.internal.docker.ProcessCommandRunner;
 import io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorSettings;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -34,9 +35,12 @@ class SharedRuntimeIntegrationTest {
     @TempDir Path project;
     private String runtimeName = "default";
 
-    @ParameterizedTest @ValueSource(booleans = {false, true})
-    void sharesQueuesAcrossProcessesAndCleansUpAfterConsumersAndSetupFail(boolean named) throws Exception {
+    @ParameterizedTest @CsvSource({"false,false", "true,false", "false,true", "true,true"})
+    void sharesQueuesAcrossProcessesAndCleansUpAfterConsumersAndSetupFail(boolean named, boolean tunnel) throws Exception {
         fixture(named);
+        if (tunnel) Files.writeString(project.resolve("local-aws/build.gradle.kts"),
+            "\nawsEmulator.docker.transport.set(io.github.gregwhitaker.awsemulator.model.DockerTransport.TUNNEL)\n",
+            StandardOpenOption.APPEND);
         for (int run = 0; run < 2; run++) {
             String output = runner(project, "verifySharedRuntime", "--parallel", "--max-workers=4").build().getOutput();
             assertTrue(output.contains("Processed order-1001 from the other module"), output);

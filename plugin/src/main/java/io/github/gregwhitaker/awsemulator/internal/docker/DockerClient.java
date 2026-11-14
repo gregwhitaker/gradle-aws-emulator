@@ -18,12 +18,16 @@ package io.github.gregwhitaker.awsemulator.internal.docker;
 
 import io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorSettings;
 import org.gradle.api.GradleException;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.PosixFilePermissions;
 
 /** Docker CLI adapter. All commands use argument lists and bounded execution. */
 public final class DockerClient {
@@ -32,6 +36,8 @@ public final class DockerClient {
     public static final String PORT_LABEL = "io.github.gregwhitaker.aws-emulator.port";
     public static final String HOME_LABEL = "io.github.gregwhitaker.aws-emulator.home";
     public static final String MODE_LABEL = "io.github.gregwhitaker.aws-emulator.mode";
+    public static final String TRANSPORT_LABEL = "io.github.gregwhitaker.aws-emulator.transport";
+    public static final int TUNNEL_PORT = 9297;
     private final EmulatorSettings settings;
     private final CommandRunner commands;
 
@@ -74,22 +80,25 @@ public final class DockerClient {
 
     public Container create(String name, int port, Path home, DockerImageBuilder.Image image) {
         String mode = name.equals(settings.developmentName()) ? "development" : "managed";
+        boolean tunneled = settings.docker().tunneled();
         List<String> args = new ArrayList<>(List.of("container", "create", "--name", name,
             "--platform", image.platform(), "--label", OWNER_LABEL + "=" + settings.owner(),
             "--label", CONFIG_LABEL + "=" + settings.fingerprint(), "--label", PORT_LABEL + "=" + port,
             "--label", HOME_LABEL + "=" + home, "--label", MODE_LABEL + "=" + mode,
-            "--publish", "127.0.0.1:" + port + ":" + port,
+            "--label", TRANSPORT_LABEL + "=" + (tunneled ? "tunnel" : "direct"),
             "--memory", settings.memoryLimit(), "--memory-swap", settings.memoryLimit(),
-            "--mount", "type=bind,source=" + home + ",target=/home/emulator", "--env", "HOME=/home/emulator"));
-        if (System.getProperty("os.name").equalsIgnoreCase("Linux")) {
+            "--env", "HOME=/home/emulator"));
+        if (!tunneled) args.addAll(List.of("--publish", "127.0.0.1:" + port + ":" + port,
+            "--mount", "type=bind,source=" + home + ",target=/home/emulator"));
+        if (!tunneled && System.getProperty("os.name").equalsIgnoreCase("Linux")) {
             String uid = commands.run(List.of("id", "-u"), Duration.ofSeconds(5)).requireSuccess("Resolving uid");
             String gid = commands.run(List.of("id", "-g"), Duration.ofSeconds(5)).requireSuccess("Resolving gid");
             args.addAll(List.of("--user", uid + ":" + gid));
         }
-        args.addAll(List.of(image.reference(), "--port", Integer.toString(port), "--auth", "on",
+        args.addAll(List.of(image.reference(), "--port", Integer.toString(tunneled ? TUNNEL_PORT : port), "--auth", "on",
             "--telemetry", settings.telemetry() ? "on" : "off"));
         String id = run(args, settings.commandTimeout()).requireSuccess("Creating AWS Emulator container");
-        return new Container(id, settings.owner(), settings.fingerprint(), port, home, "created", mode);
+        return new Container(id, settings.owner(), settings.fingerprint(), port, home, "created", mode, tunneled);
     }
 
     public void start(Container container) {
@@ -107,15 +116,17 @@ public final class DockerClient {
             + "{{index .Config.Labels \"" + CONFIG_LABEL + "\"}}\n"
             + "{{index .Config.Labels \"" + PORT_LABEL + "\"}}\n"
             + "{{index .Config.Labels \"" + HOME_LABEL + "\"}}\n{{.State.Status}}\n"
-            + "{{index .Config.Labels \"" + MODE_LABEL + "\"}}";
+            + "{{index .Config.Labels \"" + MODE_LABEL + "\"}}\n"
+            + "{{index .Config.Labels \"" + TRANSPORT_LABEL + "\"}}";
         String[] values = run("container", "inspect", "--format", format, id)
             .requireSuccess("Inspecting AWS Emulator container").split("\n", -1);
-        if (values.length != 7) throw new GradleException("Unexpected Docker inspection response for " + nameOrId);
+        if (values.length != 7 && values.length != 8) throw new GradleException("Unexpected Docker inspection response for " + nameOrId);
         int port;
         try { port = Integer.parseInt(values[3].trim()); }
         catch (NumberFormatException e) { port = -1; }
         Path home = values[4].isBlank() || values[4].equals("<no value>") ? null : Path.of(values[4]);
-        return new Container(values[0].trim(), values[1].trim(), values[2].trim(), port, home, values[5].trim(), values[6].trim());
+        return new Container(values[0].trim(), values[1].trim(), values[2].trim(), port, home, values[5].trim(), values[6].trim(),
+            values.length == 8 && values[7].trim().equals("tunnel"));
     }
 
     public List<Container> ownedContainers() {
@@ -151,20 +162,82 @@ public final class DockerClient {
 
     public void archiveLogs(Container container, Path file) throws IOException {
         requireOwner(container);
-        commands.runToFile(List.of(settings.dockerExecutable(), "container", "logs", "--timestamps", container.id()),
+        commands.runToFile(command(List.of("container", "logs", "--timestamps", container.id())),
             Duration.ofSeconds(settings.commandTimeout()), file).requireSuccess("Archiving AWS Emulator logs");
+    }
+
+    public void verifyTunnelTools(Container container) {
+        requireOwner(container);
+        run("exec", container.id(), "/bin/bash", "--noprofile", "--norc", "-c",
+            "command -v cat >/dev/null && [[ $(help wait) == *-n* ]]")
+            .requireSuccess("Checking tunnel tools (TUNNEL images require /bin/bash with wait -n, TCP redirections, and cat)");
+    }
+
+    /** Retrieves only the three connection files; no remote path is mounted on the Gradle host. */
+    public boolean copyConnectionFiles(Container container, Path directory) throws IOException {
+        requireOwner(container);
+        String source = "/home/emulator/.aws/emulator/" + TUNNEL_PORT + "/";
+        var ready = run("exec", container.id(), "/bin/bash", "--noprofile", "--norc", "-c",
+            "test -s " + source + "emulator_credentials && test -s " + source + "ca.pem && test -s " + source + "truststore.p12");
+        if (ready.exitCode() == 1) return false;
+        ready.requireSuccess("Checking generated emulator connection files");
+        Files.createDirectories(directory);
+        if (Files.isSymbolicLink(directory)) throw new IOException("Refusing a symlink for copied emulator connection files");
+        if (Files.getFileStore(directory).supportsFileAttributeView("posix")) {
+            Files.setPosixFilePermissions(directory, PosixFilePermissions.fromString("rwx------"));
+        }
+        for (String name : List.of("emulator_credentials", "ca.pem", "truststore.p12")) {
+            Path temporary = Files.createTempFile(directory, ".connection-", ".tmp");
+            try {
+                run("cp", container.id() + ":" + source + name, temporary.toString()).requireSuccess("Copying emulator " + name);
+                if (!Files.isRegularFile(temporary, LinkOption.NOFOLLOW_LINKS)) throw new IOException("Invalid copied emulator " + name);
+                if (Files.getFileStore(temporary).supportsFileAttributeView("posix")) {
+                    Files.setPosixFilePermissions(temporary, PosixFilePermissions.fromString("rw-------"));
+                }
+                Files.move(temporary, directory.resolve(name), StandardCopyOption.REPLACE_EXISTING);
+            } finally {
+                Files.deleteIfExists(temporary);
+            }
+        }
+        return true;
+    }
+
+    public Process openTunnel(Container container) throws IOException {
+        requireOwner(container);
+        // Both streams carry opaque TLS bytes. The emulator remains the TLS server.
+        String forward = """
+            set -e
+            exec 3<>/dev/tcp/127.0.0.1/%d
+            exec 4<&0
+            cat <&3 &
+            receiver=$!
+            cat <&4 >&3 &
+            sender=$!
+            trap 'kill "$receiver" "$sender" 2>/dev/null || true' EXIT
+            wait -n "$receiver" "$sender" || true
+            """.formatted(TUNNEL_PORT);
+        return commands.start(command(List.of("exec", "-i", container.id(), "/bin/bash", "--noprofile", "--norc", "-c", forward)));
     }
 
     private CommandRunner.Result run(String... args) { return run(Arrays.asList(args), settings.commandTimeout()); }
 
     private CommandRunner.Result run(List<String> args, int timeout) {
-        List<String> command = new ArrayList<>();
-        command.add(settings.dockerExecutable());
-        command.addAll(args);
-        return commands.run(command, Duration.ofSeconds(timeout));
+        return commands.run(command(args), Duration.ofSeconds(timeout));
     }
 
-    public record Container(String id, String owner, String config, int port, Path home, String state, String mode) {
+    private List<String> command(List<String> args) {
+        List<String> command = new ArrayList<>();
+        command.add(settings.dockerExecutable());
+        if (!settings.docker().host().isEmpty()) command.addAll(List.of("--host", settings.docker().host()));
+        if (!settings.docker().context().isEmpty()) command.addAll(List.of("--context", settings.docker().context()));
+        command.addAll(args);
+        return command;
+    }
+
+    public record Container(String id, String owner, String config, int port, Path home, String state, String mode, boolean tunneled) {
+        public Container(String id, String owner, String config, int port, Path home, String state, String mode) {
+            this(id, owner, config, port, home, state, mode, false);
+        }
         public boolean running() { return state.equals("running"); }
         public boolean managed() {
             return mode.equals("managed") || ((mode.isBlank() || mode.equals("<no value>"))

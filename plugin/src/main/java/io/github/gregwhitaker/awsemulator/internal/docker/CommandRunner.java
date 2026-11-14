@@ -27,6 +27,11 @@ import java.nio.file.Path;
 public interface CommandRunner {
     Result run(List<String> command, Duration timeout);
 
+    /** Starts a streaming command with separate binary stdout and diagnostic stderr. */
+    default Process start(List<String> command) throws IOException {
+        throw new UnsupportedOperationException("This command runner does not support streaming processes.");
+    }
+
     /** Streams output to a file; the default also supports in-memory command fixtures. */
     default Result runToFile(List<String> command, Duration timeout, Path output) throws IOException {
         Result result = run(command, timeout);

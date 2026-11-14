@@ -38,6 +38,12 @@ only required for real-emulator integration tests and examples. Those require th
 `docker` CLI and a running local engine using Linux containers; the first run
 downloads or builds the emulator image. No AWS account or AWS CLI is required.
 
+The containerized-runtime integration test also builds a Gradle runner image and
+starts a temporary Docker API relay on a private Docker network. The relay uses
+the engine's `/var/run/docker.sock`; it publishes no host port. The runner has no
+workspace bind mount. This verifies default and named shared runtimes through a
+separate TCP endpoint, including configuration-cache reuse and failure cleanup.
+
 ## Find the right place for a change
 
 | Location | Purpose |

@@ -28,6 +28,10 @@ import java.nio.file.Path;
 /** Executes argument lists directly; drains output while waiting and bounds retained diagnostics. */
 public final class ProcessCommandRunner implements CommandRunner {
     @Override
+    public Process start(List<String> command) throws IOException {
+        return new ProcessBuilder(command).start();
+    }
+    @Override
     public Result runToFile(List<String> command, Duration timeout, Path output) throws IOException {
         Process process = new ProcessBuilder(command).redirectErrorStream(true).redirectOutput(output.toFile()).start();
         try {
@@ -86,7 +90,7 @@ public final class ProcessCommandRunner implements CommandRunner {
         }
     }
 
-    private static void terminate(Process process) {
+    static void terminate(Process process) {
         try {
             process.descendants().forEach(ProcessHandle::destroyForcibly);
         } catch (RuntimeException ignored) {

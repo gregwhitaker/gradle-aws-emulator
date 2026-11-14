@@ -21,6 +21,8 @@ import io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorConnection;
 import io.github.gregwhitaker.awsemulator.internal.runtime.HttpsHealthProbe;
 import io.github.gregwhitaker.awsemulator.testsupport.ExternalEmulatorFixture;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -33,9 +35,12 @@ import static org.junit.jupiter.api.Assertions.*;
 class NamedRuntimeIntegrationTest {
     @TempDir Path temporary;
 
-    @Test
-    void managedSuitesAreIsolatedAndExternalStateSurvivesSuccessFailureAndCacheReuse() throws Exception {
+    @ParameterizedTest @ValueSource(booleans = {false, true})
+    void managedSuitesAreIsolatedAndExternalStateSurvivesSuccessFailureAndCacheReuse(boolean tunnel) throws Exception {
         Path project = fixture();
+        if (tunnel) Files.writeString(project.resolve("build.gradle.kts"),
+            "\nawsEmulator.docker.transport.set(io.github.gregwhitaker.awsemulator.model.DockerTransport.TUNNEL)\n",
+            StandardOpenOption.APPEND);
         // Named managed runtimes must not inherit this incomplete external default.
         Files.writeString(project.resolve("build.gradle.kts"), "\nawsEmulator { external { } }\n", StandardOpenOption.APPEND);
         try (var owner = new ExternalEmulatorFixture(temporary.resolve("external-owner"))) {

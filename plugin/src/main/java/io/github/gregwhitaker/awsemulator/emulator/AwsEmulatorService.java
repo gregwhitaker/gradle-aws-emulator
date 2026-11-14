@@ -20,6 +20,8 @@ import io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorConnection;
 import io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorRuntime;
 import io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorSettings;
 import io.github.gregwhitaker.awsemulator.internal.runtime.ExternalConnection;
+import io.github.gregwhitaker.awsemulator.internal.docker.DockerOptions;
+import io.github.gregwhitaker.awsemulator.model.DockerTransport;
 import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.GradleException;
@@ -38,6 +40,9 @@ public abstract class AwsEmulatorService implements BuildService<AwsEmulatorServ
         Property<String> getRegion();
         Property<Boolean> getTelemetryEnabled();
         Property<String> getDockerExecutable();
+        Property<String> getDockerHost();
+        Property<String> getDockerContext();
+        Property<DockerTransport> getDockerTransport();
         Property<String> getMemoryLimit();
         Property<Integer> getStartupTimeoutSeconds();
         Property<Integer> getCommandTimeoutSeconds();
@@ -61,7 +66,9 @@ public abstract class AwsEmulatorService implements BuildService<AwsEmulatorServ
                 p.getImage().get(), p.getPlatform().get(), p.getPort().get(), p.getRegion().get(),
                 p.getTelemetryEnabled().get(), p.getDockerExecutable().get(), p.getMemoryLimit().get(),
                 p.getStartupTimeoutSeconds().get(), p.getCommandTimeoutSeconds().get(), p.getBuildTimeoutSeconds().get(),
-                p.getWorkingDirectory().get().getAsFile().toPath()));
+                p.getWorkingDirectory().get().getAsFile().toPath(),
+                new DockerOptions(p.getDockerHost().getOrElse(""), p.getDockerContext().getOrElse(""),
+                    p.getDockerTransport().getOrElse(DockerTransport.DIRECT))));
         }
         return runtime;
     }

@@ -48,7 +48,7 @@ API: link:api/io/github/gregwhitaker/awsemulator/emulator/NamedEmulatorRuntime.h
 
 == Defaults and settings
 
-Named runtimes inherit the top-level emulator version, image, platform, region, telemetry, Docker executable, memory limit, and timeouts through lazy conventions. Override any of these in the named runtime block.
+Named runtimes inherit the top-level emulator version, image, platform, region, telemetry, Docker executable, Docker host/context/transport, memory limit, and timeouts through lazy conventions. Override any of these in the named runtime block. See xref:remote-docker.adoc[CI and remote Docker] for managed tunnels with named and shared owners.
 
 Three settings differ:
 

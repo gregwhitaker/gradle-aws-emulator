@@ -20,6 +20,7 @@ import io.github.gregwhitaker.awsemulator.internal.docker.CommandRunner;
 import io.github.gregwhitaker.awsemulator.internal.docker.DockerClient;
 import io.github.gregwhitaker.awsemulator.internal.docker.DockerClient.Container;
 import io.github.gregwhitaker.awsemulator.internal.docker.DockerImageBuilder;
+import io.github.gregwhitaker.awsemulator.internal.docker.DockerTunnel;
 import io.github.gregwhitaker.awsemulator.internal.docker.ProcessCommandRunner;
 import org.gradle.api.GradleException;
 import org.gradle.api.logging.Logger;
@@ -44,6 +45,7 @@ public final class EmulatorRuntime implements AutoCloseable {
     private final HealthProbe health;
     private Instance managed;
     private EmulatorWorkspace.Lease managedLease;
+    private DockerTunnel managedTunnel;
 
     public EmulatorRuntime(EmulatorSettings settings) {
         this(settings, new ProcessCommandRunner(), new HttpsHealthProbe());
@@ -60,6 +62,7 @@ public final class EmulatorRuntime implements AutoCloseable {
     public synchronized String prepare() { return images.prepare().reference(); }
 
     public synchronized EmulatorConnection developmentConnection() {
+        requireDirectDevelopment();
         return workspace.withLock("development.lock", () -> startDevelopment().connection());
     }
 
@@ -71,6 +74,7 @@ public final class EmulatorRuntime implements AutoCloseable {
     }
 
     public synchronized EmulatorConnection restartDevelopment() {
+        requireDirectDevelopment();
         return workspace.withLock("development.lock", () -> {
             stopDevelopmentInstance();
             return startDevelopment().connection();
@@ -103,6 +107,7 @@ public final class EmulatorRuntime implements AutoCloseable {
     }
 
     public synchronized String exportDevelopmentConnection() {
+        requireDirectDevelopment();
         return workspace.withLock("development.lock", () -> {
             Instance instance = startDevelopment();
             Path home = instance.container().home();
@@ -119,7 +124,10 @@ public final class EmulatorRuntime implements AutoCloseable {
         StringBuilder report = new StringBuilder("AWS Emulator doctor\nProject owner: ").append(settings.owner())
             .append("\nWorking directory: ").append(settings.workingDirectory())
             .append("\nArchived logs: ").append(workspace.logsDirectory())
-            .append("\nDocker executable: ").append(settings.dockerExecutable());
+            .append("\nDocker executable: ").append(settings.dockerExecutable())
+            .append("\nDocker transport: ").append(settings.docker().transport())
+            .append("\nDocker selection: ").append(!settings.docker().context().isEmpty() ? "context " + settings.docker().context()
+                : !settings.docker().host().isEmpty() ? settings.docker().host() : "Docker CLI default/environment");
         try {
             String info = docker.daemonInfo();
             report.append("\nDocker daemon: ").append(info);
@@ -135,6 +143,10 @@ public final class EmulatorRuntime implements AutoCloseable {
                     .append(" ").append(container.state()).append(" ").append(instance(container).connection().endpoint());
                 if (!settings.fingerprint().equals(container.config())) {
                     report.append(" (settings differ; development instances require restartAwsEmulator)");
+                }
+                if (container.tunneled()) {
+                    report.append("\n    Tunnel endpoint and connection files belong to the owning Gradle process.");
+                    continue;
                 }
                 EmulatorConnection connection = instance(container).connection();
                 report.append("\n    Connection files: ").append(container.home())
@@ -166,7 +178,28 @@ public final class EmulatorRuntime implements AutoCloseable {
                 report.append("\nSkipped development instance ").append(container.id()).append("; use stopAwsEmulator.");
                 continue;
             }
+            // A remote runner's filesystem cannot establish whether another client's build is alive.
+            if (container.tunneled() && !container.state().equals("exited") && !container.state().equals("dead")) {
+                report.append("\nSkipped running tunneled managed instance ").append(container.id())
+                    .append("; activity on another Docker client cannot be established.");
+                continue;
+            }
             try {
+                if (container.tunneled() && !Files.exists(container.home())) {
+                    // Labels can refer to another runner's filesystem. Never create a lease there.
+                    Container current = docker.find(container.id());
+                    if (current == null) continue;
+                    docker.requireOwner(current);
+                    if (!current.managed() || !current.tunneled()
+                            || (!current.state().equals("exited") && !current.state().equals("dead"))) continue;
+                    if (reportOnly) report.append("\nWould remove stopped tunneled managed instance ").append(current.id());
+                    else {
+                        archiveLogs(current);
+                        docker.remove(current);
+                        report.append("\nRemoved stopped tunneled managed instance ").append(current.id());
+                    }
+                    continue;
+                }
                 // A legacy running container has no lifetime lease: its active/stale status is unknown.
                 boolean hasLease = Files.exists(workspace.managedLock(container.home()));
                 if (!hasLease && !container.state().equals("exited") && !container.state().equals("dead")) {
@@ -184,6 +217,7 @@ public final class EmulatorRuntime implements AutoCloseable {
                     if (!current.home().equals(container.home()) || !current.managed()) {
                         throw new GradleException("Container ownership changed during cleanup: " + container.id());
                     }
+                    if (current.tunneled() && !current.state().equals("exited") && !current.state().equals("dead")) continue;
                     workspace.requireOwner(current.home());
                     if (reportOnly) report.append("\nWould remove stale managed instance ").append(current.id());
                     else {
@@ -249,18 +283,29 @@ public final class EmulatorRuntime implements AutoCloseable {
 
     private Instance start(String name, Path home) {
         DockerImageBuilder.Image image = images.prepare();
-        int port = settings.port() == 0 ? availablePort() : settings.port();
-        workspace.prepareHome(home);
+        DockerTunnel tunnel = settings.docker().tunneled() ? new DockerTunnel(settings.port()) : null;
+        int port = tunnel == null ? (settings.port() == 0 ? availablePort() : settings.port()) : tunnel.port();
         try {
+            workspace.prepareHome(home);
             Container container = docker.create(name, port, home, image);
             docker.start(container);
+            if (tunnel != null) {
+                docker.verifyTunnelTools(container);
+                tunnel.start(docker, container);
+            }
             Instance instance = instance(container);
             waitUntilReady(instance);
+            managedTunnel = tunnel;
             LOGGER.lifecycle("AWS Emulator ready at {}", instance.connection().endpoint());
             return instance;
         } catch (Exception failure) {
             boolean interrupted = Thread.interrupted();
             String diagnostics = "";
+            if (tunnel != null) {
+                tunnel.close();
+                interrupted |= Thread.interrupted();
+                if (!tunnel.diagnostic().isBlank()) failure.addSuppressed(new IOException(tunnel.diagnostic()));
+            }
             try {
                 Container created = docker.find(name);
                 if (created != null && settings.owner().equals(created.owner())
@@ -295,6 +340,11 @@ public final class EmulatorRuntime implements AutoCloseable {
         while (System.nanoTime() < deadline) {
             Container current = docker.find(instance.container().id());
             if (current == null || !current.running()) throw new GradleException("AWS Emulator exited before becoming ready.");
+            if (current.tunneled()) {
+                // Retry snapshots until HTTPS is ready: a remote file may still have been being written.
+                try { docker.copyConnectionFiles(current, instance.connection().directory()); }
+                catch (IOException e) { throw new GradleException("Cannot copy AWS Emulator connection files.", e); }
+            }
             if (instance.connection().filesExist()) {
                 try {
                     if (health.ready(current.port(), instance.connection().trustStore())) {
@@ -323,6 +373,11 @@ public final class EmulatorRuntime implements AutoCloseable {
         }
     }
 
+    private void requireDirectDevelopment() {
+        if (settings.docker().tunneled()) throw new GradleException("Docker TUNNEL transport supports MANAGED runtimes only. "
+            + "Use MANAGED consumers/resource tasks, DIRECT for local persistent development, or an external connection for a persistent remote emulator.");
+    }
+
     private void archiveLogs(Container container) {
         try {
             Files.createDirectories(workspace.logsDirectory());
@@ -343,6 +398,11 @@ public final class EmulatorRuntime implements AutoCloseable {
         if (managed == null) return;
         boolean interrupted = Thread.interrupted();
         try {
+            if (managedTunnel != null) {
+                managedTunnel.close();
+                managedTunnel = null;
+                interrupted |= Thread.interrupted();
+            }
             Container current = docker.find(managed.container().id());
             if (current != null) {
                 archiveLogs(current);

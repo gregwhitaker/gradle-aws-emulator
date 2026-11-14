@@ -17,6 +17,7 @@
 package io.github.gregwhitaker.awsemulator.internal.runtime;
 
 import org.gradle.api.GradleException;
+import io.github.gregwhitaker.awsemulator.internal.docker.DockerOptions;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -28,7 +29,13 @@ import java.util.Set;
 /** Immutable execution-time settings. Contains no credentials. */
 public record EmulatorSettings(String owner, String version, String image, String platform, int port,
         String region, boolean telemetry, String dockerExecutable, String memoryLimit,
-        int startupTimeout, int commandTimeout, int buildTimeout, Path workingDirectory) {
+        int startupTimeout, int commandTimeout, int buildTimeout, Path workingDirectory, DockerOptions docker) {
+    public EmulatorSettings(String owner, String version, String image, String platform, int port,
+            String region, boolean telemetry, String dockerExecutable, String memoryLimit,
+            int startupTimeout, int commandTimeout, int buildTimeout, Path workingDirectory) {
+        this(owner, version, image, platform, port, region, telemetry, dockerExecutable, memoryLimit,
+            startupTimeout, commandTimeout, buildTimeout, workingDirectory, DockerOptions.DEFAULT);
+    }
     public EmulatorSettings {
         workingDirectory = workingDirectory.toAbsolutePath().normalize();
         if (port < 0 || port > 65535) fail("port must be between 0 and 65535");
@@ -42,7 +49,7 @@ public record EmulatorSettings(String owner, String version, String image, Strin
         if (!memoryLimit.matches("[1-9][0-9]*[bkmgBKMG]?")) fail("memoryLimit must be a Docker memory size, such as 2g");
         if (startupTimeout < 1 || commandTimeout < 1 || buildTimeout < 1) fail("timeouts must be positive seconds");
         if (dockerExecutable.isBlank()) fail("dockerExecutable must not be empty");
-        if (workingDirectory.toString().contains(",")) fail("workingDirectory cannot contain a comma (Docker mount syntax)");
+        if (!docker.tunneled() && workingDirectory.toString().contains(",")) fail("workingDirectory cannot contain a comma (Docker mount syntax)");
         if (workingDirectory.toString().contains("\n") || workingDirectory.toString().contains("\r")) {
             fail("workingDirectory cannot contain line breaks");
         }
@@ -53,8 +60,11 @@ public record EmulatorSettings(String owner, String version, String image, Strin
     public String developmentName() { return "gradle-aws-emulator-" + owner; }
 
     public String fingerprint() {
-        return hash(String.join("\n", version, image, platform, Integer.toString(port), region,
-            Boolean.toString(telemetry), memoryLimit, workingDirectory.toString()));
+        String value = String.join("\n", version, image, platform, Integer.toString(port), region,
+            Boolean.toString(telemetry), memoryLimit, workingDirectory.toString());
+        // Preserve the identity of existing development instances with the default Docker settings.
+        if (!docker.equals(DockerOptions.DEFAULT)) value += "\n" + docker.host() + "\n" + docker.context() + "\n" + docker.transport();
+        return hash(value);
     }
 
     public static String hash(String value) {

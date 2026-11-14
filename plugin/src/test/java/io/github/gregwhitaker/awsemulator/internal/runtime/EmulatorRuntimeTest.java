@@ -19,8 +19,12 @@ package io.github.gregwhitaker.awsemulator.internal.runtime;
 import io.github.gregwhitaker.awsemulator.internal.docker.CommandRunner;
 import io.github.gregwhitaker.awsemulator.internal.docker.DockerClient;
 import io.github.gregwhitaker.awsemulator.internal.docker.DockerImageBuilder;
+import io.github.gregwhitaker.awsemulator.internal.docker.DockerOptions;
+import io.github.gregwhitaker.awsemulator.model.DockerTransport;
 import org.gradle.api.GradleException;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
@@ -39,6 +43,93 @@ class EmulatorRuntimeTest {
     private EmulatorSettings settings() {
         return new EmulatorSettings("test-owner", "1.0.322", "", "auto", 0, "us-east-1", false,
             "docker", "2g", 1, 5, 10, directory);
+    }
+
+    private EmulatorSettings tunnelSettings() {
+        return new EmulatorSettings("test-owner", "1.0.322", "", "auto", 0, "us-east-1", false,
+            "docker", "2g", 1, 5, 10, directory, new DockerOptions("", "", DockerTransport.TUNNEL));
+    }
+
+    @Test
+    void tunnelCopiesPrivateConnectionFilesAndReleasesItsPortAndHome() throws Exception {
+        FakeDocker docker = new FakeDocker();
+        EmulatorConnection connection;
+        try (var runtime = new EmulatorRuntime(tunnelSettings(), docker, (port, store) -> true)) {
+            connection = runtime.managedConnection();
+            assertTrue(connection.filesExist());
+            assertEquals(3, docker.calls.stream().filter(c -> c.get(1).equals("cp")).count());
+            assertFalse(docker.calls.stream().anyMatch(c -> c.contains("--mount") || c.contains("--publish")));
+            if (Files.getFileStore(connection.credentials()).supportsFileAttributeView("posix")) {
+                assertEquals(java.nio.file.attribute.PosixFilePermissions.fromString("rw-------"),
+                    Files.getPosixFilePermissions(connection.credentials()));
+            }
+            assertSame(connection, runtime.managedConnection());
+        }
+        assertTrue(docker.containers.isEmpty());
+        assertFalse(Files.exists(connection.directory()));
+        try (var socket = new java.net.ServerSocket(connection.port(), 0, java.net.InetAddress.getByName("127.0.0.1"))) {
+            assertEquals(connection.port(), socket.getLocalPort());
+        }
+    }
+
+    @Test
+    void failedTunnelReadinessReleasesItsPortAndRemovesTheContainer() throws Exception {
+        FakeDocker docker = new FakeDocker();
+        var runtime = new EmulatorRuntime(tunnelSettings(), docker, (port, store) -> false);
+        assertThrows(GradleException.class, runtime::managedConnection);
+        assertTrue(docker.containers.isEmpty());
+        String portLabel = docker.calls.stream().flatMap(List::stream)
+            .filter(s -> s.startsWith(DockerClient.PORT_LABEL + "=")).findFirst().orElseThrow();
+        int port = Integer.parseInt(portLabel.substring(portLabel.indexOf('=') + 1));
+        try (var socket = new java.net.ServerSocket(port, 0, java.net.InetAddress.getByName("127.0.0.1"))) {
+            assertEquals(port, socket.getLocalPort());
+        }
+    }
+
+    @Test
+    void tunnelRejectsPersistentLifecycleWithoutTouchingDockerOrFiles() {
+        FakeDocker docker = new FakeDocker();
+        var runtime = new EmulatorRuntime(tunnelSettings(), docker, (port, store) -> true);
+        for (Runnable operation : List.<Runnable>of(runtime::developmentConnection, runtime::restartDevelopment,
+                runtime::exportDevelopmentConnection)) {
+            assertTrue(assertThrows(GradleException.class, operation::run).getMessage().contains("MANAGED runtimes only"));
+        }
+        assertTrue(docker.calls.isEmpty());
+        assertFalse(Files.exists(directory.resolve("development.lock")));
+    }
+
+    @Test
+    void tunnelRefreshesFilesCopiedBeforeTheEmulatorFinishedWritingThem() throws Exception {
+        FakeDocker docker = new FakeDocker();
+        docker.connectionFileContent = "partial";
+        try (var runtime = new EmulatorRuntime(tunnelSettings(), docker, (port, store) -> {
+            if (Files.readString(store).equals("partial")) {
+                docker.connectionFileContent = "ready";
+                throw new java.io.IOException("Incomplete trust store snapshot");
+            }
+            return true;
+        })) {
+            assertEquals("ready", Files.readString(runtime.managedConnection().trustStore()));
+        }
+        assertTrue(docker.containers.isEmpty());
+    }
+
+    @Test
+    void cleanupNeverUsesAnotherTunnelClientsFilesystemOrStopsItsRunningContainer() throws Exception {
+        FakeDocker docker = new FakeDocker();
+        Path remoteHome = directory.resolve("other-client/managed-remote");
+        FakeContainer container = new FakeContainer("remote", settings().owner(), "config", "9297", remoteHome, "managed");
+        container.tunneled = true;
+        docker.containers.put("remote", container);
+        var runtime = new EmulatorRuntime(tunnelSettings(), docker, (port, store) -> true);
+        assertTrue(runtime.cleanupStale(false).contains("Skipped running tunneled"));
+        assertEquals(1, docker.containers.size());
+        container.state = "exited";
+        assertTrue(runtime.cleanupStale(true).contains("Would remove stopped tunneled"));
+        assertEquals(1, docker.containers.size());
+        assertTrue(runtime.cleanupStale(false).contains("Removed stopped tunneled"));
+        assertTrue(docker.containers.isEmpty());
+        assertFalse(Files.exists(remoteHome.getParent()));
     }
 
     @Test
@@ -90,10 +181,10 @@ class EmulatorRuntimeTest {
         assertTrue(docker.containers.isEmpty());
     }
 
-    @Test
-    void interruptedStartupStillCleansUpAndRestoresInterrupt() throws Exception {
+    @ParameterizedTest @ValueSource(booleans = {false, true})
+    void interruptedStartupStillCleansUpAndRestoresInterrupt(boolean tunnel) throws Exception {
         FakeDocker docker = new FakeDocker();
-        EmulatorRuntime runtime = new EmulatorRuntime(settings(), docker, (port, store) -> {
+        EmulatorRuntime runtime = new EmulatorRuntime(tunnel ? tunnelSettings() : settings(), docker, (port, store) -> {
             Thread.currentThread().interrupt();
             return false;
         });
@@ -111,10 +202,10 @@ class EmulatorRuntimeTest {
         }
     }
 
-    @Test
-    void interruptedCloseStillCleansUpAndRestoresInterrupt() throws Exception {
+    @ParameterizedTest @ValueSource(booleans = {false, true})
+    void interruptedCloseStillCleansUpAndRestoresInterrupt(boolean tunnel) throws Exception {
         FakeDocker docker = new FakeDocker();
-        EmulatorRuntime runtime = new EmulatorRuntime(settings(), docker, (port, store) -> true);
+        EmulatorRuntime runtime = new EmulatorRuntime(tunnel ? tunnelSettings() : settings(), docker, (port, store) -> true);
         var connection = runtime.managedConnection();
         try {
             Thread.currentThread().interrupt();
@@ -347,6 +438,7 @@ class EmulatorRuntimeTest {
         final String id, owner, config, port, mode;
         final Path home;
         String state = "running";
+        boolean tunneled;
         FakeContainer(String id, String owner, String config, String port, Path home) {
             this(id, owner, config, port, home, "development");
         }
@@ -361,6 +453,7 @@ class EmulatorRuntimeTest {
         int sequence;
         boolean failStart;
         boolean failLogs;
+        String connectionFileContent = "fixture";
 
         @Override
         public Result run(List<String> command, Duration timeout) {
@@ -370,22 +463,28 @@ class EmulatorRuntimeTest {
             List<String> args = command.subList(1, command.size());
             if (args.get(0).equals("info")) return new Result(0, "aarch64");
             if (args.get(0).equals("image")) return new Result(0, "existing-image");
+            if (args.get(0).equals("exec")) return new Result(0, "");
+            if (args.get(0).equals("cp")) {
+                try { Files.writeString(Path.of(args.get(2)), connectionFileContent); }
+                catch (Exception e) { throw new RuntimeException(e); }
+                return new Result(0, "");
+            }
             String operation = args.get(1);
             if (operation.equals("create")) {
                 Map<String, String> labels = new LinkedHashMap<>();
                 for (int i = 0; i < args.size(); i++) if (args.get(i).equals("--label")) {
                     String[] label = args.get(++i).split("=", 2); labels.put(label[0], label[1]);
                 }
-                String mount = after(args, "--mount");
-                Path home = Path.of(mount.substring("type=bind,source=".length(), mount.indexOf(",target=")));
+                Path home = Path.of(labels.get(DockerClient.HOME_LABEL));
                 FakeContainer container = new FakeContainer("id" + (++sequence), labels.get(DockerClient.OWNER_LABEL),
                     labels.get(DockerClient.CONFIG_LABEL), labels.get(DockerClient.PORT_LABEL), home, labels.get(DockerClient.MODE_LABEL));
+                container.tunneled = labels.get(DockerClient.TRANSPORT_LABEL).equals("tunnel");
                 containers.put(after(args, "--name"), container);
-                try {
+                try { if (!container.tunneled) {
                     Path files = home.resolve(".aws/emulator/" + container.port);
                     Files.createDirectories(files);
                     for (String file : List.of("ca.pem", "truststore.p12", "emulator_credentials")) Files.writeString(files.resolve(file), "fixture");
-                } catch (Exception e) { throw new RuntimeException(e); }
+                } } catch (Exception e) { throw new RuntimeException(e); }
                 return new Result(0, container.id);
             }
             if (operation.equals("ls")) {
@@ -402,7 +501,7 @@ class EmulatorRuntimeTest {
             String id = args.get(args.size() - 1);
             FakeContainer container = containers.values().stream().filter(c -> c.id.equals(id)).findFirst().orElseThrow();
             return switch (operation) {
-                case "inspect" -> new Result(0, String.join("\n", container.id, container.owner, container.config, container.port, container.home.toString(), container.state, container.mode));
+                case "inspect" -> new Result(0, String.join("\n", container.id, container.owner, container.config, container.port, container.home.toString(), container.state, container.mode, container.tunneled ? "tunnel" : "direct"));
                 case "start" -> new Result(failStart ? 1 : 0, failStart ? "port is already allocated" : id);
                 case "logs" -> new Result(failLogs ? 1 : 0, failLogs ? "log driver unavailable" : "fake emulator log");
                 case "stop" -> { container.state = "exited"; yield new Result(0, id); }

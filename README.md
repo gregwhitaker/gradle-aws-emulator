@@ -9,7 +9,7 @@ Run [AWS Emulator](https://github.com/aws/aws-emulator) from your Gradle build. 
 ## Requirements
 
 - Java 17+ and Gradle 8.14+.
-- The `docker` CLI and a running local Docker engine using Linux containers, or a connection to an [existing emulator](#connect-to-an-existing-emulator). AMD64 and ARM64 are supported for Docker runtimes.
+- The `docker` CLI and a Docker engine using Linux containers (local or [remote](#containerized-ci-and-remote-docker)), or a connection to an [existing emulator](#connect-to-an-existing-emulator). AMD64 and ARM64 are supported for Docker runtimes.
 
 No AWS account or AWS CLI is required. The first emulator run builds the pinned image; subsequent runs reuse it. Applying the plugin alone does not start Docker or opt existing tasks into the emulator.
 
@@ -98,6 +98,29 @@ awsEmulator {
 Each name has its own managed and development instances, automatic port, and working directory. Existing configuration and consumers keep using `default`. Select names on resource tasks with `runtimeName`, or use lifecycle commands such as `startAwsEmulatorIntegration` and `stopAwsEmulator --runtime integration`. Resource sets, scenarios, external connections, shared owners, and Spring Boot support named runtimes.
 
 See the [named runtime guide](docs/src/docs/asciidoc/named-runtimes.adoc) for inheritance and selection rules, and the [runnable example](examples/named-runtimes/README.md) for complete suite setup.
+
+## Containerized CI and remote Docker
+
+Use the managed tunnel transport when Gradle runs in a container or connects to another Docker host:
+
+```kotlin
+import io.github.gregwhitaker.awsemulator.model.DockerTransport
+
+awsEmulator {
+    port.set(0)
+    docker {
+        transport.set(DockerTransport.TUNNEL)
+        // Optional: context.set("ci") or host.set("ssh://builder@example.com")
+    }
+    useWith(tasks.named<Test>("test"))
+}
+```
+
+The plugin copies connection files through Docker and exposes verified HTTPS on the Gradle runner's loopback interface. Emulator containers need no published ports or shared filesystem paths. Docker's existing context/environment selects the daemon unless `host` or `context` is set explicitly.
+
+Named runtimes inherit Docker settings; shared runtimes use their owner's settings. Managed containers, tunnels, and copied credentials are cleaned up after use, including task failures. Configuration-cache reuse and Isolated Projects are supported. `DIRECT` remains the default for local managed and persistent development instances; `TUNNEL` supports managed instances.
+
+See the [remote Docker guide](docs/src/docs/asciidoc/remote-docker.adoc) and the [named](examples/named-runtimes/README.md) and [shared](examples/multi-project/README.md) examples.
 
 ## Connect to an existing emulator
 

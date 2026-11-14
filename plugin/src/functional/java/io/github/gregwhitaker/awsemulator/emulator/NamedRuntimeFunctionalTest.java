@@ -36,6 +36,7 @@ class NamedRuntimeFunctionalTest {
         if (isolated) Files.writeString(project.resolve("gradle.properties"), "org.gradle.unsafe.isolated-projects=true\n");
         Files.writeString(project.resolve(kotlin ? "build.gradle.kts" : "build.gradle"), kotlin ? """
             import io.github.gregwhitaker.awsemulator.aws.sqs.ListSqsQueuesTask
+            import io.github.gregwhitaker.awsemulator.model.DockerTransport
             plugins { id("io.github.gregwhitaker.aws-emulator") }
             awsEmulator {
                 dockerExecutable.set("must-not-invoke-docker")
@@ -43,9 +44,13 @@ class NamedRuntimeFunctionalTest {
                 external { }
                 runtimes {
                     register("fast")
-                    register("slow") { region.set("us-west-2"); external { } }
+                    register("slow") {
+                        region.set("us-west-2"); external { }
+                        docker { context.set(""); host.set("ssh://builder@example.test") }
+                    }
                 }
                 region.set("eu-west-1")
+                docker { context.set("ci"); transport.set(DockerTransport.TUNNEL) }
             }
             tasks.register<ListSqsQueuesTask>("fastProbe") { runtimeName.set("fast") }
             tasks.register<ListSqsQueuesTask>("slowProbe") { runtimeName.set("slow") }
@@ -60,10 +65,13 @@ class NamedRuntimeFunctionalTest {
                     logger.lifecycle("PROFILE:" + value(this, "getRuntimeName") + ":" + value(p, "getRegion")
                         + ":" + value(p, "getPort") + ":" + value(p, "getExternalEnabled") + ":" + value(p, "getOwner")
                         + ":" + (value(p, "getWorkingDirectory") as org.gradle.api.file.Directory).asFile)
+                    logger.lifecycle("DOCKER:" + value(this, "getRuntimeName") + ":" + value(p, "getDockerContext")
+                        + ":" + value(p, "getDockerHost") + ":" + value(p, "getDockerTransport"))
                 }
             }
             """ : """
             import io.github.gregwhitaker.awsemulator.aws.sqs.ListSqsQueuesTask
+            import io.github.gregwhitaker.awsemulator.model.DockerTransport
             plugins { id 'io.github.gregwhitaker.aws-emulator' }
             awsEmulator {
                 dockerExecutable.set('must-not-invoke-docker')
@@ -71,9 +79,13 @@ class NamedRuntimeFunctionalTest {
                 external { }
                 runtimes {
                     register('fast')
-                    register('slow') { region.set('us-west-2'); external { } }
+                    register('slow') {
+                        region.set('us-west-2'); external { }
+                        docker { context.set(''); host.set('ssh://builder@example.test') }
+                    }
                 }
                 region.set('eu-west-1')
+                docker { context.set('ci'); transport.set(DockerTransport.TUNNEL) }
             }
             tasks.register('fastProbe', ListSqsQueuesTask) { runtimeName.set('fast') }
             tasks.register('slowProbe', ListSqsQueuesTask) { runtimeName.set('slow') }
@@ -83,6 +95,8 @@ class NamedRuntimeFunctionalTest {
                     def p = task.runtime.get().parameters
                     logger.lifecycle('PROFILE:' + task.runtimeName.get() + ':' + p.region.get() + ':' + p.port.get()
                         + ':' + p.externalEnabled.get() + ':' + p.owner.get() + ':' + p.workingDirectory.get().asFile)
+                    logger.lifecycle('DOCKER:' + task.runtimeName.get() + ':' + p.dockerContext.get()
+                        + ':' + p.dockerHost.get() + ':' + p.dockerTransport.get())
                 }
             }
             """);
@@ -94,6 +108,9 @@ class NamedRuntimeFunctionalTest {
             assertTrue(output.contains("PROFILE:fast:eu-west-1:0:false:"), output);
             assertTrue(output.contains("PROFILE:slow:us-west-2:0:true:"), output);
             assertTrue(output.contains("PROFILE:default:eu-west-1:9345:true:"), output);
+            assertTrue(output.contains("DOCKER:default:ci::TUNNEL"), output);
+            assertTrue(output.contains("DOCKER:fast:ci::TUNNEL"), output);
+            assertTrue(output.contains("DOCKER:slow::ssh://builder@example.test:TUNNEL"), output);
             List<String> profiles = output.lines().filter(line -> line.startsWith("PROFILE:")).toList();
             assertEquals(3, profiles.stream().map(line -> line.split(":")[5]).distinct().count(), output);
             assertTrue(output.replace('\\', '/').contains(".aws-emulator/runtimes/fast"), output);

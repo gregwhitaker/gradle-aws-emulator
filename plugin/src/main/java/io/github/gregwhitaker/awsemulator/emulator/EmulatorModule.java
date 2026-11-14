@@ -66,6 +66,9 @@ public final class EmulatorModule {
         extension.getRegion().convention("us-east-1");
         extension.getTelemetryEnabled().convention(false);
         extension.getDockerExecutable().convention("docker");
+        extension.getDocker().getHost().convention("");
+        extension.getDocker().getContext().convention("");
+        extension.getDocker().getTransport().convention(io.github.gregwhitaker.awsemulator.model.DockerTransport.DIRECT);
         extension.getMemoryLimit().convention("2g");
         extension.getStartupTimeoutSeconds().convention(60);
         extension.getCommandTimeoutSeconds().convention(60);
@@ -83,6 +86,9 @@ public final class EmulatorModule {
         runtime.getRegion().convention(defaults.getRegion());
         runtime.getTelemetryEnabled().convention(defaults.getTelemetryEnabled());
         runtime.getDockerExecutable().convention(defaults.getDockerExecutable());
+        runtime.getDocker().getHost().convention(defaults.getDocker().getHost());
+        runtime.getDocker().getContext().convention(defaults.getDocker().getContext());
+        runtime.getDocker().getTransport().convention(defaults.getDocker().getTransport());
         runtime.getMemoryLimit().convention(defaults.getMemoryLimit());
         runtime.getStartupTimeoutSeconds().convention(defaults.getStartupTimeoutSeconds());
         runtime.getCommandTimeoutSeconds().convention(defaults.getCommandTimeoutSeconds());
@@ -106,6 +112,9 @@ public final class EmulatorModule {
                 parameters.getRegion().set(extension.getRegion());
                 parameters.getTelemetryEnabled().set(extension.getTelemetryEnabled());
                 parameters.getDockerExecutable().set(extension.getDockerExecutable());
+                parameters.getDockerHost().set(extension.getDocker().getHost());
+                parameters.getDockerContext().set(extension.getDocker().getContext());
+                parameters.getDockerTransport().set(extension.getDocker().getTransport());
                 parameters.getMemoryLimit().set(extension.getMemoryLimit());
                 parameters.getStartupTimeoutSeconds().set(extension.getStartupTimeoutSeconds());
                 parameters.getCommandTimeoutSeconds().set(extension.getCommandTimeoutSeconds());

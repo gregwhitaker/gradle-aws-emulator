@@ -50,3 +50,13 @@ Supply an existing emulator's HTTPS endpoint, credentials file, and PEM CA certi
 The managed suites remain isolated while `remoteTest` provisions its queue on the external endpoint. The external emulator and its resources remain after success or failure. Connection properties are unnecessary when `remoteTest` is not selected. No Docker is needed when running `remoteTest` alone.
 
 See [build.gradle.kts](build.gradle.kts), [the SDK test](src/integration/java/example/NamedRuntimeTest.java), and the [named runtime guide](../../docs/src/docs/asciidoc/named-runtimes.adoc).
+
+## Containerized CI and remote Docker
+
+Run the managed suites through Docker's control connection when the runner and engine have different network namespaces or filesystems:
+
+```sh
+./gradlew -p examples/named-runtimes integrationTest acceptanceTest -PdockerTunnel=true --configuration-cache
+```
+
+Add `-PdockerContext=ci` or `-PdockerHost=ssh://builder@example.com` to select the engine explicitly; otherwise Docker uses its existing environment/context. Both named managed runtimes inherit these settings. The external `remote` runtime keeps its existing connection and lifecycle. Repeat the command to verify configuration-cache reuse. Tunnel mode supports managed suites; omit it for persistent development scenarios. See the [remote Docker guide](../../docs/src/docs/asciidoc/remote-docker.adoc).

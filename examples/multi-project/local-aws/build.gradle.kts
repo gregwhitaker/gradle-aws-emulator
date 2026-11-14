@@ -15,11 +15,19 @@
  */
 
 import io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueueTask
+import io.github.gregwhitaker.awsemulator.model.DockerTransport
 
 plugins { id("io.github.gregwhitaker.aws-emulator") }
 
 awsEmulator {
     port.set(0)
+    docker {
+        transport.set(providers.gradleProperty("dockerTunnel").map {
+            if (it.toBoolean()) DockerTransport.TUNNEL else DockerTransport.DIRECT
+        }.orElse(DockerTransport.DIRECT))
+        host.set(providers.gradleProperty("dockerHost").orElse(""))
+        context.set(providers.gradleProperty("dockerContext").orElse(""))
+    }
     val application = resourceSets.register("application") {
         provision("ordersQueue", CreateSqsQueueTask::class.java) {
             queueName.set("multi-project-orders")
