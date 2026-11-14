@@ -24,6 +24,8 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicBoolean;
 import static io.github.gregwhitaker.awsemulator.testsupport.GradleBuilds.isolatedRunner;
 import static io.github.gregwhitaker.awsemulator.testsupport.GradleBuilds.runner;
 import static org.junit.jupiter.api.Assertions.*;
@@ -55,10 +57,18 @@ class ReportAwsEmulatorFunctionalTest {
         var identity = TlsFixtures.identity(project, "report");
         TlsFixtures.pem(project.resolve("ca.pem"), identity);
         Files.writeString(project.resolve("credentials"), "[default]\naws_access_key_id = report-key\naws_secret_access_key = report-private-secret\n");
+        var kinesisRequests = new AtomicInteger();
+        var cborRequests = new AtomicBoolean();
         try (var server = TlsFixtures.server(identity)) {
             server.server().removeContext("/");
             server.server().createContext("/", exchange -> {
                 boolean health = exchange.getRequestURI().getPath().equals("/__admin/health");
+                String target = exchange.getRequestHeaders().getFirst("X-Amz-Target");
+                if (target != null && target.contains("Kinesis")) {
+                    kinesisRequests.incrementAndGet();
+                    String contentType = exchange.getRequestHeaders().getFirst("Content-Type");
+                    if (contentType != null && contentType.contains("cbor")) cborRequests.set(true);
+                }
                 byte[] body = (health ? "ok" : "private-service-response").getBytes(StandardCharsets.UTF_8);
                 exchange.getRequestBody().readAllBytes();
                 exchange.sendResponseHeaders(health ? 200 : 501, body.length);
@@ -72,6 +82,9 @@ class ReportAwsEmulatorFunctionalTest {
                 """);
             Files.writeString(project.resolve("build.gradle.kts"), """
                 plugins { id("io.github.gregwhitaker.aws-emulator") }
+                tasks.withType<io.github.gregwhitaker.awsemulator.emulator.ReportAwsEmulatorTask>().configureEach {
+                    doLast { check(System.getProperty("aws.cborEnabled") == "true") { "Report changed daemon SDK settings" } }
+                }
                 awsEmulator {
                     dockerExecutable.set("must-not-invoke-docker")
                     runtimes {
@@ -87,7 +100,7 @@ class ReportAwsEmulatorFunctionalTest {
                 }
                 """.formatted(server.url()));
             String previous = "";
-            String[] tasks = {"reportAwsEmulatorIntegration", ":child:reportAwsEmulator", "--runtime", "integration"};
+            String[] tasks = {"reportAwsEmulatorIntegration", ":child:reportAwsEmulator", "--runtime", "integration", "-Daws.cborEnabled=true"};
             Path reports = project.resolve("build/reports/aws-emulator/integration/development/reportAwsEmulatorIntegration");
             for (int run = 0; run < 2; run++) {
                 var result = isolatedRunner(project, tasks).build();
@@ -109,6 +122,8 @@ class ReportAwsEmulatorFunctionalTest {
                 assertTrue(Files.readString(reports.resolve("index.html")).contains("Incomplete snapshot"));
                 assertTrue(Files.exists(project.resolve("child/build/reports/aws-emulator/integration/development/reportAwsEmulator/report.json")));
             }
+            assertTrue(kinesisRequests.get() >= 4, "Each root/child report must query Kinesis on both builds");
+            assertFalse(cborRequests.get(), "Reporting must use JSON even when the daemon enables CBOR");
             String strict = isolatedRunner(project, "reportAwsEmulatorIntegration", "--fail-on-error").buildAndFail().getOutput();
             assertTrue(strict.contains("AWS Emulator report is incomplete"), strict);
             assertTrue(Files.isRegularFile(reports.resolve("index.html")));
