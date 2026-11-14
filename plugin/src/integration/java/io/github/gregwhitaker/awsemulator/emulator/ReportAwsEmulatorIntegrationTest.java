@@ -25,6 +25,8 @@ import io.github.gregwhitaker.awsemulator.internal.runtime.EmulatorSettings;
 import io.github.gregwhitaker.awsemulator.testsupport.ExternalEmulatorFixture;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.gradle.testkit.runner.BuildResult;
+import org.gradle.testkit.runner.UnexpectedBuildFailure;
 import software.amazon.awssdk.services.s3.model.BucketVersioningStatus;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -62,7 +64,7 @@ class ReportAwsEmulatorIntegrationTest {
                 assertNotNull(clientSecret);
                 int keyCount = kms.listKeys().keys().size();
                 for (int run = 0; run < 2; run++) {
-                    var result = runner(project, "reportAwsEmulator", "--runtime", "integration", "--fail-on-error").build();
+                    var result = buildWithReport("development", "reportAwsEmulator", "reportAwsEmulator", "--runtime", "integration", "--fail-on-error");
                     if (run > 0) assertTrue(result.getOutput().contains("Reusing configuration cache"), result.getOutput());
                     var report = report("development", "reportAwsEmulator");
                     assertInventory(report);
@@ -93,7 +95,7 @@ class ReportAwsEmulatorIntegrationTest {
     @Test void managedFinalizerCapturesBeforeCleanupOnSuccessCacheReuseAndTaskFailure() throws Exception {
         fixture();
         for (int run = 0; run < 2; run++) {
-            String output = runner(project, "verify").build().getOutput();
+            String output = buildWithReport("managed", "reportAfterTests", "verify").getOutput();
             if (run > 0) assertTrue(output.contains("Reusing configuration cache"), output);
             assertInventory(report("managed", "reportAfterTests"));
             assertNoContainers();
@@ -121,7 +123,7 @@ class ReportAwsEmulatorIntegrationTest {
                 }
                 """.formatted(connection.endpoint(), connection.credentials(), connection.certificate()), StandardOpenOption.APPEND);
             runner(project, "seed").build();
-            String output = runner(project, "reportAwsEmulatorIntegration", "--fail-on-error").build().getOutput();
+            String output = buildWithReport("development", "reportAwsEmulatorIntegration", "reportAwsEmulatorIntegration", "--fail-on-error").getOutput();
             var report = report("development", "reportAwsEmulatorIntegration");
             assertFalse(service(report, "S3").path("resources").isEmpty(), output + "\n" + report.toPrettyString());
             assertInventory(report);
@@ -170,6 +172,18 @@ class ReportAwsEmulatorIntegrationTest {
         for (String omitted : List.of("private-ssm-value", "private-secret-value", "private-template-subject", "private-template-body",
                 "private-pattern", "private-user", "Private-Password123!")) assertFalse(html.contains(omitted), omitted);
         return new ObjectMapper().readTree(directory.resolve("report.json").toFile());
+    }
+
+    private BuildResult buildWithReport(String mode, String task, String... arguments) throws Exception {
+        try { return runner(project, arguments).build(); }
+        catch (UnexpectedBuildFailure failure) {
+            Path json = project.resolve("build/reports/aws-emulator/integration/" + mode + "/" + task + "/report.json");
+            if (Files.isRegularFile(json)) {
+                var snapshot = new ObjectMapper().readTree(json.toFile());
+                throw new AssertionError("Report collection issues: " + snapshot.findValues("issues"), failure);
+            }
+            throw failure;
+        }
     }
 
     private JsonNode resource(JsonNode report, String service) { return service(report, service).path("resources").get(0); }
