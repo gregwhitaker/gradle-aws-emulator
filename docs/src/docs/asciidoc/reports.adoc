@@ -59,7 +59,7 @@ Reporting never receives SQS messages, scans DynamoDB items, opens Kinesis shard
 
 The selected connection must allow the metadata operations in the coverage table. Cognito client details use `DescribeUserPoolClient` with an explicit output field list; its client secret and callback/logout URLs are discarded. SES uses `GetEmailIdentity` and `GetConfigurationSetEventDestinations` alongside the list APIs. Missing permissions or unsupported operations use the same partial-report behavior as the original five services.
 
-The pinned emulator `1.0.322` does not implement SES v2 `ListEmailTemplates`, although template creation and retrieval work. Reports record that operation as `UNSUPPORTED`, retain available SES identity/configuration-set metadata, and continue collecting the other 12 services. The SES section is `PARTIAL` when resources were found, or `FAILED` otherwise. Template names cannot be inventoried on this version; an empty template list is not assumed. Other emulator versions that implement the API are collected normally. SES v1 listing is not used as a fallback because this emulator stores its v1 and v2 templates separately.
+The pinned emulator `1.0.367` implements SES v2 `ListEmailTemplates`, so reports inventory template names and metadata without retrieving their contents. Older versions such as `1.0.322` return an unsupported operation: reports then record `UNSUPPORTED`, retain available SES identity/configuration-set metadata, and continue collecting the other services. An empty template list is not assumed when listing fails. SES v1 listing is not used as a fallback because this emulator stores its v1 and v2 templates separately.
 
 Collection runs in a Gradle worker JVM with Kinesis's JSON wire format enabled. The worker uses the selected connection's explicit endpoint, credentials, and verified TLS configuration. It does not change the Gradle daemon's SDK settings.
 
@@ -80,7 +80,7 @@ By default, partial reports are written with a warning and the task succeeds. To
 ./gradlew reportAwsEmulator --fail-on-error
 ----
 
-On emulator `1.0.322`, the unsupported SES template-listing operation makes `--fail-on-error` fail after writing the reports, even when the other service sections are complete. Omit the flag to retain the default warning-and-report behavior.
+`--fail-on-error` succeeds when all sections are complete and fails after writing the reports when any operation is unsupported or fails. Omit the flag to retain the default warning-and-report behavior.
 
 Connection and filesystem errors always fail the task. Previous `index.html` and `report.json` files in the task's report directory are removed before connecting, so a failed connection cannot leave a previous successful report at those paths. Archive reports elsewhere when retaining multiple runs.
 

@@ -97,7 +97,7 @@ Run `./gradlew reportAwsEmulator` to inspect an existing development instance. I
 
 Reports cover all [13 service modules](#aws-resources), including resource settings and relationships. They omit payloads, secret values, log events, Cognito users/client secrets, and email/template contents.
 
-Unsupported metadata APIs are recorded without discarding other sections. Emulator `1.0.367` lacks SES v2 template listing, so reports warn about that incomplete inventory; `--fail-on-error` fails after writing both files.
+Unsupported metadata APIs are recorded without discarding other sections; `--fail-on-error` fails after writing both files if any section is incomplete. Emulator `1.0.367` supports SES v2 template listing, including template metadata in the inventory.
 
 For managed test snapshots, register a `ReportAwsEmulatorTask` as a test finalizer. The [basic](examples/basic/README.md#resource-reports) and [services](examples/services/README.md#resource-reports) examples demonstrate this with `-PemulatorReport`, including capture after test failures. See the [report guide](docs/src/docs/asciidoc/reports.adoc) for configuration and coverage.
 

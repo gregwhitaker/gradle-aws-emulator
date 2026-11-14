@@ -101,12 +101,12 @@ class CloudFormationTasksIntegrationTest {
               Pool:
                 Type: AWS::Cognito::UserPool
                 Properties:
-                  UserPoolName: !Ref QueueName
+                  UserPoolName: audited-pool
               Client:
                 Type: AWS::Cognito::UserPoolClient
                 Properties:
                   UserPoolId: !Ref Pool
-                  ClientName: audited-client
+                  ClientName: !Ref QueueName
                   ExplicitAuthFlows: [ALLOW_USER_PASSWORD_AUTH, ALLOW_REFRESH_TOKEN_AUTH]
               ResourceServer:
                 Type: AWS::Cognito::UserPoolResourceServer
@@ -124,15 +124,16 @@ class CloudFormationTasksIntegrationTest {
             try (var cognito = new AwsClientFactory(connection(), 30).cognitoIdentityProvider()) {
                 String pool = outputs().path("PoolId").asText();
                 String client = outputs().path("ClientId").asText();
-                assertEquals("cloudformation-example-events",
+                assertEquals("audited-pool",
                     cognito.describeUserPool(r -> r.userPoolId(pool)).userPool().name());
-                assertEquals("audited-client",
+                assertEquals("cloudformation-example-events",
                     cognito.describeUserPoolClient(r -> r.userPoolId(pool).clientId(client)).userPoolClient().clientName());
                 assertEquals("read", cognito.describeResourceServer(r -> r.userPoolId(pool).identifier("audited-api"))
                     .resourceServer().scopes().get(0).scopeName());
-                runner(project, "deployExampleStack", "-Pdevelopment=true", "-PqueueName=audited-updated-pool").build();
+                runner(project, "deployExampleStack", "-Pdevelopment=true", "-PqueueName=audited-updated-client").build();
                 assertEquals(pool, outputs().path("PoolId").asText());
-                assertEquals("audited-updated-pool", cognito.describeUserPool(r -> r.userPoolId(pool)).userPool().name());
+                assertEquals("audited-updated-client",
+                    cognito.describeUserPoolClient(r -> r.userPoolId(pool).clientId(client)).userPoolClient().clientName());
                 runner(project, "deleteCloudFormationStack", "--stackName=cloudformation-example").build();
                 assertThrows(software.amazon.awssdk.services.cognitoidentityprovider.model.ResourceNotFoundException.class,
                     () -> cognito.describeUserPool(r -> r.userPoolId(pool)));

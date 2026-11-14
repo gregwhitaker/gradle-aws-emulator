@@ -78,7 +78,7 @@ awsEmulator { useWith(tasks.named('test')) }
 
 == Provisioning Guard
 
-The support catalogue is audited against AWS Emulator `v1.0.367`, commit `129a3db1945ce884e6d0341e4d77e19b8efc9667`. It follows the upstream {repo-url}/blob/main/plugin/src/main/resources/io/github/gregwhitaker/awsemulator/aws/cloudformation/provisioned-types-1.0.367.txt[212 exact native provisioning type names and source references]. Nested stacks are excluded from deployment, leaving 211 accepted native types.
+The support catalogue is audited against AWS Emulator `v1.0.367`, commit `129a3db1945ce884e6d0341e4d77e19b8efc9667`. It follows the upstream {repo-url}/blob/main/plugin/src/main/resources/io/github/gregwhitaker/awsemulator/aws/cloudformation/provisioned-types-1.0.367.txt[212 exact native provisioning type names and source references]. Nested stacks are excluded from deployment, leaving 211 accepted native types. See {repo-url}/blob/main/docs/emulator-audits/1.0.367.md[the release audit] for the dispatch comparison and compatibility checks.
 
 `AWS::CDK::Metadata` is also accepted as stack metadata, and `AWS::CloudFormation::WaitCondition` is accepted for the emulator's signal-handling behavior. Neither represents a separate service resource. `AWS::CloudFormation::WaitConditionHandle` is rejected because its path only records a successful declaration.
 
@@ -98,7 +98,7 @@ Supported native examples include `AWS::S3::Bucket`, `AWS::SQS::Queue`, `AWS::SN
 
 There is no option to disable the guard or add unchecked resource types. An available service API does not imply a working CloudFormation handler: for rejected types, use the plugin's service-specific tasks where available.
 
-The check validates resource support and document structure, not every CloudFormation property or intrinsic expression. The emulator performs the remaining template validation. Stack failures and rollbacks fail the deployment task; request acceptance alone is insufficient.
+The check validates resource support and document structure, not every CloudFormation property or intrinsic expression. The emulator performs the remaining template validation. Stack failures and rollbacks fail the deployment task; request acceptance alone is insufficient. In `1.0.367`, renaming a Cognito user pool with dependent app clients/resource servers was observed to fail during update; see the release audit for the tested lifecycle scope.
 
 Service readiness is checked independently of stack status. Use the service's readiness waiter before item operations, as the runnable example does. Stack deletion can similarly finish before a table disappears.
 
