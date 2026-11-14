@@ -13,6 +13,8 @@ Run [AWS Emulator](https://github.com/aws/aws-emulator) from your Gradle build. 
 
 No AWS account or AWS CLI is required. The first emulator run builds the pinned image; subsequent runs reuse it. Applying the plugin alone does not start Docker or opt existing tasks into the emulator.
 
+The tested emulator default is shared in [`gradle/emulator.properties`](gradle/emulator.properties). Daily upgrade PRs run compatibility checks and require maintainer review, including a separate CloudFormation provisioning audit; see the [upgrade procedure](CONTRIBUTING.md#aws-emulator-upgrades).
+
 ## Quick start
 
 ### Try the included example

@@ -71,6 +71,8 @@ Managed and development instances select available ports by default. The default
 
 == Image And Platform Overrides
 
+The default emulator version is bundled with each plugin release from the repository's `gradle/emulator.properties`. Upgrade PRs must pass compatibility checks and a separate CloudFormation provisioning audit before a maintainer merges them. An explicit `emulatorVersion.set("...")` selects another release for a consumer; xref:cloudformation.adoc[CloudFormation validation] still requires its separately audited version.
+
 Leave `image` unset to build the pinned AWS package. Set it only for an image whose entrypoint runs AWS Emulator, binds `0.0.0.0`, and accepts the emulator's normal CLI flags.
 
 `platform = auto` detects the Docker engine architecture, which may differ from the host running Gradle. Explicit values are `linux/amd64` and `linux/arm64`.

@@ -30,7 +30,7 @@ class CloudFormationAuditTest {
                 + "and its source commit, and update CloudFormationTemplate.EMULATOR_VERSION. See CONTRIBUTING.md.");
         try (var input = CloudFormationTemplate.class.getResourceAsStream("provisioned-types-" + version + ".txt")) {
             assertNotNull(input, "Missing version-specific CloudFormation provisioning catalogue.");
-            String catalogue = new String(input.readAllBytes(), StandardCharsets.UTF_8);
+            String catalogue = new String(input.readAllBytes(), StandardCharsets.UTF_8).replace("\r\n", "\n");
             assertTrue(catalogue.startsWith("# Native CloudFormation provisioning dispatch in AWS Emulator v" + version + ".\n"),
                 "The catalogue must identify the audited emulator version.");
             assertTrue(catalogue.matches("(?s).*\n# Audited commit: [0-9a-f]{40}\n.*"),
