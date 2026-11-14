@@ -68,7 +68,6 @@ val tests = tasks.named<Test>("test") {
 }
 
 awsEmulator {
-    port.set(0)
     useWith(run, applicationMode, createApplicationQueue)
     useWith(tests, EmulatorMode.MANAGED, createTestQueue)
 }

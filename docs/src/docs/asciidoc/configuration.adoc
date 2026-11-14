@@ -14,7 +14,7 @@ toc::[]
 |`emulatorVersion` |`1.0.322` |Pinned AWS Emulator package used when building an image.
 |`image` |Unset |Use this Docker image instead of building one. Pull it if it is missing locally.
 |`platform` |`auto` |Detect the Docker engine architecture, or select `linux/amd64` or `linux/arm64`.
-|`port` |`9297` |Local endpoint port; also the container port with `DIRECT`. `0` selects a port. Also configurable with `-PawsEmulator.port=...`.
+|`port` |`0` |Automatically select an available local endpoint port; also the container port with `DIRECT`. Set a nonzero value for a fixed port. Also configurable with `-PawsEmulator.port=...`.
 |`region` |`us-east-1` |Region passed to consuming SDKs and resource provisioning.
 |`telemetryEnabled` |`false` |Explicitly enable the emulator's AWS telemetry.
 |`dockerExecutable` |`docker` |Docker command name or absolute executable path.
@@ -44,7 +44,6 @@ API: link:api/io/github/gregwhitaker/awsemulator/emulator/AwsEmulatorExtension.h
 [source,kotlin]
 ----
 awsEmulator {
-    port.set(providers.gradleProperty("awsEmulator.port").map(String::toInt).orElse(0))
     region.set("us-west-2")
     memoryLimit.set("3g")
     startupTimeoutSeconds.set(120)
@@ -58,7 +57,6 @@ awsEmulator {
 [source,groovy]
 ----
 awsEmulator {
-    port.set(providers.gradleProperty('awsEmulator.port').map { it.toInteger() }.orElse(0))
     region.set('us-west-2')
     memoryLimit.set('3g')
     startupTimeoutSeconds.set(120)
@@ -68,7 +66,7 @@ awsEmulator {
 }
 ----
 
-The plugin's default port convention reads `awsEmulator.port`. An explicit `port.set(...)` replaces that convention. The snippets above keep the command-line override while changing the fallback to automatic port selection.
+Managed and development instances select available ports by default. The default runtime reads `awsEmulator.port`, so `-PawsEmulator.port=9297` requests a fixed port without changing the build script. An explicit `port.set(...)` replaces that convention and takes precedence over the command-line property. Named runtimes select their own ports independently.
 
 == Image and platform overrides
 

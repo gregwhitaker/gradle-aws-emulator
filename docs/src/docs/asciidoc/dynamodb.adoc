@@ -50,7 +50,6 @@ val createProducts = tasks.register<CreateDynamoDbTableTask>("createProducts") {
 }
 val tests = tasks.named<Test>("test") { dependsOn(createProducts) }
 awsEmulator {
-    port.set(0)
     useWith(tests)
 }
 ----

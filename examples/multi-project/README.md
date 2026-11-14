@@ -58,7 +58,7 @@ Isolation enables the configuration cache. The second invocation reuses it and r
 ./gradlew -p examples/multi-project :local-aws:stopAwsEmulator
 ```
 
-Application runs share the owner's persistent development instance. Tests still use a separate managed instance, and their cleanup leaves development running. Resource provisioning runs again each invocation, reusing the existing queue. The owner uses `port = 0` so managed and development instances can coexist.
+Application runs share the owner's persistent development instance. Tests still use a separate managed instance, and their cleanup leaves development running. Resource provisioning runs again each invocation, reusing the existing queue. Automatic port selection is the default, so managed and development instances can coexist.
 
 Use `:local-aws:resetAwsEmulator` to discard the development state and recreate the selected scenario. Reset and stop affect every application using that shared development instance. Run them when those applications are no longer using it.
 

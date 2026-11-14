@@ -87,7 +87,5 @@ val integrationTest = tasks.register<Test>("integrationTest") {
 }
 
 awsEmulator {
-    // Zero selects a host port, then gives that same nonzero port to Docker and the emulator.
-    port.set(providers.gradleProperty("awsEmulator.port").map(String::toInt).orElse(0))
     useWith(integrationTest)
 }

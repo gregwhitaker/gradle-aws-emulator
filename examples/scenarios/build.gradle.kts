@@ -76,7 +76,6 @@ val failedOrders = awsEmulator.resourceSets.register("failed-orders") {
 }
 
 awsEmulator {
-    port.set(0)
     defaultScenario.set("demo")
     scenarios {
         register("demo") { resources(demo) }

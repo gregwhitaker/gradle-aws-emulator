@@ -20,7 +20,6 @@ import io.github.gregwhitaker.awsemulator.model.DockerTransport
 plugins { id("io.github.gregwhitaker.aws-emulator") }
 
 awsEmulator {
-    port.set(0)
     docker {
         transport.set(providers.gradleProperty("dockerTunnel").map {
             if (it.toBoolean()) DockerTransport.TUNNEL else DockerTransport.DIRECT

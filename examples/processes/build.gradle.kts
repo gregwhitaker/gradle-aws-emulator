@@ -42,7 +42,6 @@ val awsIdentity = tasks.register<Exec>("awsIdentity") {
     }
 }
 awsEmulator {
-    port.set(0)
     useWith(pythonProbe, selectedMode)
     useWith(nodeProbe, selectedMode)
     useWith(awsIdentity, selectedMode)

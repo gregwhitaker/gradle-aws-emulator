@@ -54,12 +54,13 @@ val tests = tasks.named<Test>("test") {
 }
 
 awsEmulator {
-    port.set(0)
     useWith(tests)
 }
 ```
 
-Add `.aws-emulator/` to your application's `.gitignore`, then run `./gradlew test`. The queue and tests share one managed instance, which is cleaned up after the build. `port.set(0)` selects an available port.
+Add `.aws-emulator/` to your application's `.gitignore`, then run `./gradlew test`. The queue and tests share one managed instance, which is cleaned up after the build. An available port is selected automatically; set `-PawsEmulator.port=9297` to use a fixed port.
+
+For a separate integration suite, attach its existing `integrationTest` task with `useWith` so ordinary unit tests run independently of the emulator. The basic example uses this arrangement.
 
 Keep your application's AWS SDK and test dependencies. Use an SDK that supports external endpoint configuration and its normal credential providers; explicit client settings can override the supplied connection. The [basic example](examples/basic/README.md) shows a complete build, and the [connection guide](docs/src/docs/asciidoc/connections.adoc) covers SDK setup and TLS.
 
@@ -107,7 +108,6 @@ Use the managed tunnel transport when Gradle runs in a container or connects to 
 import io.github.gregwhitaker.awsemulator.model.DockerTransport
 
 awsEmulator {
-    port.set(0)
     docker {
         transport.set(DockerTransport.TUNNEL)
         // Optional: context.set("ci") or host.set("ssh://builder@example.com")

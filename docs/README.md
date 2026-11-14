@@ -24,7 +24,9 @@ python3 -m http.server 8000 --bind 127.0.0.1 --directory docs/build/site
 
 Then visit <http://127.0.0.1:8000>. Upload the contents of `docs/build/site/` (or the unzipped archive) to a static host. Links are relative and also work under a path prefix. Local builds do not publish or require a hosting account.
 
-The guide and Java API reference include the same light/dark theme toggle on desktop and mobile. They follow the system theme until a reader chooses one, then share that preference through browser storage. Both themes use neutral grays and blue accents, with matching code blocks. Printing uses a light palette.
+The guide and Java API reference include the same light/dark theme toggle on desktop and mobile. They follow the system theme until a reader chooses one, then share that preference through browser storage. The light theme uses white and neutral gray; the dark theme uses charcoal surfaces and white headings. Blue accents identify links, active navigation, and focus states. Both use dark gray code panels with blue and violet syntax colors. Printing uses a light palette.
+
+The overview pairs an introduction with a real build example on wide screens and stacks them on smaller screens. It provides a runnable command, lifecycle choices, and links to service guides. The source remains an ordinary AsciiDoc article, readable without JavaScript.
 
 The guide has grouped navigation, a page outline that stays beside the article on wide screens and collapses on smaller screens, and copyable code examples. Search opens from the header or with **⌘ K / Ctrl K**, matches guide text and code, and links directly to sections. Use the arrow keys to move through results, Enter to open one, and Escape to close. The generated index is a local script, so search also works when opening the site directly from disk. The Java API retains its own Javadoc search.
 

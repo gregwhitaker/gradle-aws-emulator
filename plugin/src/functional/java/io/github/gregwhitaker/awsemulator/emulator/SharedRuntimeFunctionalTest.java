@@ -48,7 +48,7 @@ class SharedRuntimeFunctionalTest {
             for (String consumer : List.of("api", "worker")) {
                 assertTrue(output.contains("PROBE::" + consumer + ":statusAwsEmulator:1234"), output);
             }
-            assertTrue(output.contains("PROBE::isolated:statusAwsEmulator:9297"), output);
+            assertTrue(output.contains("PROBE::isolated:statusAwsEmulator:0"), output);
             if (run > 0) assertTrue(output.contains("Reusing configuration cache"), output);
         }
         for (String child : List.of("api", "worker", "zz-infra", "isolated")) {

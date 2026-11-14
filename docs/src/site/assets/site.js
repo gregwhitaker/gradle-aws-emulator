@@ -39,6 +39,20 @@
   context.append(home, separator, group);
   document.querySelector('#header').prepend(context);
 
+  // Keep the source a normal AsciiDoc article; enhance the overview into a
+  // two-column introduction without duplicating its heading or code example.
+  if (document.body.classList.contains('docs-home')) {
+    const hero = document.createElement('div');
+    hero.className = 'home-hero';
+    const introduction = document.createElement('div');
+    introduction.className = 'home-introduction';
+    const example = document.querySelector('.home-example');
+    const releaseNote = document.querySelector('.release-note');
+    introduction.append(document.querySelector('#header'), document.querySelector('#preamble'));
+    hero.append(introduction, example);
+    content.prepend(hero, releaseNote);
+  }
+
   menu.hidden = false;
   const mobile = window.matchMedia('(max-width: 760px)');
   const pageRegions = [...document.querySelectorAll('#header, #content, .site-footer')];

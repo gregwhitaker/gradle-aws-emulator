@@ -56,7 +56,7 @@ body { line-height: 1.6; }
 pre, code, tt, dt code, .summary-table dt code, .module-signature, .package-signature, .type-signature, .member-signature { font-family: var(--font-mono); }
 a:link, a:visited, .caption a:link, .caption a:visited, .ui-widget-content a { color: var(--link); }
 a[href]:hover, a[href]:focus, .caption a:hover, .caption a:active { color: var(--link-hover); }
-a:focus-visible, button:focus-visible, input:focus-visible, [tabindex]:focus-visible { outline: 3px solid #3b82f6; outline-offset: 3px; }
+a:focus-visible, button:focus-visible, input:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--link); outline-offset: 3px; }
 a[name], .block, dl.notes > dt, .deprecation-block, .preview-block { color: var(--ink); }
 h1, h2, h3, h4, h5, h6, .title { color: var(--heading); }
 .sub-title, .watermark, .source-line-no, .help-footnote { color: var(--muted); }
@@ -65,7 +65,7 @@ main { max-width: 1400px; margin: 0 auto; padding: 28px 32px; box-sizing: border
 h1.title { font-size: 30px; letter-spacing: -.025em; line-height: 1.25; margin-bottom: 24px; }
 body.class-declaration-page .summary h2, body.class-declaration-page .details h2, body.class-use-page h2, body.module-declaration-page .block-list h2 { font-style: normal; }
 
-.api-site-header { display: flex; align-items: center; justify-content: space-between; gap: 18px; height: 68px; padding: 0 24px; box-sizing: border-box; background: var(--paper); border-bottom: 1px solid var(--line); }
+.api-site-header { display: flex; align-items: center; justify-content: space-between; gap: 18px; height: 76px; padding: 0 26px; box-sizing: border-box; background: var(--paper); border-bottom: 1px solid var(--line); }
 .api-site-header .brand { color: var(--heading); text-decoration: none; }
 .api-header-links { display: flex; align-items: center; gap: 24px; font-size: 13px; }
 .api-header-links > a { color: var(--nav-ink); white-space: nowrap; }
@@ -119,7 +119,7 @@ table.striped > tbody > tr:nth-child(even) { background-color: var(--paper); }
   .top-nav { padding-bottom: 0; }
 }
 @media (max-width: 760px) {
-  .api-site-header { height: 64px; padding: 0 16px; gap: 12px; }
+  .api-site-header { height: 68px; padding: 0 16px; gap: 12px; }
   .api-header-links { gap: 12px; font-size: 12px; }
   main { padding: 20px 16px; }
   h1.title { font-size: 26px; }

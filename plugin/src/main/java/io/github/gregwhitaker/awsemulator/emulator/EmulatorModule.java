@@ -62,7 +62,7 @@ public final class EmulatorModule {
         AwsEmulatorExtension extension = project.getExtensions().create("awsEmulator", AwsEmulatorExtension.class);
         extension.getEmulatorVersion().convention("1.0.322");
         extension.getPlatform().convention("auto");
-        extension.getPort().convention(project.getProviders().gradleProperty("awsEmulator.port").map(Integer::parseInt).orElse(9297));
+        extension.getPort().convention(project.getProviders().gradleProperty("awsEmulator.port").map(Integer::parseInt).orElse(0));
         extension.getRegion().convention("us-east-1");
         extension.getTelemetryEnabled().convention(false);
         extension.getDockerExecutable().convention("docker");

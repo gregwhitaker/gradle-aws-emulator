@@ -35,7 +35,7 @@ public abstract class EmulatorRuntimeConfiguration {
     public abstract Property<String> getImage();
     /** Docker platform: auto, linux/amd64, or linux/arm64. */
     public abstract Property<String> getPlatform();
-    /** Local endpoint port. DIRECT also uses it in the container; zero selects an available port. */
+    /** Local endpoint port, defaulting to zero to select an available port. DIRECT also uses it in the container. */
     public abstract Property<Integer> getPort();
     /** Region supplied to resource clients and opted-in consumers. */
     public abstract Property<String> getRegion();

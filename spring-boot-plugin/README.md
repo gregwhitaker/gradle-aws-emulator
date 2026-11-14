@@ -41,7 +41,6 @@ plugins {
 }
 
 awsEmulator {
-    port.set(0)
     springBoot {
         profiles.set(listOf("local"))
     }
@@ -75,7 +74,6 @@ plugins {
 }
 
 awsEmulator {
-    port.set(0)
     springBoot {
         profiles.set(['local'])
     }
@@ -90,7 +88,7 @@ Keep your application's existing dependencies and repositories. The application 
 
 To connect to an already-running emulator, configure `awsEmulator.external` with its endpoint, credentials file, and CA certificate. Both local Boot tasks and their resource setup use that connection in either mode; application exits and failures leave the external instance running.
 
-Plugin application order does not matter. The local run tasks are registered once Spring Boot and Java are present. Applying the companion alone does not start Docker. Setting `awsEmulator.port` to `0` selects an available host port.
+Plugin application order does not matter. The local run tasks are registered once Spring Boot and Java are present. Applying the companion alone does not start Docker. The emulator selects an available host port by default; use `-PawsEmulator.port=9297` to request a fixed port.
 
 ## Run and debug
 

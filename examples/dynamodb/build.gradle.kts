@@ -61,6 +61,5 @@ val integrationTest = tasks.register<Test>("integrationTest") {
 }
 
 awsEmulator {
-    port.set(0)
     useWith(integrationTest)
 }

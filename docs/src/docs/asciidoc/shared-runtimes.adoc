@@ -28,7 +28,6 @@ import io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueueTask
 plugins { id("io.github.gregwhitaker.aws-emulator") }
 
 awsEmulator {
-    port.set(0)
     val application = resourceSets.register("application") {
         provision("ordersQueue", CreateSqsQueueTask::class.java) {
             queueName.set("orders")
@@ -80,7 +79,7 @@ Each selected set's provisioning and fixtures run in the owner's project, once p
 
 * Managed consumers across the participating projects selecting the same name share one fresh managed instance per invocation. Cleanup waits for all participating tasks, including failure handling.
 * Development consumers share the owner's persistent instance across invocations. It stays running until explicitly stopped.
-* With an owned runtime, managed and development modes remain separate, even when selected together. Put `port.set(0)` in the owner to let both run simultaneously.
+* With an owned runtime, managed and development modes remain separate, even when selected together. Automatic port selection is the default, so both can run simultaneously.
 * Spring Boot local tasks automatically receive the shared sets in `awsEmulator.springBoot.mode`. This explicit selection is independent of `autoCreateResources`; automatic discovery still considers only local resource tasks.
 
 Sharing does not order application consumers or isolate their data. Declare task dependencies for a finite publisher/consumer workflow, or coordinate long-running applications yourself. Concurrent tests that require independent data should use distinct resource names or keep separate runtime owners.

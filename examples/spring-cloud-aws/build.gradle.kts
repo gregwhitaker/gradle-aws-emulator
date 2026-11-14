@@ -56,7 +56,6 @@ val applicationResources = awsEmulator.resourceSets.register("application") {
 }
 
 awsEmulator {
-    port.set(0)
     useWith(tasks.named<Test>("test"), EmulatorMode.MANAGED, applicationResources)
     scenarios { register("default") { resources(applicationResources) } }
     springBoot {

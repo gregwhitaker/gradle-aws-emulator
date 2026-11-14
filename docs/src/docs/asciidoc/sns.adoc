@@ -31,7 +31,6 @@ val publish = tasks.register<PublishSnsTask>("publishNotification") {
 }
 val tests = tasks.named<Test>("test") { dependsOn(publish) }
 awsEmulator {
-    port.set(0)
     useWith(tests)
 }
 ----
@@ -61,7 +60,6 @@ def publish = tasks.register('publishNotification', PublishSnsTask) {
 }
 def tests = tasks.named('test') { dependsOn(publish) }
 awsEmulator {
-    port.set(0)
     useWith(tests)
 }
 ----

@@ -72,7 +72,6 @@ val tests = tasks.named<Test>("test") {
 }
 
 awsEmulator {
-    port.set(0)
     useWith(run, applicationMode, createApplicationQueue)
     // Tests always get a fresh managed instance, even when run uses development mode.
     useWith(tests, EmulatorMode.MANAGED, createTestQueue)

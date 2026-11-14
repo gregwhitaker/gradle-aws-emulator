@@ -56,7 +56,6 @@ class PluginFunctionalTest {
             }
             awsEmulator {
                 dockerExecutable.set("this-command-does-not-exist")
-                port.set(0)
                 useWith(tasks.named<Test>("test"))
             }
             """);

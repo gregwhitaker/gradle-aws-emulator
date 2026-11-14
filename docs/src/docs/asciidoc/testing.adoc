@@ -14,23 +14,21 @@ For independent suites in one project, declare xref:named-runtimes.adoc[named ru
 
 == Opt in tests
 
-The method supports Gradle `Test`, `JavaExec`, and `Exec` tasks, including subclasses. Applying the plugin alone does not modify your tests.
+The method supports Gradle `Test`, `JavaExec`, and `Exec` tasks, including subclasses. Applying the plugin alone does not modify your tests. Prefer a separate `integrationTest` task for tests that need AWS so ordinary unit tests run independently of the emulator.
 
-.Use the existing test task
+.Opt in an existing integrationTest task
 [source,kotlin]
 ----
 awsEmulator {
-    port.set(0)
-    useWith(tasks.named<Test>("test"))
+    useWith(tasks.named<Test>("integrationTest"))
 }
 ----
 
-.Opt in only an existing integrationTest task
+.Use test when it contains your AWS integration tests
 [source,kotlin]
 ----
 awsEmulator {
-    port.set(0)
-    useWith(tasks.named<Test>("integrationTest"))
+    useWith(tasks.named<Test>("test"))
 }
 ----
 
@@ -43,7 +41,6 @@ For an existing `JavaExec` task, such as `run` from Gradle's application plugin:
 [source,kotlin]
 ----
 awsEmulator {
-    port.set(0)
     useWith(tasks.named<JavaExec>("run"))
 }
 ----
@@ -74,7 +71,6 @@ val cliIdentity = tasks.register<Exec>("cliIdentity") {
     doFirst { args("--endpoint-url", environment.getValue("AWS_ENDPOINT_URL")) }
 }
 awsEmulator {
-    port.set(0)
     useWith(pythonTests)
     useWith(cliIdentity, EmulatorMode.DEVELOPMENT)
 }
@@ -101,7 +97,6 @@ val tests = tasks.named<Test>("test") {
     dependsOn(createBucket)
 }
 awsEmulator {
-    port.set(0)
     useWith(tests)
 }
 ----
@@ -120,7 +115,7 @@ Opted-in tasks with work always execute. Up-to-date skipping and build-cache reu
 
 == Parallel builds
 
-Set `port` to `0` when projects or builds may run concurrently. The plugin selects a host port and supplies that same nonzero port to Docker and the emulator. A competing process can still claim the selected port before Docker binds it; startup then fails and the plugin cleans up.
+The default `port` value of `0` selects an available port for each instance, supporting concurrent projects and builds without additional configuration. With `DIRECT`, the plugin supplies that same nonzero port to Docker and the emulator. A competing process can still claim the selected port before Docker binds it; startup then fails and the plugin cleans up.
 
 Tasks sharing an instance also share AWS resources. Use distinct bucket and queue names when tests run concurrently. A fixed port can also conflict with a development instance that remains running.
 

@@ -33,7 +33,6 @@ dependencies {
 }
 
 awsEmulator {
-    port.set(0)
     springBoot {
         profiles.set(listOf("local"))
         mode.set(if (providers.gradleProperty("managed").isPresent) EmulatorMode.MANAGED else EmulatorMode.DEVELOPMENT)

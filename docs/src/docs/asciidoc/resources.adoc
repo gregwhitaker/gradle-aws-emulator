@@ -35,7 +35,6 @@ val tests = tasks.named<Test>("test") {
     dependsOn(createBucket, createQueue)
 }
 awsEmulator {
-    port.set(0)
     useWith(tests)
 }
 ----
@@ -63,7 +62,6 @@ def tests = tasks.named('test') {
     dependsOn(createBucket, createQueue)
 }
 awsEmulator {
-    port.set(0)
     useWith(tests)
 }
 ----

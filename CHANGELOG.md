@@ -2,6 +2,7 @@
 
 ## 0.2.0 — Unreleased
 
+- Default to automatic port selection for managed and development runtimes, preserving explicit ports and `-PawsEmulator.port` overrides. Keep consumer task selection explicit through `useWith`.
 - Support managed runtimes in containerized CI and on remote Docker engines with `docker.host`, `docker.context`, and `DockerTransport.TUNNEL`; preserve verified HTTPS without shared bind mounts or published emulator ports, including named/shared ownership, configuration-cache reuse, and Isolated Projects.
 - Add the standalone `testcontainers-aws-emulator` Java library with verified HTTPS, generated credentials, lazy pinned images, and disposable container cleanup. Extract `aws-emulator-core` support shared with the plugin while retaining its existing lifecycle; include a JUnit example, Maven publications, and Docker verification.
 - Support Gradle Isolated Projects for default, named, external, and shared runtimes. Resolve owner metadata through project dependencies and shared setup through task paths; verify parallel configuration, configuration-cache reuse, and Docker lifecycle cleanup under isolation.

@@ -38,7 +38,6 @@ val createQueue = tasks.register<CreateSqsQueueTask>("createApplicationQueue") {
     queueName.set("application-events")
 }
 awsEmulator {
-    port.set(0)
     useWith(tasks.named<JavaExec>("run"), EmulatorMode.MANAGED, createQueue)
     useWith(tasks.named<Test>("test"), EmulatorMode.MANAGED, createQueue)
 }
@@ -54,7 +53,6 @@ def createQueue = tasks.register('createApplicationQueue', CreateSqsQueueTask) {
     queueName.set('application-events')
 }
 awsEmulator {
-    port.set(0)
     useWith(tasks.named('run'), EmulatorMode.MANAGED, createQueue)
     useWith(tasks.named('test'), EmulatorMode.MANAGED, createQueue)
 }

@@ -62,7 +62,7 @@ val secrets = tasks.register<PutSecretsTask>("seedSecrets") {
     fixtures.set(layout.projectDirectory.file("fixtures/secrets.json"))
 }
 val tests = tasks.named<Test>("test") { dependsOn(parameters, secrets) }
-awsEmulator { port.set(0); useWith(tests) }
+awsEmulator { useWith(tests) }
 ----
 
 Groovy DSL:
@@ -79,7 +79,7 @@ def secrets = tasks.register('seedSecrets', PutSecretsTask) {
     fixtures.set(layout.projectDirectory.file('fixtures/secrets.json'))
 }
 def tests = tasks.named('test') { dependsOn(parameters, secrets) }
-awsEmulator { port.set(0); useWith(tests) }
+awsEmulator { useWith(tests) }
 ----
 
 .Parameter fixtures

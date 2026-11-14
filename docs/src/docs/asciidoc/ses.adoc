@@ -41,7 +41,7 @@ val inspect = tasks.register<GetSesMessageInsightsTask>("inspectWelcome") {
     outputFile.set(layout.buildDirectory.file("email/insights.json"))
 }
 val tests = tasks.named<Test>("test") { dependsOn(inspect) }
-awsEmulator { port.set(0); useWith(tests) }
+awsEmulator { useWith(tests) }
 ----
 
 The sender, send, inspection, and tests share one managed runtime. `SendSesEmailTask` writes the accepted message ID, not the message body. `GetSesMessageInsightsTask` writes `messageId`, `fromEmailAddress`, `subject`, `emailTags`, and `insights` entries containing `destination`, `isp`, and event `type`/`timestamp`. Fields unavailable from SES can be null. It does not export event details or email bodies.

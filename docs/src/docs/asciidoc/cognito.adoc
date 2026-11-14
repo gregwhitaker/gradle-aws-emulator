@@ -86,7 +86,6 @@ val tests = tasks.named<Test>("test") {
         layout.buildDirectory.file("cognito/managed.json").get().asFile.absolutePath)
 }
 awsEmulator {
-    port.set(0)
     useWith(tests, EmulatorMode.MANAGED, auth)
     scenarios { register("default") { resources(auth) } }
 }
@@ -126,7 +125,7 @@ def tests = tasks.named('test') {
     dependsOn(exported)
     systemProperty('example.cognito.configuration', config.get().asFile.absolutePath)
 }
-awsEmulator { port.set(0); useWith(tests) }
+awsEmulator { useWith(tests) }
 ----
 
 For ordinary task registrations targeting a persistent instance, select `EmulatorMode.DEVELOPMENT` on every resource task in the dependency chain and choose a development-specific output path.

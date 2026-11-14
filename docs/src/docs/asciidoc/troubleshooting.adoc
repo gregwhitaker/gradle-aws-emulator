@@ -32,11 +32,11 @@ These status/log tasks inspect the development instance. For managed failures, i
 
 == A port is already in use
 
-Use `port.set(0)` for concurrent projects, builds, or a managed instance alongside a persistent development instance. A fixed default of `9297` can collide with another process.
+The plugin selects an available port by default. If you configured a fixed port, remove that setting to restore automatic selection for concurrent projects, builds, or a managed instance alongside a persistent development instance.
 
 With `DIRECT`, automatic selection has a short race before Docker binds the port. If another process claims it, startup fails and cleans up. Retry after resolving the competing process. `TUNNEL` reserves its local listener atomically and publishes no emulator port on the engine.
 
-If you configure `port.set(0)` explicitly, `-PawsEmulator.port=...` no longer controls it unless your property expression reads that override. The xref:configuration.adoc#configure-a-project[configuration examples] preserve this behavior.
+An explicit `port.set(...)` takes precedence over `-PawsEmulator.port=...`. Leave the build-script port unset to retain the command-line override and automatic fallback; see xref:configuration.adoc#configure-a-project[configuration].
 
 == Development settings changed
 

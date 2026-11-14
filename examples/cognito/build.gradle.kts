@@ -58,7 +58,6 @@ tasks.test {
     systemProperty("example.fail", providers.gradleProperty("failExample").getOrElse("false"))
 }
 awsEmulator {
-    port.set(0)
     useWith(tasks.test, EmulatorMode.MANAGED, cognito)
     scenarios { register("default") { resources(cognito) } }
     springBoot { resourceSets.add(cognito) }

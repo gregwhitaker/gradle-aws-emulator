@@ -23,7 +23,6 @@ plugins {
 }
 
 awsEmulator {
-    port.set(0)
     springBoot {
         profiles.set(listOf("local"))
     }
@@ -44,7 +43,6 @@ plugins {
 }
 
 awsEmulator {
-    port.set(0)
     springBoot {
         profiles.set(['local'])
     }

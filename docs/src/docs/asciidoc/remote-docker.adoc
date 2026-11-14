@@ -13,7 +13,6 @@ toc::[]
 import io.github.gregwhitaker.awsemulator.model.DockerTransport
 
 awsEmulator {
-    port.set(0)
     docker {
         transport.set(DockerTransport.TUNNEL)
         context.set("ci") // Optional: use an existing Docker context
@@ -28,7 +27,6 @@ awsEmulator {
 import io.github.gregwhitaker.awsemulator.model.DockerTransport
 
 awsEmulator {
-    port.set(0)
     docker {
         transport.set(DockerTransport.TUNNEL)
         host.set('ssh://builder@example.com')
@@ -39,7 +37,7 @@ awsEmulator {
 
 The `docker` CLI must be installed in the Gradle runner. Set either `docker.context` or `docker.host`, or leave both empty to use Docker's existing context/environment, including `DOCKER_HOST` and `DOCKER_CONTEXT`. Explicit selection is passed to every Docker command, including image preparation, file copying, forwarding, logs, and cleanup. Authentication and SSH/TLS settings come from Docker's client configuration; the plugin does not manage Docker credentials.
 
-For a CI service container already exposed through `DOCKER_HOST`, only `transport.set(DockerTransport.TUNNEL)` and the usual managed consumer wiring are needed. Select `port.set(0)` to reserve an available loopback port in the runner.
+For a CI service container already exposed through `DOCKER_HOST`, only `transport.set(DockerTransport.TUNNEL)` and the usual managed consumer wiring are needed. The default port setting reserves an available loopback port in the runner.
 
 == Named and shared runtimes
 

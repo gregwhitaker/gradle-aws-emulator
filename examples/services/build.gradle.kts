@@ -110,4 +110,4 @@ tasks.register("verifyServices") { dependsOn(filtered, retrieved); group = "veri
 // Configuration-cache execution may run independent tasks concurrently, even in one project.
 tasks.named("deleteEventBus") { mustRunAfter("deleteEventBridgeRule") }
 tasks.named("deleteLogGroup") { mustRunAfter("deleteLogStream") }
-awsEmulator { port.set(0); useWith(integrationTest) }
+awsEmulator { useWith(integrationTest) }

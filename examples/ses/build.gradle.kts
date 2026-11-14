@@ -93,4 +93,4 @@ val integrationTest = tasks.register<Test>("integrationTest") {
     systemProperty("example.rawMessageId", raw.flatMap { it.messageIdFile }.get().asFile.absolutePath)
     systemProperty("example.fail", providers.gradleProperty("failExample").getOrElse("false"))
 }
-awsEmulator { port.set(0); region.set("us-east-1"); useWith(integrationTest, runtimeMode) }
+awsEmulator { region.set("us-east-1"); useWith(integrationTest, runtimeMode) }

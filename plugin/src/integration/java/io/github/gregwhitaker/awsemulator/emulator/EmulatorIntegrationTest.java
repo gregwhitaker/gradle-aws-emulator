@@ -208,7 +208,6 @@ class EmulatorIntegrationTest {
                 environment 'AWS_ENDPOINT_URL_STS', 'https://production.invalid'
             }
             awsEmulator {
-                port.set(0)
                 useWith(tasks.named('test'))
                 useWith(second)
                 useWith(execProbe)
