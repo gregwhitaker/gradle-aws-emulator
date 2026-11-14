@@ -32,7 +32,7 @@ The example's topic ARN uses the default emulator account `000000000000` and the
 
 ## MailHog, Mailpit, and template limitations
 
-AWS Emulator **1.0.322 does not forward SES sends to an SMTP server**. There is no MailHog/Mailpit relay setting in this plugin. `SendEmail` records an accepted message and can publish simulated events; it does not send mail externally. `GetMessageInsights` exposes subject, sender, recipients, and events, but no body. An SNS `Delivery` event is simulated, not proof that an inbox received email.
+AWS Emulator **1.0.367 does not forward SES sends to an SMTP server**. There is no MailHog/Mailpit relay setting in this plugin. `SendEmail` records an accepted message and can publish simulated events; it does not send mail externally. `GetMessageInsights` exposes subject, sender, recipients, and events, but no body. An SNS `Delivery` event is simulated, not proof that an inbox received email.
 
 For viewing rendered HTML, MIME, or attachments in [MailHog](https://github.com/mailhog/MailHog) or [Mailpit](https://mailpit.axllent.org/docs/configuration/smtp/), configure your application's **SMTP mail sender** to use the local SMTP sink (typically `localhost:1025`). An AWS SES SDK client speaks the SES HTTPS API and cannot connect directly to an SMTP port. Applications that normally use the SES API need a local SMTP mail-sender implementation/profile, or a separate SES-to-SMTP adapter. Neither relay nor SMTP-container management is implemented here.
 

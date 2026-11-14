@@ -66,7 +66,7 @@ The optional finalizer writes `index.html` and `report.json` under `examples/ser
 
 Reports include all 13 service sections. This example populates SQS, SSM, Secrets Manager, EventBridge, Kinesis, KMS, and CloudWatch Logs, including rule targets, key aliases, and log stream metadata. Parameter/secret values, event payloads, Kinesis records, and log event contents are excluded. Services can also expose default resources, such as predefined KMS aliases. See the [report guide](../../docs/src/docs/asciidoc/reports.adoc) for exact fields and partial-error behavior.
 
-Emulator `1.0.322` does not implement SES v2 template listing. The report records an `UNSUPPORTED` issue for SES and prints an incomplete-report warning while preserving the other sections; the example still succeeds. `--fail-on-error` on a report task makes that limitation a build failure after writing both files.
+Emulator `1.0.367` supports SES v2 template listing. Reports include template names and metadata while excluding their contents. Unsupported operations on other emulator versions still produce an `UNSUPPORTED` issue; `--fail-on-error` fails after writing both files when any section is incomplete.
 
 ## Persistent development instance
 

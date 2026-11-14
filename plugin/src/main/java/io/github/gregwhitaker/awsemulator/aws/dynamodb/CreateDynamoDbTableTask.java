@@ -65,10 +65,13 @@ public abstract class CreateDynamoDbTableTask extends AbstractDynamoDbTableTask 
     @TaskAction
     public void createTable() {
         String name = tableName();
-        var request = CreateTableRequest.builder().tableName(name).keySchema(getKeySchema().get())
-            .attributeDefinitions(getAttributeDefinitions().get()).globalSecondaryIndexes(getGlobalSecondaryIndexes().get())
-            .localSecondaryIndexes(getLocalSecondaryIndexes().get()).provisionedThroughput(getProvisionedThroughput().get())
-            .sseSpecification(getSseSpecification().get()).streamSpecification(getStreamSpecification().getOrNull()).build();
+        var requestBuilder = CreateTableRequest.builder().tableName(name).keySchema(getKeySchema().get())
+            .attributeDefinitions(getAttributeDefinitions().get()).provisionedThroughput(getProvisionedThroughput().get())
+            .sseSpecification(getSseSpecification().get()).streamSpecification(getStreamSpecification().getOrNull());
+        // DynamoDB requires optional index lists to be absent when there are no indexes.
+        if (!getGlobalSecondaryIndexes().get().isEmpty()) requestBuilder.globalSecondaryIndexes(getGlobalSecondaryIndexes().get());
+        if (!getLocalSecondaryIndexes().get().isEmpty()) requestBuilder.localSecondaryIndexes(getLocalSecondaryIndexes().get());
+        var request = requestBuilder.build();
         DynamoDbTableDefinition.validate(request);
         var initializer = getInitializer().isPresent()
             ? DynamoDbInitializerExecutor.resolve(getInitializer().get(), getClass().getClassLoader()) : null;

@@ -37,6 +37,8 @@ class ProcessCommandRunnerTest {
         assertTrue(Files.readString(output).endsWith("A".repeat(131072) + "complete"),
             "The full child output must be archived without truncation");
         assertThrows(GradleException.class, () -> new ProcessCommandRunner().runToFile(command("pause"), Duration.ofMillis(300), output));
+        Files.delete(output);
+        assertFalse(Files.exists(output), "A timed-out child must release the log before runToFile returns");
     }
 
     @Test

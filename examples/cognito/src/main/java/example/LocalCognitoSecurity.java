@@ -31,7 +31,7 @@ import org.springframework.security.web.SecurityFilterChain;
 
 import java.nio.file.Path;
 
-/** Local-only token policy for AWS Emulator 1.0.322, which signs with ES256. */
+/** Local-only token policy for AWS Emulator 1.0.367, which signs with RS256. */
 @Configuration
 @Profile("local")
 class LocalCognitoSecurity {
@@ -43,7 +43,7 @@ class LocalCognitoSecurity {
 
     @Bean JwtDecoder jwtDecoder() throws Exception {
         var config = CognitoConfiguration.read();
-        var decoder = NimbusJwtDecoder.withJwkSetUri(config.jwksUri()).jwsAlgorithm(SignatureAlgorithm.ES256).build();
+        var decoder = NimbusJwtDecoder.withJwkSetUri(config.jwksUri()).jwsAlgorithm(SignatureAlgorithm.RS256).build();
         decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
             JwtValidators.createDefaultWithIssuer(config.issuer()),
             new JwtClaimValidator<String>("token_use", "access"::equals),

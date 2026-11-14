@@ -27,12 +27,16 @@ class Relay(socketserver.BaseRequestHandler):
             with selectors.DefaultSelector() as selector:
                 selector.register(self.request, selectors.EVENT_READ, daemon)
                 selector.register(daemon, selectors.EVENT_READ, self.request)
-                while True:
+                while selector.get_map():
                     for key, _ in selector.select():
                         data = key.fileobj.recv(65536)
                         if not data:
-                            return
-                        key.data.sendall(data)
+                            # Docker exec can close its request stream while the daemon
+                            # is still sending the response. Preserve that reverse stream.
+                            selector.unregister(key.fileobj)
+                            key.data.shutdown(socket.SHUT_WR)
+                        else:
+                            key.data.sendall(data)
 
 
 class Server(socketserver.ThreadingTCPServer):

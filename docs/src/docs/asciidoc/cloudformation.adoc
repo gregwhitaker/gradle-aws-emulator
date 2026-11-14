@@ -1,7 +1,7 @@
 = CloudFormation
 include::_partials/attributes.adoc[]
 
-Deploy local JSON or YAML templates into AWS Emulator with a provisioning check before the task connects. The plugin rejects resource types that emulator 1.0.322 would merely record as successful without creating service resources.
+Deploy local JSON or YAML templates into AWS Emulator with a provisioning check before the task connects. The plugin rejects resource types that emulator 1.0.367 would merely record as successful without creating service resources.
 
 == Start With The Runnable Example
 
@@ -78,31 +78,31 @@ awsEmulator { useWith(tasks.named('test')) }
 
 == Provisioning Guard
 
-The support catalogue is audited against AWS Emulator `v1.0.322`, commit `7753983c6e495ec3612695b1336bf4936fc7b7fd`. It follows the upstream {repo-url}/blob/main/plugin/src/main/resources/io/github/gregwhitaker/awsemulator/aws/cloudformation/provisioned-types-1.0.322.txt[170 exact native provisioning type names and source references]. Nested stacks are excluded from deployment, leaving 169 accepted native types.
+The support catalogue is audited against AWS Emulator `v1.0.367`, commit `129a3db1945ce884e6d0341e4d77e19b8efc9667`. It follows the upstream {repo-url}/blob/main/plugin/src/main/resources/io/github/gregwhitaker/awsemulator/aws/cloudformation/provisioned-types-1.0.367.txt[212 exact native provisioning type names and source references]. Nested stacks are excluded from deployment, leaving 211 accepted native types. See {repo-url}/blob/main/docs/emulator-audits/1.0.367.md[the release audit] for the dispatch comparison and compatibility checks.
 
 `AWS::CDK::Metadata` is also accepted as stack metadata, and `AWS::CloudFormation::WaitCondition` is accepted for the emulator's signal-handling behavior. Neither represents a separate service resource. `AWS::CloudFormation::WaitConditionHandle` is rejected because its path only records a successful declaration.
 
-Supported native examples include `AWS::S3::Bucket`, `AWS::SQS::Queue`, `AWS::SNS::Topic`, `AWS::DynamoDB::Table`, `AWS::IAM::Role`, `AWS::Lambda::Function`, `AWS::EC2::Instance`, and `AWS::Logs::LogGroup`. A handler indicates that creation reaches service provisioning; it does not guarantee complete AWS property coverage or data-plane behavior.
+Supported native examples include `AWS::S3::Bucket`, `AWS::SQS::Queue`, `AWS::SNS::Topic`, `AWS::DynamoDB::Table`, `AWS::IAM::Role`, `AWS::Lambda::Function`, `AWS::EC2::Instance`, `AWS::Logs::LogGroup`, `AWS::CloudWatch::Alarm`, and `AWS::Cognito::UserPool`. A handler indicates that creation reaches service provisioning; it does not guarantee complete AWS property coverage or data-plane behavior.
 
 [cols="2,3",options="header"]
 |===
 |Template feature |Behavior
-|Declaration-only or unknown type |Rejected with its logical ID and exact type. For example: `AWS::CloudWatch::Alarm`, `AWS::Cognito::UserPool`, `AWS::Events::EventBus`, `AWS::ECS::Service`, `AWS::DynamoDB::GlobalTable`, and `AWS::SES::EmailIdentity`.
+|Declaration-only or unknown type |Rejected with its logical ID and exact type. For example: `AWS::CloudWatch::CompositeAlarm`, `AWS::Cognito::UserPoolDomain`, `AWS::Events::EventBus`, `AWS::DynamoDB::GlobalTable`, and `AWS::SES::EmailIdentity`.
 |Conditional resources |Every declaration is checked, including resources under false conditions. Parameter values cannot disable the guard.
 |Transforms and macros |Root `Transform`, SAM templates, `Fn::Transform`, and `Fn::ForEach` are rejected. Supply a fully expanded template so all types are visible.
 |Nested stacks |`AWS::CloudFormation::Stack` is rejected because child templates cannot be inspected. Deploy each child with its own guarded task and explicitly pass required outputs.
 |Custom providers |`AWS::CloudFormation::CustomResource` and `Custom::*` are rejected because their provisioning behavior cannot be checked locally.
 |Ambiguous documents |Duplicate keys, multiple YAML documents, anchors, aliases, merge keys, nonliteral types, and unsupported YAML tags are rejected.
-|Different emulator version |Deployment and offline validation reject any configured `emulatorVersion` other than `1.0.322`.
+|Different emulator version |Deployment and offline validation reject any configured `emulatorVersion` other than `1.0.367`.
 |===
 
 There is no option to disable the guard or add unchecked resource types. An available service API does not imply a working CloudFormation handler: for rejected types, use the plugin's service-specific tasks where available.
 
-The check validates resource support and document structure, not every CloudFormation property or intrinsic expression. The emulator performs the remaining template validation. Stack failures and rollbacks fail the deployment task; request acceptance alone is insufficient.
+The check validates resource support and document structure, not every CloudFormation property or intrinsic expression. The emulator performs the remaining template validation. Stack failures and rollbacks fail the deployment task; request acceptance alone is insufficient. In `1.0.367`, renaming a Cognito user pool with dependent app clients/resource servers was observed to fail during update; see the release audit for the tested lifecycle scope.
 
-Stack completion does not imply that every service has finished asynchronous initialization. In 1.0.322, a DynamoDB table can still be activating after `CREATE_COMPLETE`; use the service's readiness waiter before item operations, as the runnable example does. Stack deletion can similarly finish before a table disappears.
+Service readiness is checked independently of stack status. Use the service's readiness waiter before item operations, as the runnable example does. Stack deletion can similarly finish before a table disappears.
 
-The selected runtime's configured version determines the catalogue. For xref:external-emulators.adoc[external emulators] or a custom `image`, ensure the actual emulator is 1.0.322 too; the plugin cannot establish the remote binary version from that setting. Inspect templates locally with:
+The selected runtime's configured version determines the catalogue. For xref:external-emulators.adoc[external emulators] or a custom `image`, ensure the actual emulator is 1.0.367 too; the plugin cannot establish the remote binary version from that setting. Inspect templates locally with:
 
 [source,shell]
 ----

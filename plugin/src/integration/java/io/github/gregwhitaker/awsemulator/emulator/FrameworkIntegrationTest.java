@@ -117,6 +117,11 @@ class FrameworkIntegrationTest {
                 systemProperty("aws.accessKeyId", "not-a-real-key")
             }
             """, StandardOpenOption.APPEND);
+        if (framework.equals("micronaut")) {
+            // Docker suites also run without the functional suite. Create GraalVM's
+            // first-use agent filter before testing reuse of actual run/test builds.
+            runner(project, "test", "run", "--dry-run").build();
+        }
     }
 
     private String endpoint(String output, String task) {

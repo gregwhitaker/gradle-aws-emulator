@@ -97,7 +97,7 @@ Run `./gradlew reportAwsEmulator` to inspect an existing development instance. I
 
 Reports cover all [13 service modules](#aws-resources), including resource settings and relationships. They omit payloads, secret values, log events, Cognito users/client secrets, and email/template contents.
 
-Unsupported metadata APIs are recorded without discarding other sections. Emulator `1.0.322` lacks SES v2 template listing, so reports warn about that incomplete inventory; `--fail-on-error` fails after writing both files.
+Unsupported metadata APIs are recorded without discarding other sections; `--fail-on-error` fails after writing both files if any section is incomplete. Emulator `1.0.367` supports SES v2 template listing, including template metadata in the inventory.
 
 For managed test snapshots, register a `ReportAwsEmulatorTask` as a test finalizer. The [basic](examples/basic/README.md#resource-reports) and [services](examples/services/README.md#resource-reports) examples demonstrate this with `-PemulatorReport`, including capture after test failures. See the [report guide](docs/src/docs/asciidoc/reports.adoc) for configuration and coverage.
 
@@ -143,7 +143,7 @@ Capture current S3 objects with `ExportS3ObjectsTask` and DynamoDB items with `E
 
 ### CloudFormation
 
-`DeployCloudFormationStackTask` deploys local JSON or YAML templates, waits for completion, and exports stack outputs as JSON. Every resource declaration is checked against provisioning handlers audited for emulator **1.0.322**; types that merely report success are rejected before the task connects.
+`DeployCloudFormationStackTask` deploys local JSON or YAML templates, waits for completion, and exports stack outputs as JSON. Every resource declaration is checked against provisioning handlers audited for emulator **1.0.367**; types that merely report success are rejected before the task connects.
 
 Run `./gradlew validateCloudFormationTemplate --templateFile=infra/test-stack.yaml` to validate without Docker. Transforms (including SAM), nested stacks, and custom providers must be expanded or replaced with explicit resource tasks. See the [CloudFormation guide](docs/src/docs/asciidoc/cloudformation.adoc) for supported types and limits, or the [runnable example](examples/cloudformation/README.md) for S3, SQS, and DynamoDB provisioning.
 
