@@ -65,13 +65,8 @@ class SharedRuntimeIntegrationTest {
         assertCleanedUp();
         assertEquals("", containers("local-aws"));
 
-        Files.writeString(project.resolve("local-aws/build.gradle.kts"), """
-
-            tasks.withType<CreateSqsQueueTask>().configureEach {
-                doLast { throw GradleException("Intentional shared setup failure") }
-            }
-            """, StandardOpenOption.APPEND);
-        String setup = runner(project, "verifySharedRuntime", "--continue", "--parallel").buildAndFail().getOutput();
+        String setup = runner(project, "verifySharedRuntime", "--continue", "--parallel", "-PfailSetup=true")
+            .buildAndFail().getOutput();
         assertTrue(setup.contains("Intentional shared setup failure"), setup);
         assertFalse(setup.contains("AWS Emulator for :orders-"), setup);
         assertCleanedUp();
@@ -122,6 +117,15 @@ class SharedRuntimeIntegrationTest {
         Files.writeString(settings, Files.readString(settings).replace("    includeBuild(\"../..\")", ""));
         Files.writeString(project.resolve("gradle.properties"), "\norg.gradle.unsafe.isolated-projects=true\n",
             StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+        // A tracked Gradle property makes failure injection independent of filesystem
+        // watcher latency after editing a build script between cached invocations.
+        Files.writeString(project.resolve("local-aws/build.gradle.kts"), """
+
+            tasks.withType<CreateSqsQueueTask>().configureEach {
+                val failSetup = providers.gradleProperty("failSetup").map(String::toBoolean).getOrElse(false)
+                doLast { if (failSetup) throw GradleException("Intentional shared setup failure") }
+            }
+            """, StandardOpenOption.APPEND);
         if (named) {
             runtimeName = "acceptance";
             Files.writeString(project.resolve("local-aws/build.gradle.kts"),
