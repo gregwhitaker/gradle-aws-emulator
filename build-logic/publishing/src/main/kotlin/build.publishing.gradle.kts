@@ -22,13 +22,14 @@ plugins {
 group = "io.github.gregwhitaker"
 version = providers.gradleProperty("pluginVersion").get()
 
-val projectWebsite = "https://github.com/gregwhitaker/gradle-aws-emulator"
+val projectWebsite = "https://gregwhitaker.github.io/gradle-aws-emulator/"
+val projectRepository = "https://github.com/gregwhitaker/gradle-aws-emulator"
 // Module build scripts set their descriptions after applying this convention.
 val publicationDescription = providers.provider { project.description }
 
 gradlePlugin {
     website.set(projectWebsite)
-    vcsUrl.set("$projectWebsite.git")
+    vcsUrl.set("$projectRepository.git")
 }
 
 publishing {
@@ -37,8 +38,8 @@ publishing {
             description.set(publicationDescription)
             url.set(projectWebsite)
             scm {
-                url.set(projectWebsite)
-                connection.set("scm:git:$projectWebsite.git")
+                url.set(projectRepository)
+                connection.set("scm:git:$projectRepository.git")
                 developerConnection.set("scm:git:git@github.com:gregwhitaker/gradle-aws-emulator.git")
             }
             licenses {
