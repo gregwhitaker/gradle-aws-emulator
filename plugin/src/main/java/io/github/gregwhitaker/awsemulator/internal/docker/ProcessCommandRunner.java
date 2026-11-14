@@ -91,12 +91,26 @@ public final class ProcessCommandRunner implements CommandRunner {
     }
 
     static void terminate(Process process) {
+        boolean interrupted = Thread.interrupted();
         try {
-            process.descendants().forEach(ProcessHandle::destroyForcibly);
-        } catch (RuntimeException ignored) {
-            // Sandboxed hosts may prohibit process enumeration. Always terminate our direct child.
+            try {
+                process.descendants().forEach(ProcessHandle::destroyForcibly);
+            } catch (RuntimeException ignored) {
+                // Sandboxed hosts may prohibit process enumeration. Always terminate our direct child.
+            } finally {
+                process.destroyForcibly();
+            }
+            // destroyForcibly is asynchronous. Wait for redirected files and other
+            // process handles to be released before callers clean up their workspace.
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+            while (process.isAlive()) {
+                long remaining = deadline - System.nanoTime();
+                if (remaining <= 0) break;
+                try { process.waitFor(remaining, TimeUnit.NANOSECONDS); }
+                catch (InterruptedException e) { interrupted = true; }
+            }
         } finally {
-            process.destroyForcibly();
+            if (interrupted) Thread.currentThread().interrupt();
         }
     }
 }
