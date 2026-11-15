@@ -399,6 +399,8 @@ Maven Publish and the pinned Plugin Publish Plugin, sets the shared group and
 version, configures website, SCM, description, and Apache 2.0 license metadata,
 and makes `publishPlugins` depend on `check`. Module build scripts supply artifact
 IDs, POM names, plugin declarations, and test-fixture publication exclusions.
+The Plugin Portal website and Maven POM project URL point to the documentation
+site; VCS and SCM links point to the GitHub repository.
 
 The release version comes from `pluginVersion` in the root `gradle.properties`. The core artifact is `io.github.gregwhitaker:gradle-aws-emulator`; the companion is `io.github.gregwhitaker:gradle-aws-emulator-spring-boot` and depends on the core. Both use the shared version. Publishing includes the implementation JAR, sources, Javadoc, dependency metadata, and the plugin marker; test fixtures and the documentation subproject are not published. `publishPlugins` runs the plugin's unit tests, functional tests, and plugin validation before publishing.
 
