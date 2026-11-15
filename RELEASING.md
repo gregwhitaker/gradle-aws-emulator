@@ -3,35 +3,37 @@
 Both plugins are released together from a `v<version>` tag. GitHub Actions
 requires successful CI for that exact commit, publishes them to the Gradle
 Plugin Portal, and then publishes a GitHub Release with notes from the changelog.
+Stable releases then deploy their tagged documentation to GitHub Pages. Pushes
+to `main` continue to build and check docs without updating the public site.
 
 ## Make a release
 
 Complete the [one-time setup](#one-time-setup) before your first release. For
-`0.2.0`, run this from a clean `main` checkout that matches `origin/main`:
+`0.3.0`, run this from a clean `main` checkout that matches `origin/main`:
 
 ```sh
-python3 scripts/release.py 0.2.0
+python3 scripts/release.py 0.3.0
 ```
 
 The command:
 
 1. Sets `pluginVersion` and replaces the top Unreleased changelog heading with
    the version and today's local date, preserving the release notes.
-2. Commits those two files as `Release 0.2.0`, pushes `main`, and waits for that
+2. Commits those two files as `Release 0.3.0`, pushes `main`, and waits for that
    exact commit's [Build workflow](https://github.com/gregwhitaker/gradle-aws-emulator/actions/workflows/ci.yml)
    to pass.
-3. Creates and pushes the annotated `v0.2.0` tag, starting publication of both
+3. Creates and pushes the annotated `v0.3.0` tag, starting publication of both
    plugins.
 
 Write release notes under `## Unreleased` or `## <version> — Unreleased` before
 running the command. Pass the version you want to publish; the command updates
-the property and heading together. It also accepts the already-planned version
-for a first release and prereleases such as `0.2.0-rc.1`.
+the property and heading together. It also accepts an already-planned version
+and prereleases such as `0.3.0-rc.1`.
 
 To preview the changes and planned actions:
 
 ```sh
-python3 scripts/release.py 0.2.0 --dry-run
+python3 scripts/release.py 0.3.0 --dry-run
 ```
 
 The preview checks the checkout and remote refs without changing files, commits,
@@ -48,7 +50,11 @@ artifacts, validates their Portal metadata, and uploads both plugins without
 rerunning tests. Normal local `publishPlugins` commands still run their checks.
 After both uploads succeed, the separate **Create GitHub Release** job
 publishes the release from the existing tag, using only that version's changelog
-section for its notes. CI handles these checks; local verification is optional.
+section for its notes. For stable versions, **Deploy stable documentation** then
+builds the guide and Java API from the same tagged commit and deploys them to
+GitHub Pages. It requires GitHub's latest stable release and publicly available
+Plugin Portal artifacts for both plugins. Prereleases skip documentation
+deployment. CI handles these checks; local verification is optional.
 
 When the run succeeds, confirm the version is available on both Portal pages:
 [core](https://plugins.gradle.org/plugin/io.github.gregwhitaker.aws-emulator) and
@@ -67,11 +73,15 @@ published with its title, notes, and assets intact.
   was published by the workflow. You can edit its notes afterward; rerunning the
   release job will preserve those edits.
 - Update the Plugin Portal installation examples in
-  the [README](README.md), [companion README](spring-boot-plugin/README.md),
-  [getting-started guide](docs/src/docs/asciidoc/getting-started.adoc), and
-  related documentation to use the published version. The guide's `{revnumber}`
-  snippets use `pluginVersion`; README snippets need their literal versions updated.
-  The website deploys automatically when those changes reach `main`.
+  the [README](README.md), [companion README](spring-boot-plugin/README.md), and
+  other literal installation snippets after a stable version is published.
+  The guide's `{revnumber}` snippets already use `pluginVersion` from the release
+  tag. Subsequent edits on `main` do not change the public website.
+- Confirm **Deploy stable documentation** succeeded for a stable release. To
+  redeploy it, run **Deploy docs to GitHub Pages** from `main` with the published
+  tag as input. Only the latest published stable release is accepted; this does
+  not upload the plugins again. See [Pages setup](docs/README.md#github-pages),
+  including the environment rules required to deploy release tags.
 - Put new development notes under a new `## Unreleased` changelog section.
   The next release command updates the version and date. Keep installation
   examples pinned to a published version and leave released tags unchanged.
@@ -97,10 +107,11 @@ Java, Docker, and Portal publishing credentials are provided by the workflow.
 
 ## Optional local checks
 
-Run from the repository root. The metadata check requires Python 3:
+Run from the repository root. Once the release command has dated the changelog,
+check the metadata with Python 3:
 
 ```sh
-python3 scripts/verify-release.py --ref-type tag --ref-name v0.2.0
+python3 scripts/verify-release.py --ref-type tag --ref-name v0.3.0
 ```
 
 To check the build and publication before pushing, use Java 17+ and Bash:
@@ -140,12 +151,17 @@ Check the failed Actions step and both plugins' Portal status before retrying.
   issue and choose **Re-run failed jobs** for that run. This retries only the
   release job, leaving the successful Portal publication job untouched. Do not
   rerun all jobs or dispatch the whole workflow for an already uploaded version.
+- **Plugins and GitHub Release published, but docs failed:** fix the reported
+  deployment or environment issue, or wait for Portal approval/propagation, then
+  rerun only the failed docs jobs. You can also dispatch **Deploy docs to GitHub
+  Pages** from `main` with the latest stable release tag. Source corrections need
+  a new stable release; redeployment always uses the existing tag's sources.
 
 For example, if the core uploaded but the companion failed, provide
 `GRADLE_PUBLISH_KEY` and `GRADLE_PUBLISH_SECRET` locally and run:
 
 ```sh
-git switch --detach v0.2.0
+git switch --detach v0.3.0
 ./gradlew :spring-boot-plugin:publishPlugins --validate-only
 ./gradlew :spring-boot-plugin:publishPlugins
 ```
@@ -155,4 +171,5 @@ Wait for the Actions run to finish before publishing locally. Use
 version with different artifacts; release a new version for fixes.
 If you complete a partial Portal publication manually, create the GitHub Release
 from the same tag and its changelog notes afterward; the automatic release job
-only runs when the Portal publication job succeeds.
+only runs when the Portal publication job succeeds. Then manually deploy the
+documentation for that tag if it is the latest stable release.

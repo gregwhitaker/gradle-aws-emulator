@@ -1,10 +1,12 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 — Unreleased
 
+- Deploy public documentation only after a successful stable release, using that release's tagged sources. Keep documentation checks on `main` and pull requests, and support redeploying the latest published stable release without republishing plugins.
 - Upgrade the tested AWS Emulator default to 1.0.385 after auditing 221 native CloudFormation provisioning types. Add real-service coverage for the nine new AppSync, ACM Private CA, Redshift, and X-Ray types; preserve conservative template restrictions.
 - Discover Cognito's token issuer through the emulator's local HTTPS OpenID endpoint while keeping JWKS retrieval local. This supports 1.0.385's regional issuer URLs without weakening JWT, certificate, or hostname validation.
 - Recover when parallel runtimes race for the same automatically selected Docker port, with at most three startup attempts and cleanup between attempts. Fixed-port conflicts and unrelated startup failures remain errors.
+- Document installation of the core and Spring Boot plugins from the Gradle Plugin Portal, including Kotlin and Groovy DSL examples and custom plugin repositories.
 
 ## 0.2.0 — 2026-11-14
 

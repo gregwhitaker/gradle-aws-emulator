@@ -89,3 +89,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: python3 scripts/publish-github-release.py
+
+  docs:
+    name: Deploy stable documentation
+    needs: [publish, github-release]
+    if: ${{ github.ref_type == 'tag' && !contains(github.ref_name, '-') }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/pages.yml
+    with:
+      tag: ${{ github.ref_name }}
+      commit: ${{ github.sha }}
