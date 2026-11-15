@@ -15,11 +15,11 @@ Gradle plugins for running AWS Emulator, provisioning AWS resources, and configu
 --
 [[a-small-addition-to-your-build]]
 .build.gradle.kts
-[source,kotlin]
+[source,kotlin,subs="+attributes"]
 ----
 plugins {
     java
-    id("io.github.gregwhitaker.aws-emulator")
+    id("io.github.gregwhitaker.aws-emulator") version "{revnumber}"
 }
 
 awsEmulator {

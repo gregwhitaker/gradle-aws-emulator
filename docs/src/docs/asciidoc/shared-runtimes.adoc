@@ -11,14 +11,14 @@ toc::[]
 Include `local-aws` and the application projects in your settings file. Make the core plugin available in the root build so sharing projects use the same plugin classes, including when some apply the Spring Boot companion:
 
 .Root build.gradle.kts
-[source,kotlin]
+[source,kotlin,subs="+attributes"]
 ----
 plugins {
-    id("io.github.gregwhitaker.aws-emulator") apply false
+    id("io.github.gregwhitaker.aws-emulator") version "{revnumber}" apply false
 }
 ----
 
-Use the xref:getting-started.adoc#apply-from-a-checkout[composite-build plugin management] from the checkout, or supply the same plugin version for all projects when using published artifacts. In Groovy, the root declaration is `id 'io.github.gregwhitaker.aws-emulator' apply false`. The owner then applies the core plugin and declares its runtime settings and reusable resource sets in its own build script:
+This resolves the core plugin from the xref:getting-started.adoc#apply-from-the-plugin-portal[Gradle Plugin Portal]. In Groovy, the root declaration is `id 'io.github.gregwhitaker.aws-emulator' version '{revnumber}' apply false`. Use the same release version for the Spring Boot companion when it is applied. Subprojects omit the core plugin version because the root declaration supplies it. The owner then applies the core plugin and declares its runtime settings and reusable resource sets in its own build script:
 
 .local-aws/build.gradle.kts
 [source,kotlin]

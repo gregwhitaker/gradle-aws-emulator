@@ -1,6 +1,6 @@
 == Attach An Existing Application
 
-First xref:getting-started.adoc#apply-from-a-checkout[include this checkout in plugin management] and apply `io.github.gregwhitaker.aws-emulator` alongside your chosen framework plugins. This integration uses Gradle `JavaExec` and `Test` tasks:
+First xref:getting-started.adoc#apply-from-the-plugin-portal[apply the core plugin from the Gradle Plugin Portal] alongside your chosen framework plugins. This integration uses Gradle `JavaExec` and `Test` tasks:
 
 .Kotlin DSL
 [source,kotlin]

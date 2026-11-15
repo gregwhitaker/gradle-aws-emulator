@@ -15,25 +15,9 @@ No AWS account or AWS CLI is required. The first emulator run builds the pinned 
 
 ## Quick start
 
-### Try the included example
+### Apply from the Plugin Portal
 
-Run from this repository's root:
-
-```sh
-./gradlew -p examples/basic integrationTest --configuration-cache
-```
-
-The [basic example](examples/basic/README.md) provisions S3 buckets and SQS queues, loads message fixtures, verifies signed AWS SDK requests, and removes its container. Run it again to check configuration-cache reuse.
-
-### Apply from a checkout
-
-Version **0.2.0** is unreleased. Include this checkout in your application's `settings.gradle.kts`, adjusting the path as needed:
-
-```kotlin
-pluginManagement {
-    includeBuild("../gradle-aws-emulator")
-}
-```
+Get the plugin from the [Gradle Plugin Portal](https://plugins.gradle.org/plugin/io.github.gregwhitaker.aws-emulator). Gradle uses the Portal by default; if you customize `pluginManagement.repositories` in your settings file, include `gradlePluginPortal()`.
 
 In `build.gradle.kts`, apply the plugin and create a queue before your tests run:
 
@@ -43,7 +27,7 @@ import io.github.gregwhitaker.awsemulator.model.EmulatorMode
 
 plugins {
     java
-    id("io.github.gregwhitaker.aws-emulator")
+    id("io.github.gregwhitaker.aws-emulator") version "0.2.0"
 }
 
 val createQueue = tasks.register<CreateSqsQueueTask>("createTestQueue") {
@@ -62,6 +46,18 @@ Add `.aws-emulator/` to your application's `.gitignore`, then run `./gradlew tes
 For a separate integration suite, attach its existing `integrationTest` task instead so unit tests run independently of the emulator. The basic example shows the complete setup.
 
 Keep your application's AWS SDK and test dependencies. Use an SDK that supports external endpoint configuration and its normal credential providers; explicit client settings can override the supplied connection. See [connection and TLS setup](docs/src/docs/asciidoc/connections.adoc), [Groovy DSL setup](docs/src/docs/asciidoc/getting-started.adoc), and [configuration](docs/src/docs/asciidoc/configuration.adoc) for further options.
+
+### Try the included example
+
+Run from this repository's root:
+
+```sh
+./gradlew -p examples/basic integrationTest --configuration-cache
+```
+
+The [basic example](examples/basic/README.md) provisions S3 buckets and SQS queues, loads message fixtures, verifies signed AWS SDK requests, and removes its container. Run it again to check configuration-cache reuse.
+
+Repository examples use the plugin from this checkout. To test local plugin changes in your own application, follow the [checkout setup](docs/src/docs/asciidoc/getting-started.adoc#apply-from-a-checkout).
 
 ## Runtime modes
 

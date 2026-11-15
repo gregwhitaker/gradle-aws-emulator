@@ -8,14 +8,14 @@ toc::[]
 
 == Provision Before Tests
 
-[source,kotlin]
+[source,kotlin,subs="+attributes"]
 ----
 import io.github.gregwhitaker.awsemulator.aws.kinesis.CreateKinesisStreamTask
 import io.github.gregwhitaker.awsemulator.aws.kinesis.PublishKinesisRecordsTask
 
 plugins {
     java
-    id("io.github.gregwhitaker.aws-emulator")
+    id("io.github.gregwhitaker.aws-emulator") version "{revnumber}"
 }
 
 val stream = tasks.register<CreateKinesisStreamTask>("createOrdersStream") {

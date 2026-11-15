@@ -45,7 +45,7 @@ To enable deployment:
 After a successful deployment, the site is available at <https://gregwhitaker.github.io/gradle-aws-emulator/>. The deployment job also reports the site URL through the `github-pages` environment. The workflow uses GitHub's built-in token; no personal access token or additional repository secret is required. Deployment permissions are scoped to the deployment job, and deployments run one at a time without canceling an active run.
 
 For a plugin release, follow the [release guide](../RELEASING.md), including the
-publication-status updates after the first Portal release.
+Plugin Portal installation examples and version updates.
 Pages tracks `main`; a version tag alone does not deploy the site.
 
 ## Authoring
@@ -63,7 +63,7 @@ Pages tracks `main`; a version tag alone does not deploy the site.
 - `indexGuide` runs `src/tools/IndexGuide.java` after rendering and indexes the current guide pages by heading. It excludes site navigation and the table of contents. `site` includes the resulting `assets/search-index.js`; adding or removing a guide page updates the index automatically. No separate search service or package installation is needed.
 - `theme.css` and `theme.js` define the shared palette, toggle, and preference. `api.css` adapts Javadoc's tables, navigation, search results, and method filters to that palette.
 - `site` injects `src/templates/api-head.html` and `api-header.html` into copied Javadoc pages, resolving asset and guide links relative to each page's depth. The plugin's standalone Javadoc output and Javadoc JAR are unchanged. The link checker requires shared theme assets on every page and a toggle on every page with content; Javadoc's redirect pages do not need a header.
-- `pluginVersion` in the root `gradle.properties` is shared with the plugin artifact and injected as the AsciiDoc `revnumber` attribute. Update publication-status text when the plugin is released.
+- `pluginVersion` in the root `gradle.properties` is shared with the plugin artifact and injected as the AsciiDoc `revnumber` attribute. Use `{revnumber}` in versioned Plugin Portal snippets with `subs="+attributes"` on their source blocks. Keep the README installation examples aligned with the released version.
 - `emulatorVersion` in `gradle/emulator.properties` is shared with the runtime and injected as `{emulator-version}`. Use this attribute when describing the current default. Keep version-specific audit evidence explicit until it has been reviewed for a new release; see [AWS Emulator upgrades](../CONTRIBUTING.md#aws-emulator-upgrades).
 - Asciidoctor warnings, missing includes, and unresolved attributes fail generation. `src/tools/CheckSite.java` checks the output using only the JDK.
 

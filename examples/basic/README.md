@@ -44,7 +44,7 @@ The [build script](build.gradle.kts) wires these provisioning tasks into `integr
 
 The [integration tests](src/integration/java/example/EmulatorIntegrationTest.java) verify S3 object round trips and retained versions, bucket policy and notification configuration, S3-to-SQS delivery, explicit queue deletion, standard and FIFO SQS message delivery, published fixtures, the dead-letter policy, and STS identity. Destination ARNs use this example's `us-east-1` region and the pinned emulator's account `000000000000`. The build deliberately supplies invalid inherited AWS settings to show that `useWith` supplies the emulator connection to the test JVM.
 
-The [settings file](settings.gradle.kts) includes the plugin from this checkout through `pluginManagement`, so no plugin publication is needed.
+The [settings file](settings.gradle.kts) includes the plugin from this checkout through `pluginManagement`. For your own application, follow the [Plugin Portal installation instructions](../../README.md#apply-from-the-plugin-portal) and use a versioned plugin declaration in place of the checkout include.
 
 ## Failure cleanup
 

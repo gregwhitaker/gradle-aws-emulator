@@ -1,6 +1,6 @@
 = Getting Started
 include::_partials/attributes.adoc[]
-:description: Apply the AWS Emulator Gradle plugin from a checkout and run the included integration example.
+:description: Get the AWS Emulator Gradle plugin from the Gradle Plugin Portal and run the included integration example.
 
 Start with Java 17+, Gradle 8.14+, and Docker running Linux containers. The first emulator run downloads and builds the pinned package; later runs reuse the image.
 
@@ -8,39 +8,18 @@ If an emulator is already running elsewhere, use xref:external-emulators.adoc[an
 
 toc::[]
 
-== Run The Included Example
+== Apply From The Plugin Portal
 
-From the plugin repository root:
-
-[source,shell]
-----
-./gradlew -p examples/basic integrationTest --configuration-cache
-----
-
-The example creates S3 buckets, standard/FIFO SQS queues and a FIFO DLQ, publishes message fixtures, verifies object and message round trips and a signed STS request, then removes its managed container. Run the command a second time to exercise configuration-cache reuse.
-
-No AWS account, AWS CLI, or personal AWS credentials are needed. The plugin supplies the emulator connection at task execution time.
-
-== Apply From A Checkout
-
-Version {revnumber} is unpublished. Include the plugin repository in your application's plugin management instead of resolving a version from the Gradle Plugin Portal. Adjust the relative path for your checkout layout.
+Get the core plugin from the https://plugins.gradle.org/plugin/io.github.gregwhitaker.aws-emulator[Gradle Plugin Portal] and apply it with a version in your application's build script. Gradle uses the Portal by default, so no settings changes are needed for a standard build.
 
 === Kotlin DSL
 
-.settings.gradle.kts
-[source,kotlin]
-----
-pluginManagement {
-    includeBuild("../gradle-aws-emulator")
-}
-----
-
 .build.gradle.kts
-[source,kotlin]
+[source,kotlin,subs="+attributes"]
 ----
 plugins {
     java
-    id("io.github.gregwhitaker.aws-emulator")
+    id("io.github.gregwhitaker.aws-emulator") version "{revnumber}"
 }
 
 awsEmulator {
@@ -50,20 +29,12 @@ awsEmulator {
 
 === Groovy DSL
 
-.settings.gradle
-[source,groovy]
-----
-pluginManagement {
-    includeBuild('../gradle-aws-emulator')
-}
-----
-
 .build.gradle
-[source,groovy]
+[source,groovy,subs="+attributes"]
 ----
 plugins {
     id 'java'
-    id 'io.github.gregwhitaker.aws-emulator'
+    id 'io.github.gregwhitaker.aws-emulator' version '{revnumber}'
 }
 
 awsEmulator {
@@ -79,9 +50,59 @@ TIP: An available host port is selected automatically, supporting parallel proje
 
 For projects with separate unit and integration suites, attach the existing `integrationTest` task instead of `test`. The complete example below registers an integration suite and opts it in explicitly with `useWith`.
 
+=== Custom Plugin Repositories
+
+If your settings already declare `pluginManagement.repositories`, include `gradlePluginPortal()` alongside your other plugin repositories. This syntax works in both `settings.gradle.kts` and `settings.gradle`:
+
+[source,kotlin]
+----
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+    }
+}
+----
+
+For Spring Boot applications, use the xref:spring-boot.adoc#apply-from-the-plugin-portal[companion plugin], which applies the core plugin automatically.
+
+== Run The Included Example
+
+From the plugin repository root:
+
+[source,shell]
+----
+./gradlew -p examples/basic integrationTest --configuration-cache
+----
+
+The example creates S3 buckets, standard/FIFO SQS queues and a FIFO DLQ, publishes message fixtures, verifies object and message round trips and a signed STS request, then removes its managed container. Run the command a second time to exercise configuration-cache reuse.
+
+No AWS account, AWS CLI, or personal AWS credentials are needed. The plugin supplies the emulator connection at task execution time. Repository examples use this checkout through composite builds so they exercise local plugin changes.
+
+== Apply From A Checkout
+
+To test local plugin changes in your own application, include the plugin repository in your application's plugin management. Adjust the relative path for your checkout layout.
+
+.settings.gradle.kts
+[source,kotlin]
+----
+pluginManagement {
+    includeBuild("../gradle-aws-emulator")
+}
+----
+
+.settings.gradle
+[source,groovy]
+----
+pluginManagement {
+    includeBuild('../gradle-aws-emulator')
+}
+----
+
+Use the application build configuration above, omitting the version from the emulator plugin declaration. The same setup supplies the Spring Boot companion from the checkout; omit its version too, while keeping your application's Spring Boot plugin version.
+
 == The Complete Example
 
-The following files are included directly from `examples/basic` during site generation.
+The following files are included directly from `examples/basic` during site generation. They use the checkout setup above; for your own application, use the Plugin Portal declaration with a version instead of the example's `includeBuild`.
 
 .examples/basic/settings.gradle.kts
 [source,kotlin]

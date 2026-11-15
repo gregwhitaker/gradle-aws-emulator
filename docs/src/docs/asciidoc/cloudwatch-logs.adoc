@@ -8,7 +8,7 @@ toc::[]
 
 == Provision Before Tests
 
-[source,kotlin]
+[source,kotlin,subs="+attributes"]
 ----
 import io.github.gregwhitaker.awsemulator.aws.cloudwatchlogs.CreateLogGroupTask
 import io.github.gregwhitaker.awsemulator.aws.cloudwatchlogs.CreateLogStreamTask
@@ -16,7 +16,7 @@ import io.github.gregwhitaker.awsemulator.aws.cloudwatchlogs.FilterLogEventsTask
 
 plugins {
     java
-    id("io.github.gregwhitaker.aws-emulator")
+    id("io.github.gregwhitaker.aws-emulator") version "{revnumber}"
 }
 
 val logGroup = tasks.register<CreateLogGroupTask>("createTestLogGroup") {

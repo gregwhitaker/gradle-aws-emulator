@@ -8,14 +8,14 @@ toc::[]
 
 == Provision Before Tests
 
-[source,kotlin]
+[source,kotlin,subs="+attributes"]
 ----
 import io.github.gregwhitaker.awsemulator.aws.eventbridge.*
 import io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueueTask
 
 plugins {
     java
-    id("io.github.gregwhitaker.aws-emulator")
+    id("io.github.gregwhitaker.aws-emulator") version "{revnumber}"
 }
 
 val bus = tasks.register<CreateEventBusTask>("createOrdersBus") {

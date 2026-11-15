@@ -12,13 +12,13 @@ Make your test task depend on provisioning, then opt that same consumer into the
 
 === Kotlin DSL
 
-[source,kotlin]
+[source,kotlin,subs="+attributes"]
 ----
 import io.github.gregwhitaker.awsemulator.aws.s3.CreateS3BucketTask
 
 plugins {
     java
-    id("io.github.gregwhitaker.aws-emulator")
+    id("io.github.gregwhitaker.aws-emulator") version "{revnumber}"
 }
 
 val createBucket = tasks.register<CreateS3BucketTask>("createTestBucket") {
@@ -34,13 +34,13 @@ awsEmulator {
 
 === Groovy DSL
 
-[source,groovy]
+[source,groovy,subs="+attributes"]
 ----
 import io.github.gregwhitaker.awsemulator.aws.s3.CreateS3BucketTask
 
 plugins {
     id 'java'
-    id 'io.github.gregwhitaker.aws-emulator'
+    id 'io.github.gregwhitaker.aws-emulator' version '{revnumber}'
 }
 
 def createBucket = tasks.register('createTestBucket', CreateS3BucketTask) {

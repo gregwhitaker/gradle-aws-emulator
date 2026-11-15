@@ -37,6 +37,8 @@ The initializer lives in `buildSrc` so it is available to the provisioning task.
 
 The main build therefore applies the plugin without a version or a separate `pluginManagement` include. Its integration tests declare their own SDK dependencies.
 
+To use a release from the [Gradle Plugin Portal](https://plugins.gradle.org/plugin/io.github.gregwhitaker.aws-emulator) in your own application, remove the checkout's `includeBuild` and dependency substitution from `buildSrc/settings.gradle.kts`, and add `gradlePluginPortal()` alongside `mavenCentral()` in `buildSrc/build.gradle.kts`. Keep the versioned plugin dependency in `buildSrc` and the versionless plugin declaration in the main build. See the [build classpath guide](../../docs/src/docs/asciidoc/dynamodb.adoc#share-the-build-classpath) for the complete configuration.
+
 ## Persistent development instance
 
 To create and inspect the same table in a development instance:
