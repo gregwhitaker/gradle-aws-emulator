@@ -17,9 +17,22 @@
 name: Deploy docs to GitHub Pages
 
 on:
-  push:
-    branches: [main]
+  workflow_call:
+    inputs:
+      tag:
+        description: Published stable release tag to deploy
+        required: true
+        type: string
+      commit:
+        description: Commit that successfully published both plugins
+        required: true
+        type: string
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Latest published stable release tag to redeploy (for example, v0.2.0)
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -32,22 +45,51 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      commit: ${{ steps.release.outputs.commit }}
     steps:
-      - uses: actions/checkout@v7.0.1
+      # Keep the workflow's verification tools available when redeploying an
+      # older release that predates these tools.
+      - name: Check out deployment tools
+        uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Check out release sources
+        uses: actions/checkout@v7.0.1
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+          path: released
+          persist-credentials: false
+      - name: Verify published stable release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          EXPECTED_COMMIT: ${{ inputs.commit }}
+        run: |
+          commit="$(git -C released rev-parse HEAD)"
+          if [[ -n "$EXPECTED_COMMIT" && "$commit" != "$EXPECTED_COMMIT" ]]; then
+            echo 'The release tag no longer points to the published commit.' >&2
+            exit 1
+          fi
+          python3 scripts/verify-release.py --root released --ref-type tag --ref-name "$RELEASE_TAG"
+          python3 scripts/verify-docs-release.py --tag "$RELEASE_TAG" --commit "$commit"
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-java@v6.2.0
         with:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v6.4.1
       - name: Build and verify documentation
+        working-directory: released
         run: ./gradlew :docs:check --no-daemon
       - name: Upload documentation site
         uses: actions/upload-pages-artifact@v5.0.0
         with:
-          path: docs/build/site
+          path: released/docs/build/site
 
   deploy:
-    if: github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -59,8 +101,21 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - name: Check out deployment tools
+        uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v6.0.0
+      # Recheck after building and any environment approval wait, so a stale
+      # run cannot replace a newer stable release's documentation.
+      - name: Recheck published stable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_COMMIT: ${{ needs.build.outputs.commit }}
+        run: python3 scripts/verify-docs-release.py --tag "$RELEASE_TAG" --commit "$RELEASE_COMMIT"
       - name: Deploy documentation
         id: deployment
         uses: actions/deploy-pages@v5.0.1

@@ -34,19 +34,32 @@ The guide's header has a GitHub badge linking to the repository and showing its 
 
 ## GitHub Pages
 
-The [Deploy docs to GitHub Pages workflow](../.github/workflows/pages.yml) publishes the guide and Java API reference on pushes to `main`. It runs `./gradlew :docs:check --no-daemon` with Java 17, uploads `docs/build/site`, and deploys only after the build and link checks succeed. The existing CI workflow also checks the documentation on pull requests.
+The [Deploy docs to GitHub Pages workflow](../.github/workflows/pages.yml) publishes the guide and Java API reference from the latest published stable release tag. The [publication workflow](../.github/workflows/publish.yml) calls it after both plugins have been uploaded successfully and the GitHub Release has been published. Prereleases do not update the public site. The existing CI workflow still builds, checks, and packages documentation on pushes to `main` and on pull requests.
+
+Deployment verifies that the tag identifies the published commit, matches the release metadata, and is GitHub's latest stable release. Both plugin markers and their implementation POMs and JARs must be publicly available from the Plugin Portal. The workflow builds the tagged sources with `./gradlew :docs:check --no-daemon` using Java 17, then rechecks the release immediately before deployment. Rerunning an older release cannot replace the latest release's documentation.
 
 To enable deployment:
 
 1. Open the repository's **Settings > Pages** and set **Build and deployment > Source** to **GitHub Actions**, as described in [GitHub's publishing instructions](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site#publishing-with-a-custom-github-actions-workflow).
-2. Commit and push the workflow and documentation changes to `main`. Later pushes to `main` automatically update the site.
-3. To redeploy manually, open **Actions > Deploy docs to GitHub Pages > Run workflow** and select `main`. Runs on other branches can build the site but do not deploy it.
+2. In **Settings > Environments > github-pages**, allow release tags matching `v*` as deployment sources. If the environment uses selected branches and tags, retain `main` for manual redeployment and add a **Tag** rule for `v*`.
+3. Commit and push the workflows to `main`. The next successful stable release automatically updates the site.
+4. To deploy or redeploy the current stable release manually, open **Actions > Deploy docs to GitHub Pages > Run workflow**, select `main` for the workflow, and enter its published tag (for example, `v0.2.0`). This uses the deployment tools from `main` but builds all documentation, examples, and Javadoc from the tag, including releases that predate this workflow.
 
 After a successful deployment, the site is available at <https://gregwhitaker.github.io/gradle-aws-emulator/>. The deployment job also reports the site URL through the `github-pages` environment. The workflow uses GitHub's built-in token; no personal access token or additional repository secret is required. Deployment permissions are scoped to the deployment job, and deployments run one at a time without canceling an active run.
 
 For a plugin release, follow the [release guide](../RELEASING.md), including the
-Plugin Portal installation examples and version updates.
-Pages tracks `main`; a version tag alone does not deploy the site.
+Plugin Portal installation examples and version updates. While `main` develops
+`0.3.0`, the public site stays on `0.2.0` until `0.3.0` is successfully published.
+Keep updating the guide alongside code on `main`; documentation corrections go
+live with the next stable release. Manual redeployment rebuilds the existing
+release without incorporating subsequent changes from `main`.
+
+If Portal approval or propagation is pending, deployment fails without replacing
+the existing site. Once both plugins are available, rerun only the failed docs
+jobs or use manual redeployment; do not republish the plugins. A failed docs build
+or deployment can be recovered the same way. The publication workflow calls Pages
+directly because GitHub Releases created with `GITHUB_TOKEN` do not trigger a
+separate `release` workflow; no additional token is needed.
 
 ## Authoring
 

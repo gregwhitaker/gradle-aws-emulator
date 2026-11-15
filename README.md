@@ -192,6 +192,8 @@ Run checks from the repository root:
 
 See [Contributing](CONTRIBUTING.md) for development setup, [code quality checks](CONTRIBUTING.md#code-quality-checks), and [coverage reports](CONTRIBUTING.md#coverage-reports). Release both plugins with `python3 scripts/release.py <version>`; the [release guide](RELEASING.md) covers setup, dry runs, automatic GitHub Releases, and recovery. The [changelog](CHANGELOG.md) tracks version history.
 
+The published user guide and Java API reference follow the latest successful stable release. Documentation changes on `main` are built and checked by CI and become public with the next stable release.
+
 The tested emulator version is pinned in [`gradle/emulator.properties`](gradle/emulator.properties). Upgrade PRs run compatibility checks and require maintainer review, including a separate CloudFormation provisioning audit; see the [upgrade procedure](CONTRIBUTING.md#aws-emulator-upgrades).
 
 ## License
