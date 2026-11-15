@@ -40,7 +40,7 @@ class GitHub:
         if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repository):
             raise ValueError("GITHUB_REPOSITORY must be an owner/repository name.")
         if not token:
-            raise ValueError("GH_TOKEN must grant contents: write to the repository.")
+            raise ValueError("GH_TOKEN must grant contents access to the repository.")
         self.base_url = f"https://api.github.com/repos/{repository}"
         self.token = token
 
