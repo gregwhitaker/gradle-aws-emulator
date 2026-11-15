@@ -1,8 +1,8 @@
 # Releasing
 
-Both plugins are released together from a `v<version>` tag. GitHub Actions runs
-the checks, publishes them to the Gradle Plugin Portal, and then publishes a
-GitHub Release with notes from the changelog.
+Both plugins are released together from a `v<version>` tag. GitHub Actions
+requires successful CI for that exact commit, publishes them to the Gradle
+Plugin Portal, and then publishes a GitHub Release with notes from the changelog.
 
 ## Make a release
 
@@ -39,9 +39,14 @@ or tags. The release command rejects uncommitted work, conflicting tags,
 `SNAPSHOT` versions, and build metadata. It never force-pushes.
 
 Follow the [Publish to Gradle Plugin Portal run](https://github.com/gregwhitaker/gradle-aws-emulator/actions/workflows/publish.yml).
-It validates the release metadata, builds the plugins and docs, runs tests
-including Docker integration and publication smoke checks, and uploads both
-plugins. After both uploads succeed, the separate **Create GitHub Release** job
+It validates the release metadata and requires a successful `main` push run of
+the Build workflow for the exact tagged commit. This reuses the full CI matrix,
+including CloudFormation audit, Docker integration, and publication smoke checks.
+Automatic Build runs cover PRs and pushes to `main`; feature-branch and tag pushes
+do not start duplicate runs. The publishing job builds the plugin
+artifacts, validates their Portal metadata, and uploads both plugins without
+rerunning tests. Normal local `publishPlugins` commands still run their checks.
+After both uploads succeed, the separate **Create GitHub Release** job
 publishes the release from the existing tag, using only that version's changelog
 section for its notes. CI handles these checks; local verification is optional.
 
@@ -124,6 +129,9 @@ Check the failed Actions step and both plugins' Portal status before retrying.
 - **Nothing uploaded:** fix credentials or a transient failure and rerun the
   failed workflow. Source or release-metadata changes need a new version and tag.
   Manual dispatch must target the matching version tag; `main` is rejected.
+  The tagged commit must also have successful `main` push CI. A failed or missing
+  CI result blocks publication; rerun failed Build jobs or wait for CI, then retry
+  the publishing workflow.
 - **Approval pending:** wait for Portal review; do not upload the version again.
 - **Only one plugin uploaded:** publish only the missing module from the same
   clean tagged checkout. The two uploads are not atomic.

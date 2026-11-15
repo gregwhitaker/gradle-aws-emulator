@@ -274,6 +274,10 @@ publication smoke, release-tool, and Docker checks as push and pull-request
 validation; it does not publish plugins. The Build workflow must be enabled for
 manual runs, and GitHub only offers manual dispatch once the workflow containing
 `workflow_dispatch` is on the default branch.
+Automatic CI runs on pull requests and pushes to `main`, avoiding duplicate
+push and PR runs for feature branches. Release tags reuse successful `main` CI
+through the publishing workflow instead of starting another test matrix. Manual
+dispatch remains available for any branch, including emulator upgrade candidates.
 
 Use JUnit 5 and mirror the production packages. Put unit tests in `src/test/`,
 Docker-free TestKit tests in `src/functional/`, and real-emulator tests in
@@ -406,7 +410,10 @@ The release version comes from `pluginVersion` in the root `gradle.properties`. 
 
 ### Verify the publication locally
 
-The release workflow runs verification automatically. Use the
+The release command waits for the full CI matrix, and the publishing workflow
+verifies that the exact tagged commit passed `main` push CI before uploading.
+Only this gated publishing job excludes `check`; normal local publishing keeps
+its verification dependencies. Use the
 [optional local checks](RELEASING.md#optional-local-checks) to check metadata,
 build local publications, and run smoke or Docker tests before pushing.
 
@@ -415,8 +422,9 @@ build local publications, and run smoke or Docker tests before pushing.
 Run `python3 scripts/release.py <version>` from a clean, synchronized `main`
 checkout. It updates the version and changelog date, pushes the release commit,
 waits for CI, and pushes the matching tag. See [make a release](RELEASING.md#make-a-release)
-for setup, dry runs, and resuming. The workflow tests and publishes both plugins,
-then creates a GitHub Release using the tagged changelog section.
+for setup, dry runs, and resuming. The workflow reuses the successful CI result,
+validates and publishes both plugins, then creates a GitHub Release using the
+tagged changelog section.
 See [after publishing](RELEASING.md#after-publishing) for release
 notes, first-publication documentation updates, and the next development version.
 
