@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.0 — Unreleased
+## 0.2.0 — 2026-11-14
 
 - Wait for native process cleanup after terminating commands so Windows releases redirected log files before workspace cleanup.
 - Upgrade the shared AWS Emulator default to 1.0.367 after auditing 212 CloudFormation provisioning types; add lifecycle verification for newly supported Cognito resources, omit empty DynamoDB index lists, and validate Cognito RS256 tokens.
