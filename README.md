@@ -147,7 +147,7 @@ Run `./gradlew validateCloudFormationTemplate --templateFile=infra/test-stack.ya
 
 ### Named runtimes
 
-Give suites independent AWS state and settings within one project. Each runtime name has separate managed and development instances, an automatic port, and a working directory. Existing configuration uses `default`.
+Give suites independent AWS state and settings within one project. Each runtime name has separate managed and development instances, an automatic port, and a working directory. Automatic `DIRECT` port conflicts retry with a fresh port up to three startup attempts. Existing configuration uses `default`.
 
 Select a name through `useWith`, a resource task's `runtimeName`, or lifecycle commands such as `startAwsEmulatorIntegration` and `stopAwsEmulator --runtime integration`. See the [named runtime guide](docs/src/docs/asciidoc/named-runtimes.adoc) and [example](examples/named-runtimes/README.md) for registration and suite setup.
 
