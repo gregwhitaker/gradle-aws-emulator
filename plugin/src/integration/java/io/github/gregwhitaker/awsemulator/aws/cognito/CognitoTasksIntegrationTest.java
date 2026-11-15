@@ -30,6 +30,7 @@ import software.amazon.awssdk.services.cognitoidentityprovider.model.NotAuthoriz
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
@@ -46,12 +47,14 @@ class CognitoTasksIntegrationTest {
             JsonNode first = configuration();
             String pool = first.get("userPoolId").asText();
             String app = first.get("clientId").asText();
-            assertEquals(first.get("endpoint").asText() + "/" + pool, first.get("issuer").asText());
-            assertEquals(first.get("issuer").asText() + "/.well-known/jwks.json", first.get("jwksUri").asText());
+            assertEquals("https://cognito-idp.us-east-1.amazonaws.com/" + pool, first.get("issuer").asText());
+            assertEquals(first.get("endpoint").asText() + "/" + pool + "/.well-known/jwks.json", first.get("jwksUri").asText());
             try (var client = new AwsClientFactory(connection(), 30).cognitoIdentityProvider()) {
                 var auth = client.initiateAuth(r -> r.clientId(app).authFlow(AuthFlowType.USER_PASSWORD_AUTH)
                     .authParameters(Map.of("USERNAME", "alice", "PASSWORD", "Local-Test123!"))).authenticationResult();
                 assertNotNull(auth.accessToken());
+                var claims = new ObjectMapper().readTree(Base64.getUrlDecoder().decode(auth.accessToken().split("\\.")[1]));
+                assertEquals(first.get("issuer").asText(), claims.path("iss").asText());
                 assertNotNull(auth.refreshToken());
                 assertThrows(NotAuthorizedException.class, () -> client.initiateAuth(r -> r.clientId(app)
                     .authFlow(AuthFlowType.USER_PASSWORD_AUTH).authParameters(Map.of("USERNAME", "alice", "PASSWORD", "Wrong-Test123!"))));

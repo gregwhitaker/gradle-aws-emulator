@@ -152,6 +152,8 @@ class EmulatorIntegrationTest {
             fixture(directory);
         }
         runner(project, ":one:test", ":two:test", "--parallel", "--max-workers=4").build();
+        assertTrue(runner(project, ":one:test", ":two:test", "--parallel", "--max-workers=4").build()
+            .getOutput().contains("Reusing configuration cache"));
         assertNotEquals(Files.readString(project.resolve("one/test-connection.txt")), Files.readString(project.resolve("two/test-connection.txt")));
         for (String child : List.of("one", "two")) {
             assertCleanedUp(project.resolve(child), "test-connection.txt");

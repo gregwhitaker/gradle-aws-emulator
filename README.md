@@ -93,7 +93,7 @@ Run `./gradlew reportAwsEmulator` to inspect an existing development instance. I
 
 Reports cover all [13 service modules](#aws-resources), including resource settings and relationships. They omit payloads, secret values, log events, Cognito users/client secrets, and email/template contents.
 
-Unsupported metadata APIs are recorded without discarding other sections; `--fail-on-error` fails after writing both files if any section is incomplete. Emulator `1.0.367` supports SES v2 template listing, including template metadata in the inventory.
+Unsupported metadata APIs are recorded without discarding other sections; `--fail-on-error` fails after writing both files if any section is incomplete. Emulator `1.0.385` supports SES v2 template listing, including template metadata in the inventory.
 
 For managed test snapshots, register a `ReportAwsEmulatorTask` as a test finalizer. The [basic](examples/basic/README.md#resource-reports) and [services](examples/services/README.md#resource-reports) examples demonstrate this with `-PemulatorReport`, including capture after test failures. See the [report guide](docs/src/docs/asciidoc/reports.adoc) for configuration and coverage.
 
@@ -119,7 +119,7 @@ Each service guide includes task references and configuration examples:
 | --- | --- |
 | [CloudFormation](docs/src/docs/asciidoc/cloudformation.adoc) | Stack deployment, template validation, and output exports. |
 | [CloudWatch Logs](docs/src/docs/asciidoc/cloudwatch-logs.adoc) | Log groups, streams, and events. |
-| [Cognito](docs/src/docs/asciidoc/cognito.adoc) | User pools, app clients, and user/group fixtures. |
+| [Cognito](docs/src/docs/asciidoc/cognito.adoc) | User pools, app clients, user/group fixtures, and issuer/JWKS configuration exports. |
 | [DynamoDB](docs/src/docs/asciidoc/dynamodb.adoc) | Tables, indexes, streams, data fixtures, and configuration drift checks. |
 | [EventBridge](docs/src/docs/asciidoc/eventbridge.adoc) | Event buses, rules, and targets. |
 | [Kinesis](docs/src/docs/asciidoc/kinesis.adoc) | Streams and record fixtures. |
@@ -139,7 +139,7 @@ Capture current S3 objects with `ExportS3ObjectsTask` and DynamoDB items with `E
 
 ### CloudFormation
 
-`DeployCloudFormationStackTask` deploys local JSON or YAML templates, waits for completion, and exports stack outputs as JSON. Every resource declaration is checked against provisioning handlers audited for emulator **1.0.367**; types that merely report success are rejected before the task connects.
+`DeployCloudFormationStackTask` deploys local JSON or YAML templates, waits for completion, and exports stack outputs as JSON. Every resource declaration is checked against provisioning handlers audited for emulator **1.0.385**; types that merely report success are rejected before the task connects.
 
 Run `./gradlew validateCloudFormationTemplate --templateFile=infra/test-stack.yaml` to validate without Docker. Transforms (including SAM), nested stacks, and custom providers must be expanded or replaced with explicit resource tasks. See the [CloudFormation guide](docs/src/docs/asciidoc/cloudformation.adoc) for supported types and limits, or the [runnable example](examples/cloudformation/README.md) for S3, SQS, and DynamoDB provisioning.
 
@@ -147,7 +147,7 @@ Run `./gradlew validateCloudFormationTemplate --templateFile=infra/test-stack.ya
 
 ### Named runtimes
 
-Give suites independent AWS state and settings within one project. Each runtime name has separate managed and development instances, an automatic port, and a working directory. Existing configuration uses `default`.
+Give suites independent AWS state and settings within one project. Each runtime name has separate managed and development instances, an automatic port, and a working directory. Automatic `DIRECT` port conflicts retry with a fresh port up to three startup attempts. Existing configuration uses `default`.
 
 Select a name through `useWith`, a resource task's `runtimeName`, or lifecycle commands such as `startAwsEmulatorIntegration` and `stopAwsEmulator --runtime integration`. See the [named runtime guide](docs/src/docs/asciidoc/named-runtimes.adoc) and [example](examples/named-runtimes/README.md) for registration and suite setup.
 

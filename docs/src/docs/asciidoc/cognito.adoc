@@ -17,7 +17,7 @@ toc::[]
 
 The tests use AWS SDK v2 password sign-in and refresh, then call a Spring Boot application with signed access tokens. They check anonymous rejection, group authorization, incorrect passwords, tampered signatures, ID tokens presented as access tokens, and tokens for another client. The second invocation reuses Gradle configuration and provisions a fresh managed runtime. `-PfailExample=true` intentionally fails the test to exercise managed cleanup.
 
-IMPORTANT: AWS Emulator `1.0.367` signs Cognito tokens with *RS256*. The example's `local` Spring profile explicitly allows RS256 and validates signature, issuer, expiration, `token_use=access`, and the configured `client_id`. HTTPS certificate and hostname verification stay enabled. Configure production Cognito separately with its real issuer and RS256 policy. This integration does not claim complete Cognito fidelity. See the https://github.com/aws/aws-emulator/blob/v1.0.367/services/service-com-amazonaws-cognitoidentityprovider-awscognitoidentityproviderservice/src/state/tokens.rs[upstream token implementation].
+IMPORTANT: AWS Emulator `1.0.385` signs Cognito tokens with *RS256*. The example's `local` Spring profile explicitly allows RS256 and validates signature, issuer, expiration, `token_use=access`, and the configured `client_id`. HTTPS certificate and hostname verification stay enabled. Configure production Cognito separately with its real issuer and RS256 policy. This integration does not claim complete Cognito fidelity. See the https://github.com/aws/aws-emulator/blob/v1.0.385/services/service-com-amazonaws-cognitoidentityprovider-awscognitoidentityproviderservice/src/state/tokens.rs[upstream token implementation].
 
 Supported workflows are User Pool provisioning, public clients, administrative user fixtures, groups, password sign-in, and refresh. Identity Pools, hosted login/OAuth authorization endpoints, federation, SRP, MFA, Lambda triggers, custom schema management, and confidential client creation are outside this initial integration.
 
@@ -31,7 +31,7 @@ All task types share `mode` (custom instances inherit `awsEmulator.defaultMode`,
 |`CreateCognitoUserPoolTask` |`userPoolName`. Creates a pool with service defaults or reuses a uniquely named pool without changing its settings.
 |`CreateCognitoUserPoolClientTask` |`userPoolName`, `clientName`, `explicitAuthFlows`. Creates a public client (`GenerateSecret=false`), or reuses one with matching flows and no secret.
 |`SeedCognitoUsersTask` |`userPoolName`, `fixtures` JSON file, `overwrite` (default `false`). Seeds users and additive group memberships.
-|`ExportCognitoConfigurationTask` |`userPoolName`, `clientName`, `outputFile`. Exports current IDs and local connection URLs as JSON.
+|`ExportCognitoConfigurationTask` |`userPoolName`, `clientName`, `outputFile`. Exports current IDs, the discovered token issuer, and local connection URLs as JSON.
 |`ListCognitoUserPoolsTask` |Lists all pool names and IDs, following pagination.
 |`DeleteCognitoUserPoolTask` |`userPoolName`. Deletes the pool and its users, groups, and clients. Missing pools are a no-op; deletion protection and service errors remain failures.
 |`DeleteCognitoUserPoolClientTask` |`userPoolName`, `clientName`. Deletes a client; a missing pool or client is a no-op.
@@ -164,9 +164,11 @@ All entries are parsed and validated before SDK calls. Service failures can leav
 |`clientId` |The selected app client's actual ID.
 |`region` |The runtime's configured region.
 |`endpoint` |The local HTTPS SDK endpoint.
-|`issuer` |The local endpoint followed by `/userPoolId`.
-|`jwksUri` |The issuer followed by `/.well-known/jwks.json`.
+|`issuer` |The issuer advertised by the pool's discovery document, fetched over verified HTTPS from the local emulator. The default in `1.0.385` is `\https://cognito-idp.<region>.amazonaws.com/<userPoolId>`; an `UPDATED` pool uses `issuer-cognito-idp` instead.
+|`jwksUri` |The local emulator endpoint followed by `/<userPoolId>/.well-known/jwks.json`. Key retrieval stays local even when the issuer names an AWS hostname.
 |===
+
+The issuer is a value to validate in token claims, not a network destination. Discovery and JWKS requests use the configured emulator endpoint; the export does not follow redirects or the discovery document's advertised remote URLs. Missing or malformed issuer metadata fails the task. Older emulators that advertise a local issuer are supported through the same discovery path.
 
 The output contains no credentials, passwords, tokens, or client secrets. It is replaced atomically where supported and uses owner-only permissions on POSIX filesystems. The file survives the task; its IDs become stale when that emulator stops. Always depend on the export and read it in the consuming process after setup. Do not parse it during Gradle configuration or hardcode generated IDs. Each managed invocation exports fresh IDs, including when the configuration cache is reused.
 

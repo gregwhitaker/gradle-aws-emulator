@@ -29,7 +29,7 @@ public final class CognitoModule {
         configure(project, CreateCognitoUserPoolTask.class, "Creates or reuses a Cognito User Pool.");
         configure(project, CreateCognitoUserPoolClientTask.class, "Creates or reuses a public Cognito app client.");
         configure(project, SeedCognitoUsersTask.class, "Seeds Cognito users and group memberships from JSON.");
-        configure(project, ExportCognitoConfigurationTask.class, "Exports current Cognito IDs and local issuer/JWKS URLs.");
+        configure(project, ExportCognitoConfigurationTask.class, "Exports current Cognito IDs, token issuer, and local JWKS URL.");
         configure(project, ListCognitoUserPoolsTask.class, "Lists Cognito User Pools.");
         configure(project, DeleteCognitoUserPoolTask.class, "Deletes a Cognito User Pool and its contents.");
         configure(project, DeleteCognitoUserPoolClientTask.class, "Deletes a Cognito app client.");
