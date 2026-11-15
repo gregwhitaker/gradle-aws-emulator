@@ -15,13 +15,13 @@ The example provisions an email identity, a stored template, a configuration set
 
 == Provision And Send
 
-[source,kotlin]
+[source,kotlin,subs="+attributes"]
 ----
 import io.github.gregwhitaker.awsemulator.aws.ses.*
 
 plugins {
     java
-    id("io.github.gregwhitaker.aws-emulator")
+    id("io.github.gregwhitaker.aws-emulator") version "{revnumber}"
 }
 
 val sender = tasks.register<CreateSesEmailIdentityTask>("createMailSender") {

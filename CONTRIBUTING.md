@@ -426,7 +426,7 @@ for setup, dry runs, and resuming. The workflow reuses the successful CI result,
 validates and publishes both plugins, then creates a GitHub Release using the
 tagged changelog section.
 See [after publishing](RELEASING.md#after-publishing) for release
-notes, first-publication documentation updates, and the next development version.
+notes, Plugin Portal installation examples, and the next development version.
 
 ### Publish from your machine
 

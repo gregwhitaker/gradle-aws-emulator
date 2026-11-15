@@ -30,7 +30,7 @@ Each command starts or reuses its selected emulator on demand. Listing an empty 
 
 == Create A Table Before Tests
 
-[source,kotlin]
+[source,kotlin,subs="+attributes"]
 ----
 import io.github.gregwhitaker.awsemulator.aws.dynamodb.CreateDynamoDbTableTask
 import software.amazon.awssdk.services.dynamodb.model.AttributeDefinition
@@ -40,7 +40,7 @@ import software.amazon.awssdk.services.dynamodb.model.ScalarAttributeType
 
 plugins {
     java
-    id("io.github.gregwhitaker.aws-emulator")
+    id("io.github.gregwhitaker.aws-emulator") version "{revnumber}"
 }
 
 val createProducts = tasks.register<CreateDynamoDbTableTask>("createProducts") {
@@ -126,7 +126,26 @@ An initializer failure fails the build with the original cause. Managed cleanup 
 
 When using `buildSrc`, depend on both the plugin and the SDK there. This places the task classes, initializer, and SDK types on the same build classpath and avoids loading separate copies of SDK model classes.
 
-The checkout example uses a composite build in `buildSrc/settings.gradle.kts` to resolve the unpublished plugin:
+For a plugin release from the https://plugins.gradle.org/plugin/io.github.gregwhitaker.aws-emulator[Gradle Plugin Portal], declare the Portal as a dependency repository in `buildSrc/build.gradle.kts`:
+
+[source,kotlin,subs="+attributes"]
+----
+plugins { java }
+
+repositories {
+    mavenCentral()
+    gradlePluginPortal()
+}
+
+dependencies {
+    implementation("io.github.gregwhitaker:gradle-aws-emulator:{revnumber}")
+    implementation("software.amazon.awssdk:dynamodb:2.39.6")
+}
+----
+
+The main build applies the plugin without a version because `buildSrc` supplies it. Application and test code still declare their own SDK dependencies.
+
+The repository's runnable example instead uses a composite build in `buildSrc/settings.gradle.kts` to exercise the plugin from this checkout:
 
 [source,kotlin]
 ----
@@ -139,8 +158,6 @@ Its `buildSrc/build.gradle.kts` declares the dependencies:
 ----
 include::examples/dynamodb/buildSrc/build.gradle.kts[]
 ----
-
-The main build applies the plugin without a version because `buildSrc` supplies it. Application and test code still declare their own SDK dependencies.
 
 === Initializer Implementation
 

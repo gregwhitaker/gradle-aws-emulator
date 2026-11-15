@@ -1,6 +1,8 @@
 # Examples
 
-Standalone Kotlin DSL builds demonstrating the AWS Emulator Gradle plugin with AWS SDK for Java v2 and JUnit 5. Each example uses the plugin from this checkout, so publishing or installing the plugin is unnecessary.
+Standalone Kotlin DSL builds demonstrating the AWS Emulator Gradle plugin with AWS SDK for Java v2 and JUnit 5. Each example uses the plugin from this checkout so it exercises local plugin changes.
+
+For your own application, get the [core plugin](https://plugins.gradle.org/plugin/io.github.gregwhitaker.aws-emulator) or [Spring Boot companion](https://plugins.gradle.org/plugin/io.github.gregwhitaker.aws-emulator.spring-boot) from the Gradle Plugin Portal. Follow the [core quick start](../README.md#apply-from-the-plugin-portal) or [companion setup](../spring-boot-plugin/README.md#apply-from-the-plugin-portal) for versioned plugin declarations. When adapting a checkout example, remove its `includeBuild` entry and specify the plugin version in your build script; the [DynamoDB example](dynamodb/README.md#build-classpath) instead supplies the plugin through `buildSrc`.
 
 | Example | Demonstrates |
 | --- | --- |

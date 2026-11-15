@@ -8,9 +8,11 @@ toc::[]
 
 == The Plugin Cannot Be Resolved
 
-Version {revnumber} has not been published to the Gradle Plugin Portal. Configure `pluginManagement { includeBuild(...) }` in your application's settings, pointing at this checkout. Apply the plugin without a version in the consuming build.
+Check the plugin ID and requested version against the Gradle Plugin Portal listing for the https://plugins.gradle.org/plugin/io.github.gregwhitaker.aws-emulator[core plugin] or https://plugins.gradle.org/plugin/io.github.gregwhitaker.aws-emulator.spring-boot[Spring Boot companion]. Include a version in the `plugins` declaration unless it is supplied by plugin management or the build classpath.
 
-Check that Java is at least 17 and Gradle is at least 8.14. See xref:getting-started.adoc#apply-from-a-checkout[apply from a checkout].
+Gradle searches the Portal by default. If your settings customize `pluginManagement.repositories`, include `gradlePluginPortal()` there; adding it only to the project's dependency repositories does not configure plugin resolution. Check network or proxy access to the Portal, and avoid `--offline` when the plugin has not been cached.
+
+Check that Java is at least 17 and Gradle is at least 8.14. See xref:getting-started.adoc#apply-from-the-plugin-portal[Plugin Portal setup]. When testing local plugin changes, follow the xref:getting-started.adoc#apply-from-a-checkout[checkout setup] and omit the emulator plugin version.
 
 == Docker Is Unavailable Or Startup Times Out
 

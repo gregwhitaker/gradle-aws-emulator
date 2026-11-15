@@ -8,7 +8,7 @@ toc::[]
 
 == Provision Before Tests
 
-[source,kotlin]
+[source,kotlin,subs="+attributes"]
 ----
 import io.github.gregwhitaker.awsemulator.aws.kms.CreateKmsKeyTask
 import io.github.gregwhitaker.awsemulator.aws.kms.EncryptKmsFileTask
@@ -16,7 +16,7 @@ import io.github.gregwhitaker.awsemulator.aws.kms.DecryptKmsFileTask
 
 plugins {
     java
-    id("io.github.gregwhitaker.aws-emulator")
+    id("io.github.gregwhitaker.aws-emulator") version "{revnumber}"
 }
 
 val key = tasks.register<CreateKmsKeyTask>("createTestKey") {

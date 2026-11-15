@@ -29,7 +29,7 @@ The [build script](build.gradle.kts) provisions resources and fixtures before ru
 | [KMS](../../docs/src/docs/asciidoc/kms.adoc) | Creates a key with alias `alias/example-services`, then encrypts and decrypts [plaintext.txt](fixtures/plaintext.txt) with an encryption context. |
 | [CloudWatch Logs](../../docs/src/docs/asciidoc/cloudwatch-logs.adoc) | Creates a log group and stream, writes an application log event, then retrieves and filters events. |
 
-The [settings file](settings.gradle.kts) includes the plugin from this checkout through `pluginManagement`, so no plugin publication is needed.
+The [settings file](settings.gradle.kts) includes the plugin from this checkout through `pluginManagement`. For your own application, follow the [Plugin Portal installation instructions](../../README.md#apply-from-the-plugin-portal) and use a versioned plugin declaration in place of the checkout include.
 
 ### Entry tasks and output
 

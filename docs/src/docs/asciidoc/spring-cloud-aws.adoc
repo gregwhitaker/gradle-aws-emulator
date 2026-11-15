@@ -2,7 +2,7 @@
 include::_partials/attributes.adoc[]
 :description: Use Spring Cloud AWS clients, SQS listeners, and configuration imports with AWS Emulator.
 
-Spring Cloud AWS uses the `io.github.gregwhitaker.aws-emulator.spring-boot` companion to provision resources before Spring starts and supply the emulator connection to application and test JVMs. Follow the xref:spring-boot.adoc#apply-from-a-checkout[Spring Boot setup] to apply the companion.
+Spring Cloud AWS uses the `io.github.gregwhitaker.aws-emulator.spring-boot` companion to provision resources before Spring starts and supply the emulator connection to application and test JVMs. Follow the xref:spring-boot.adoc#apply-from-the-plugin-portal[Spring Boot setup] to apply the companion from the Gradle Plugin Portal.
 
 The link:{repo-url}/tree/main/examples/spring-cloud-aws[Spring Cloud AWS example] pins Spring Cloud AWS 3.4.0 with Spring Boot 3.5.16, following the https://github.com/awspring/spring-cloud-aws#compatibility-with-spring-project-versions[framework compatibility matrix]. It requires Java 17+, Gradle 8.14+, and a local Docker engine with Linux containers.
 

@@ -10,14 +10,14 @@ toc::[]
 
 === Kotlin DSL
 
-[source,kotlin]
+[source,kotlin,subs="+attributes"]
 ----
 import io.github.gregwhitaker.awsemulator.aws.sns.CreateSnsTopicWithSqsEndpointTask
 import io.github.gregwhitaker.awsemulator.aws.sns.PublishSnsTask
 
 plugins {
     java
-    id("io.github.gregwhitaker.aws-emulator")
+    id("io.github.gregwhitaker.aws-emulator") version "{revnumber}"
 }
 
 val notifications = tasks.register<CreateSnsTopicWithSqsEndpointTask>("createNotifications") {
@@ -39,14 +39,14 @@ The example creates `application-notifications-subscriber`. Tests can receive th
 
 === Groovy DSL
 
-[source,groovy]
+[source,groovy,subs="+attributes"]
 ----
 import io.github.gregwhitaker.awsemulator.aws.sns.CreateSnsTopicWithSqsEndpointTask
 import io.github.gregwhitaker.awsemulator.aws.sns.PublishSnsTask
 
 plugins {
     id 'java'
-    id 'io.github.gregwhitaker.aws-emulator'
+    id 'io.github.gregwhitaker.aws-emulator' version '{revnumber}'
 }
 
 def notifications = tasks.register('createNotifications', CreateSnsTopicWithSqsEndpointTask) {

@@ -12,13 +12,13 @@ Make your test task depend on provisioning, then opt that same consumer into the
 
 === Kotlin DSL
 
-[source,kotlin]
+[source,kotlin,subs="+attributes"]
 ----
 import io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueueTask
 
 plugins {
     java
-    id("io.github.gregwhitaker.aws-emulator")
+    id("io.github.gregwhitaker.aws-emulator") version "{revnumber}"
 }
 
 val createQueue = tasks.register<CreateSqsQueueTask>("createTestQueue") {
@@ -35,13 +35,13 @@ awsEmulator {
 
 === Groovy DSL
 
-[source,groovy]
+[source,groovy,subs="+attributes"]
 ----
 import io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueueTask
 
 plugins {
     id 'java'
-    id 'io.github.gregwhitaker.aws-emulator'
+    id 'io.github.gregwhitaker.aws-emulator' version '{revnumber}'
 }
 
 def createQueue = tasks.register('createTestQueue', CreateSqsQueueTask) {

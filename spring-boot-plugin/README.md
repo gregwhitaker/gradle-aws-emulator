@@ -2,7 +2,7 @@
 
 Run and debug Spring Boot applications with a local AWS Emulator. The companion plugin adds `bootRunLocal` and `bootRunLocalDebug`, provisions registered AWS resources before application startup, and supplies the application's JVM with emulator connection settings.
 
-Plugin ID: **`io.github.gregwhitaker.aws-emulator.spring-boot`**. Version **0.2.0** is implemented in this repository and is available from a checkout until publication to the Gradle Plugin Portal.
+Plugin ID: **`io.github.gregwhitaker.aws-emulator.spring-boot`**. Get the companion from the [Gradle Plugin Portal](https://plugins.gradle.org/plugin/io.github.gregwhitaker.aws-emulator.spring-boot).
 
 The companion automatically applies the [base AWS Emulator plugin](../README.md). Your application selects and applies its own Spring Boot version. The companion is a separate artifact, `io.github.gregwhitaker:gradle-aws-emulator-spring-boot`, and does not bring Spring Boot into your build transitively.
 
@@ -14,20 +14,11 @@ The companion automatically applies the [base AWS Emulator plugin](../README.md)
 
 Compatibility coverage in this repository includes Spring Boot **3.5.16** and **4.1.2**. The emulator image is built on first use and reused on subsequent runs. No AWS account or AWS CLI is needed.
 
-## Apply from a checkout
+## Apply from the Plugin Portal
 
-Include the repository root as a composite build in your existing Spring Boot application's settings. Adjust the path to your checkout.
+Apply version **0.2.0** in your Spring Boot application's build script. Gradle uses the Plugin Portal by default; if you customize `pluginManagement.repositories` in your settings file, include `gradlePluginPortal()`.
 
 ### Kotlin DSL
-
-`settings.gradle.kts`:
-
-```kotlin
-pluginManagement {
-    includeBuild("../gradle-aws-emulator")
-    repositories { gradlePluginPortal() }
-}
-```
 
 `build.gradle.kts`:
 
@@ -37,7 +28,7 @@ import io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueueTask
 plugins {
     java
     id("org.springframework.boot") version "4.1.2"
-    id("io.github.gregwhitaker.aws-emulator.spring-boot")
+    id("io.github.gregwhitaker.aws-emulator.spring-boot") version "0.2.0"
 }
 
 awsEmulator {
@@ -53,15 +44,6 @@ tasks.register<CreateSqsQueueTask>("createApplicationQueue") {
 
 ### Groovy DSL
 
-`settings.gradle`:
-
-```groovy
-pluginManagement {
-    includeBuild('../gradle-aws-emulator')
-    repositories { gradlePluginPortal() }
-}
-```
-
 `build.gradle`:
 
 ```groovy
@@ -70,7 +52,7 @@ import io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueueTask
 plugins {
     id 'java'
     id 'org.springframework.boot' version '4.1.2'
-    id 'io.github.gregwhitaker.aws-emulator.spring-boot'
+    id 'io.github.gregwhitaker.aws-emulator.spring-boot' version '0.2.0'
 }
 
 awsEmulator {
@@ -85,6 +67,8 @@ tasks.register('createApplicationQueue', CreateSqsQueueTask) {
 ```
 
 Keep your application's existing dependencies and repositories. The application declares its own AWS SDK dependencies; see the [runnable example build](../examples/spring-boot/build.gradle.kts) for a complete configuration.
+
+Repository examples use the plugins from this checkout. To test local plugin changes in your own application, follow the [checkout setup](../docs/src/docs/asciidoc/getting-started.adoc#apply-from-a-checkout) and omit the companion's version.
 
 To connect to an already-running emulator, configure `awsEmulator.external` with its endpoint, credentials file, and CA certificate. Both local Boot tasks and their resource setup use that connection in either mode; application exits and failures leave the external instance running.
 

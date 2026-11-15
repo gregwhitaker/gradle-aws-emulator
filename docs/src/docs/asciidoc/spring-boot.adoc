@@ -8,18 +8,19 @@ The companion is a separate artifact, `io.github.gregwhitaker:gradle-aws-emulato
 
 toc::[]
 
-== Apply From A Checkout
+== Apply From The Plugin Portal
 
-Use the xref:getting-started.adoc#apply-from-a-checkout[composite-build setup], then apply the companion:
+[[apply-from-a-checkout]]
+Get the companion from the https://plugins.gradle.org/plugin/io.github.gregwhitaker.aws-emulator.spring-boot[Gradle Plugin Portal] and apply it with a version. Gradle uses the Portal by default; if you customize plugin repositories, follow the xref:getting-started.adoc#custom-plugin-repositories[plugin repository setup].
 
-[source,kotlin]
+[source,kotlin,subs="+attributes"]
 ----
 import io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueueTask
 
 plugins {
     java
     id("org.springframework.boot") version "4.1.2"
-    id("io.github.gregwhitaker.aws-emulator.spring-boot")
+    id("io.github.gregwhitaker.aws-emulator.spring-boot") version "{revnumber}"
 }
 
 awsEmulator {
@@ -32,14 +33,14 @@ tasks.register<CreateSqsQueueTask>("createApplicationQueue") {
 }
 ----
 
-[source,groovy]
+[source,groovy,subs="+attributes"]
 ----
 import io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueueTask
 
 plugins {
     id 'java'
     id 'org.springframework.boot' version '4.1.2'
-    id 'io.github.gregwhitaker.aws-emulator.spring-boot'
+    id 'io.github.gregwhitaker.aws-emulator.spring-boot' version '{revnumber}'
 }
 
 awsEmulator {
@@ -53,6 +54,8 @@ tasks.register('createApplicationQueue', CreateSqsQueueTask) {
 ----
 
 Plugin application order does not matter. Until both Spring Boot and Java are present, the companion exposes its settings and the base emulator tasks, without registering the Boot tasks or starting Docker.
+
+To test local plugin changes, use the xref:getting-started.adoc#apply-from-a-checkout[checkout setup] and omit the companion's version.
 
 == Automatic Resource Creation
 

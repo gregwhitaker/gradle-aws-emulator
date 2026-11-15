@@ -18,13 +18,13 @@ See {repo-url}/tree/main/examples/cloudformation[the runnable example] for persi
 
 == Provision Before Tests
 
-[source,kotlin]
+[source,kotlin,subs="+attributes"]
 ----
 import io.github.gregwhitaker.awsemulator.aws.cloudformation.DeployCloudFormationStackTask
 
 plugins {
     java
-    id("io.github.gregwhitaker.aws-emulator")
+    id("io.github.gregwhitaker.aws-emulator") version "{revnumber}"
 }
 
 val stack = tasks.register<DeployCloudFormationStackTask>("deployTestStack") {

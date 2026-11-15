@@ -66,10 +66,11 @@ published with its title, notes, and assets intact.
 - Confirm the [GitHub Release](https://github.com/gregwhitaker/gradle-aws-emulator/releases)
   was published by the workflow. You can edit its notes afterward; rerunning the
   release job will preserve those edits.
-- After the first public release, replace the checkout-only installation text in
+- Update the Plugin Portal installation examples in
   the [README](README.md), [companion README](spring-boot-plugin/README.md),
   [getting-started guide](docs/src/docs/asciidoc/getting-started.adoc), and
-  [troubleshooting guide](docs/src/docs/asciidoc/troubleshooting.adoc).
+  related documentation to use the published version. The guide's `{revnumber}`
+  snippets use `pluginVersion`; README snippets need their literal versions updated.
   The website deploys automatically when those changes reach `main`.
 - Put new development notes under a new `## Unreleased` changelog section.
   The next release command updates the version and date. Keep installation
