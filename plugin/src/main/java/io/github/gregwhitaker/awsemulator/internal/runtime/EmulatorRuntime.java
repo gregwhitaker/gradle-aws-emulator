@@ -33,6 +33,7 @@ import java.nio.file.Path;
 import java.nio.file.Files;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Duration;
+import java.util.Locale;
 import java.util.UUID;
 
 /** Coordinates persistent and build-owned instances, readiness, and cleanup. */
@@ -321,8 +322,27 @@ public final class EmulatorRuntime implements AutoCloseable {
         int port = tunnel == null ? (settings.port() == 0 ? availablePort() : settings.port()) : tunnel.port();
         try {
             workspace.prepareHome(home);
-            Container container = docker.create(name, port, home, image);
-            docker.start(container);
+            Container container;
+            for (int attempt = 1; ; attempt++) {
+                container = docker.create(name, port, home, image);
+                try {
+                    docker.start(container);
+                    break;
+                } catch (GradleException failure) {
+                    String message = failure.getMessage() == null ? "" : failure.getMessage().toLowerCase(Locale.ROOT);
+                    boolean portConflict = message.contains("port is already allocated") || message.contains("address already in use");
+                    if (settings.port() != 0 || tunnel != null || attempt >= 3 || !portConflict
+                            || Thread.currentThread().isInterrupted()) throw failure;
+                    // Another process can claim an ephemeral port between selection and Docker's bind.
+                    // Remove this failed attempt before selecting a fresh port and recreating the container.
+                    archiveLogs(container);
+                    docker.remove(container);
+                    workspace.deleteHome(home);
+                    workspace.prepareHome(home);
+                    LOGGER.info("Automatically selected AWS Emulator port {} was claimed; retrying startup.", port);
+                    port = availablePort();
+                }
+            }
             if (tunnel != null) {
                 docker.verifyTunnelTools(container);
                 tunnel.start(docker, container);

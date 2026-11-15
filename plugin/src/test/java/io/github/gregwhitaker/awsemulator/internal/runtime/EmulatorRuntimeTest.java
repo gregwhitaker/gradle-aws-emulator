@@ -41,7 +41,11 @@ class EmulatorRuntimeTest {
     @TempDir Path directory;
 
     private EmulatorSettings settings() {
-        return new EmulatorSettings("test-owner", "1.0.322", "", "auto", 0, "us-east-1", false,
+        return settings(0);
+    }
+
+    private EmulatorSettings settings(int port) {
+        return new EmulatorSettings("test-owner", "1.0.322", "", "auto", port, "us-east-1", false,
             "docker", "2g", 1, 5, 10, directory);
     }
 
@@ -207,6 +211,45 @@ class EmulatorRuntimeTest {
         EmulatorRuntime runtime = new EmulatorRuntime(settings(), docker, (port, store) -> true);
         assertThrows(GradleException.class, runtime::managedConnection);
         assertTrue(docker.containers.isEmpty());
+        assertEquals(1, docker.calls.stream().filter(call -> call.contains("start")).count());
+    }
+
+    @ParameterizedTest @ValueSource(strings = {"port is already allocated", "bind: address already in use"})
+    void automaticPortConflictsRetryWithFreshPortsAndRemoveFailedAttempts(String message) throws Exception {
+        FakeDocker docker = new FakeDocker();
+        docker.portConflicts = 2;
+        docker.portConflictMessage = message;
+        var claimedPorts = new ArrayList<java.net.ServerSocket>();
+        docker.onPortConflict = port -> {
+            try { claimedPorts.add(new java.net.ServerSocket(port, 0, java.net.InetAddress.getByName("127.0.0.1"))); }
+            catch (java.io.IOException e) { throw new java.io.UncheckedIOException(e); }
+        };
+        try (var runtime = new EmulatorRuntime(settings(), docker, (port, store) -> true)) {
+            var connection = runtime.managedConnection();
+            assertEquals(3, docker.calls.stream().filter(call -> call.contains("start")).count());
+            assertEquals(2, docker.calls.stream().filter(call -> call.contains("rm")).count());
+            assertEquals(1, docker.containers.size());
+            for (var claimed : claimedPorts) {
+                assertNotEquals(claimed.getLocalPort(), connection.port());
+                assertFalse(Files.exists(connection.directory().getParent().resolve(Integer.toString(claimed.getLocalPort()))));
+            }
+            assertSame(connection, runtime.managedConnection());
+        } finally {
+            for (var claimed : claimedPorts) claimed.close();
+        }
+        assertTrue(docker.containers.isEmpty());
+    }
+
+    @ParameterizedTest @ValueSource(ints = {0, 9297})
+    void exhaustedAutomaticPortsAndExplicitPortConflictsFailWithCleanup(int port) {
+        FakeDocker docker = new FakeDocker();
+        docker.portConflicts = 10;
+        try (var runtime = new EmulatorRuntime(settings(port), docker, (selected, store) -> true)) {
+            var failure = assertThrows(GradleException.class, runtime::managedConnection);
+            assertTrue(failure.getMessage().contains("port is already allocated"));
+            assertEquals(port == 0 ? 3 : 1, docker.calls.stream().filter(call -> call.contains("start")).count());
+            assertTrue(docker.containers.isEmpty());
+        }
     }
 
     @ParameterizedTest @ValueSource(booleans = {false, true})
@@ -481,6 +524,9 @@ class EmulatorRuntimeTest {
         int sequence;
         boolean failStart;
         boolean failLogs;
+        int portConflicts;
+        String portConflictMessage = "port is already allocated";
+        java.util.function.IntConsumer onPortConflict = port -> {};
         String connectionFileContent = "fixture";
 
         @Override
@@ -530,7 +576,14 @@ class EmulatorRuntimeTest {
             FakeContainer container = containers.values().stream().filter(c -> c.id.equals(id)).findFirst().orElseThrow();
             return switch (operation) {
                 case "inspect" -> new Result(0, String.join("\n", container.id, container.owner, container.config, container.port, container.home.toString(), container.state, container.mode, container.tunneled ? "tunnel" : "direct"));
-                case "start" -> new Result(failStart ? 1 : 0, failStart ? "port is already allocated" : id);
+                case "start" -> {
+                    if (portConflicts > 0) {
+                        portConflicts--;
+                        onPortConflict.accept(Integer.parseInt(container.port));
+                        yield new Result(1, portConflictMessage);
+                    }
+                    yield new Result(failStart ? 1 : 0, failStart ? "daemon rejected startup" : id);
+                }
                 case "logs" -> new Result(failLogs ? 1 : 0, failLogs ? "log driver unavailable" : "fake emulator log");
                 case "stop" -> { container.state = "exited"; yield new Result(0, id); }
                 case "rm" -> { containers.values().remove(container); yield new Result(0, id); }

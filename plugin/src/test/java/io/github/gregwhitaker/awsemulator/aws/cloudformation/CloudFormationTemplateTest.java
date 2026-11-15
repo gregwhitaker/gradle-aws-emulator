@@ -60,7 +60,10 @@ class CloudFormationTemplateTest {
         "AWS::Config::ConfigurationRecorder", "AWS::Lambda::EventSourceMapping", "AWS::IAM::GroupPolicy",
         "AWS::CloudFormation::WaitCondition", "AWS::CloudWatch::Alarm", "AWS::Cognito::UserPool",
         "AWS::Cognito::UserPoolClient", "AWS::Cognito::UserPoolResourceServer", "AWS::ECS::Service",
-        "AWS::ElasticLoadBalancingV2::LoadBalancer", "AWS::ApiGateway::Model", "AWS::SSM::Document"})
+        "AWS::ElasticLoadBalancingV2::LoadBalancer", "AWS::ApiGateway::Model", "AWS::SSM::Document",
+        "AWS::ACMPCA::Permission", "AWS::Redshift::SnapshotCopyGrant", "AWS::XRay::Group",
+        "AWS::AppSync::GraphQLApi", "AWS::AppSync::GraphQLSchema", "AWS::AppSync::DataSource",
+        "AWS::AppSync::Resolver", "AWS::AppSync::FunctionConfiguration", "AWS::AppSync::ApiKey"})
     void acceptsMainAndDedicatedProvisioners(String type) {
         assertDoesNotThrow(() -> CloudFormationTemplate.validate(template(type)));
     }
@@ -124,17 +127,17 @@ class CloudFormationTemplateTest {
         Path file = directory.resolve("template.yml");
         String valid = template("AWS::S3::Bucket");
         Files.writeString(file, valid);
-        assertEquals(valid, CloudFormationTemplate.read(file, "1.0.367"));
+        assertEquals(valid, CloudFormationTemplate.read(file, "1.0.385"));
         assertTrue(assertThrows(GradleException.class, () -> CloudFormationTemplate.read(file, "1.0.321"))
             .getMessage().contains("audited only"));
         Files.writeString(file, "Resources: [private-password: broken: syntax]");
-        var failure = assertThrows(GradleException.class, () -> CloudFormationTemplate.read(file, "1.0.367"));
+        var failure = assertThrows(GradleException.class, () -> CloudFormationTemplate.read(file, "1.0.385"));
         assertFalse(failure.getMessage().contains("private-password"));
         assertNull(failure.getCause());
         Files.write(file, new byte[] {(byte) 0xC3, (byte) 0x28});
-        assertThrows(GradleException.class, () -> CloudFormationTemplate.read(file, "1.0.367"));
+        assertThrows(GradleException.class, () -> CloudFormationTemplate.read(file, "1.0.385"));
         Files.writeString(file, "x".repeat(CloudFormationTemplate.MAX_BYTES + 1));
-        assertTrue(assertThrows(GradleException.class, () -> CloudFormationTemplate.read(file, "1.0.367"))
+        assertTrue(assertThrows(GradleException.class, () -> CloudFormationTemplate.read(file, "1.0.385"))
             .getMessage().contains("51200"));
     }
 

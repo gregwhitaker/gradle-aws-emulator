@@ -37,7 +37,7 @@ With an xref:external-emulators.adoc[external connection], both modes use the sa
 |`emulatorVersion` |`{emulator-version}` |Pinned AWS Emulator package used when building an image.
 |`image` |Unset |Use this Docker image instead of building one. Pull it if it is missing locally.
 |`platform` |`auto` |Detect the Docker engine architecture, or select `linux/amd64` or `linux/arm64`.
-|`port` |`0` |Automatically select an available local endpoint port; also the container port with `DIRECT`. Set a nonzero value for a fixed port. Also configurable with `-PawsEmulator.port=...`.
+|`port` |`0` |Automatically select an available local endpoint port; also the container port with `DIRECT`. If another process claims an automatically selected `DIRECT` port, startup removes the failed container and retries with a fresh port, up to three attempts. Set a nonzero value for a fixed port; fixed-port conflicts fail immediately. Also configurable with `-PawsEmulator.port=...`.
 |`region` |`us-east-1` |Region passed to consuming SDKs and resource provisioning.
 |`telemetryEnabled` |`false` |Explicitly enable the emulator's AWS telemetry.
 |`dockerExecutable` |`docker` |Docker command name or absolute executable path.
