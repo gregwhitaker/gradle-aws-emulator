@@ -31,7 +31,7 @@ import org.springframework.security.web.SecurityFilterChain;
 
 import java.nio.file.Path;
 
-/** Local-only token policy for AWS Emulator 1.0.367, which signs with RS256. */
+/** Local-only token policy for AWS Emulator 1.0.385, which signs with RS256. */
 @Configuration
 @Profile("local")
 class LocalCognitoSecurity {

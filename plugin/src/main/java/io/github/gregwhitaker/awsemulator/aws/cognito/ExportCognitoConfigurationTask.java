@@ -28,7 +28,7 @@ import org.gradle.work.DisableCachingByDefault;
 
 import java.util.Map;
 
-/** Exports current IDs and local issuer/JWKS URLs as JSON. Contains no passwords, tokens, or client secrets. */
+/** Exports current IDs, the discovered token issuer, and a local JWKS URL. Contains no passwords, tokens, or client secrets. */
 @AwsEmulatorSetupTask
 @DisableCachingByDefault(because = "Uses live emulator resources")
 public abstract class ExportCognitoConfigurationTask extends AbstractCognitoUserPoolClientTask {
@@ -43,12 +43,13 @@ public abstract class ExportCognitoConfigurationTask extends AbstractCognitoUser
             var operations = new CognitoOperations();
             String poolId = operations.requirePool(client, pool);
             String clientId = operations.requireClient(client, poolId, name);
-            String issuer = connection.endpoint() + "/" + poolId;
+            String issuer = CognitoDiscovery.issuer(connection, poolId, getApiCallTimeoutSeconds().get());
+            String jwksUri = connection.endpoint() + "/" + poolId + "/.well-known/jwks.json";
             byte[] json;
             try {
                 json = new ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsBytes(Map.of(
                     "userPoolId", poolId, "clientId", clientId, "region", connection.region(),
-                    "endpoint", connection.endpoint(), "issuer", issuer, "jwksUri", issuer + "/.well-known/jwks.json"));
+                    "endpoint", connection.endpoint(), "issuer", issuer, "jwksUri", jwksUri));
             } catch (java.io.IOException e) { throw new GradleException("Cannot serialize Cognito configuration.", e); }
             ResourceFiles.write(getOutputFile().get().getAsFile().toPath(), json);
             getLogger().lifecycle("Exported Cognito configuration for pool '{}' and client '{}'.", pool, name);
