@@ -130,11 +130,11 @@ def wait_for_ci(root, repository, commit, timeout):
             last_status = status
         if run and run["status"] == "completed":
             if run["conclusion"] != "success":
-                raise ValueError(f"CI finished with {run['conclusion']}: {run['url']}. No release tag was pushed.")
+                raise ValueError(f"CI finished with {run['conclusion']}: {run['url']}.")
             return
         remaining = deadline - time.monotonic()
         if remaining <= 0:
-            raise ValueError("Timed out waiting for CI. Rerun the same release command to resume; no tag was pushed.")
+            raise ValueError("Timed out waiting for CI. Retry after the Build workflow for this commit passes.")
         time.sleep(min(10, remaining))
 
 
