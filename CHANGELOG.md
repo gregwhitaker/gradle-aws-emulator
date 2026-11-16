@@ -1,5 +1,7 @@
 # Changelog
 
+## Unreleased
+
 ## 0.3.0 — 2026-11-16
 
 - Deploy public documentation only after a successful stable release, using that release's tagged sources. Keep documentation checks on `main` and pull requests, and support redeploying the latest published stable release without republishing plugins.

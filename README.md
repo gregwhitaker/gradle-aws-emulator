@@ -1,6 +1,7 @@
 # AWS Emulator Gradle Plugin
 
 [![Build](https://github.com/gregwhitaker/gradle-aws-emulator/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/gregwhitaker/gradle-aws-emulator/actions/workflows/ci.yml)
+[![Gradle Plugin Portal](https://img.shields.io/gradle-plugin-portal/v/io.github.gregwhitaker.aws-emulator?label=Gradle%20Plugin%20Portal)](https://plugins.gradle.org/plugin/io.github.gregwhitaker.aws-emulator)
 
 Run [AWS Emulator](https://github.com/aws/aws-emulator) from your Gradle build. Provision AWS resources before tests or keep an instance running for local development. The plugin supplies the endpoint, credentials, and HTTPS trust, and cleans up managed instances after use.
 
