@@ -62,6 +62,12 @@ class SesTasksIntegrationTest {
                 assertEquals(1, ses.listEmailIdentities(r -> r.pageSize(1000)).emailIdentities().size());
                 assertEquals(1, ses.listConfigurationSets(r -> r.pageSize(1000)).configurationSets().size());
                 assertEquals(1, ses.getConfigurationSetEventDestinations(r -> r.configurationSetName("example-mail")).eventDestinations().size());
+                assertTrue(ses.listEmailTemplates(r -> r.pageSize(100)).templatesMetadata().stream()
+                    .anyMatch(value -> "example-welcome".equals(value.templateName())));
+                String rendered = ses.testRenderEmailTemplate(r -> r.templateName("example-welcome")
+                    .templateData("{\"name\":\"Audit\"}")).renderedTemplate();
+                assertTrue(rendered.contains("Welcome Audit"), rendered);
+                assertFalse(rendered.contains("{{name}}"), rendered);
                 Path template = project.resolve("fixtures/welcome.txt");
                 Files.writeString(template, "Changed private template body");
                 String conflict = runner(project, "putWelcomeTemplate", "-Pdevelopment=true").buildAndFail().getOutput();

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Upgrade the tested AWS Emulator default to 1.0.471 after auditing 251 native CloudFormation provisioning types, including 30 additions. Keep nested stacks, transforms, custom providers, and declaration-only types guarded; verify new provisioning paths through their owning service APIs.
+- Validate Cognito's locally advertised issuer in integration tests while retaining discovery-based exports, RS256 verification, and local JWKS retrieval. Update SES documentation for the shared v1/v2 template registry.
+
 ## 0.3.0 — 2026-11-16
 
 - Deploy public documentation only after a successful stable release, using that release's tagged sources. Keep documentation checks on `main` and pull requests, and support redeploying the latest published stable release without republishing plugins.

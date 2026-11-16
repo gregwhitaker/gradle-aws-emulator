@@ -37,7 +37,7 @@ import java.util.stream.Collectors;
 
 /** Local, fail-closed validation of resource provisioning support before any emulator connection. */
 final class CloudFormationTemplate {
-    static final String EMULATOR_VERSION = "1.0.385";
+    static final String EMULATOR_VERSION = "1.0.471";
     static final int MAX_BYTES = 51_200;
     private static final Set<String> PROVISIONED = provisionedTypes();
     private static final Set<Tag> SCALAR_TAGS = Set.of(Tag.STR, Tag.INT, Tag.FLOAT, Tag.BOOL, Tag.NULL, Tag.TIMESTAMP);

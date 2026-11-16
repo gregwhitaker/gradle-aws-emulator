@@ -42,7 +42,7 @@ class CloudFormationTasksIntegrationTest {
         fixture();
         for (int run = 0; run < 2; run++) {
             String output = runner(project, "integrationTest").build().getOutput();
-            assertTrue(output.contains("CloudFormation-created S3, SQS, and DynamoDB resources verified"), output);
+            assertTrue(output.contains("CloudFormation-created S3, SQS, DynamoDB, and EventBridge resources verified"), output);
             if (run > 0) assertTrue(output.contains("Reusing configuration cache"), output);
             assertEquals("cloudformation-example-files", outputs().path("BucketName").asText());
             assertNoContainers();
