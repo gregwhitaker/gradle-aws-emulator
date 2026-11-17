@@ -10,7 +10,7 @@ From the repository root:
 ./gradlew -p examples/cloudformation integrationTest --configuration-cache
 ```
 
-Validation is local and does not require Docker. The integration test deploys an S3 bucket, SQS queue, and DynamoDB table; writes and reads through each service API; and cleans up the managed emulator. The second run reuses the configuration cache while deploying into a fresh emulator.
+Validation is local and does not require Docker. The integration test deploys an S3 bucket, SQS queue, DynamoDB table, and EventBridge bus; writes and reads through the storage/queue APIs and submits an event to the bus; and cleans up the managed emulator. The second run reuses the configuration cache while deploying into a fresh emulator. Native EventBridge bus provisioning is part of the 1.0.471 audit.
 
 The example independently waits for DynamoDB table activation before item operations.
 
@@ -35,7 +35,7 @@ For persistent development, deploy, repeat, update a parameter, and delete:
 
 `deployExampleStack` creates or updates the named stack and writes a JSON object of stack outputs to `build/aws-emulator/cloudformation/deployExampleStack/outputs.json`. An unchanged deployment succeeds without changing the stack. Updating parameters can replace resources; deletion follows the template's deletion policies and service constraints.
 
-Validation is pinned to AWS Emulator `1.0.385`. Unknown/declaration-only types are rejected. Transforms (including SAM), nested stacks, custom providers, and YAML anchors/aliases/merges are rejected because the plugin cannot inspect every resource they may introduce. Supply a fully expanded template or use the plugin's service-specific resource tasks. See the [CloudFormation guide](../../docs/src/docs/asciidoc/cloudformation.adoc).
+Validation is pinned to AWS Emulator `1.0.471`. Unknown/declaration-only types are rejected. Transforms (including SAM), nested stacks, custom providers, and YAML anchors/aliases/merges are rejected because the plugin cannot inspect every resource they may introduce. Supply a fully expanded template or use the plugin's service-specific resource tasks. See the [CloudFormation guide](../../docs/src/docs/asciidoc/cloudformation.adoc).
 
 To check managed cleanup on failure:
 

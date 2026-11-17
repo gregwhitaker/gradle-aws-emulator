@@ -25,7 +25,7 @@ repositories { mavenCentral() }
 val integration = sourceSets.create("integration")
 dependencies {
     "integrationImplementation"(platform("software.amazon.awssdk:bom:2.39.6"))
-    for (service in listOf("s3", "sqs", "dynamodb", "url-connection-client")) {
+    for (service in listOf("s3", "sqs", "dynamodb", "eventbridge", "url-connection-client")) {
         "integrationImplementation"("software.amazon.awssdk:$service")
     }
     "integrationImplementation"("com.fasterxml.jackson.core:jackson-databind:2.18.6")

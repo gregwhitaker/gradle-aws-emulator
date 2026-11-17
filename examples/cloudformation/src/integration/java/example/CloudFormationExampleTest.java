@@ -23,6 +23,7 @@ import software.amazon.awssdk.core.retry.backoff.FixedDelayBackoffStrategy;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.waiters.DynamoDbWaiter;
+import software.amazon.awssdk.services.eventbridge.EventBridgeClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import java.nio.file.Path;
@@ -36,8 +37,9 @@ class CloudFormationExampleTest {
         String bucket = outputs.path("BucketName").asText();
         String queue = outputs.path("QueueUrl").asText();
         String table = outputs.path("TableName").asText();
+        String eventBus = outputs.path("EventBusName").asText();
         try (var s3 = S3Client.builder().forcePathStyle(true).build();
-             var sqs = SqsClient.create(); var dynamo = DynamoDbClient.create()) {
+             var sqs = SqsClient.create(); var dynamo = DynamoDbClient.create(); var events = EventBridgeClient.create()) {
             s3.putObject(r -> r.bucket(bucket).key("probe.txt"), RequestBody.fromString("CloudFormation created this bucket"));
             try {
                 assertEquals("CloudFormation created this bucket",
@@ -55,8 +57,13 @@ class CloudFormationExampleTest {
             var key = Map.of("id", AttributeValue.fromS("probe"));
             dynamo.putItem(r -> r.tableName(table).item(Map.of("id", AttributeValue.fromS("probe"), "value", AttributeValue.fromS("local"))));
             assertEquals("local", dynamo.getItem(r -> r.tableName(table).key(key).consistentRead(true)).item().get("value").s());
+            assertEquals(eventBus, events.describeEventBus(r -> r.name(eventBus)).name());
+            var accepted = events.putEvents(r -> r.entries(entry -> entry.eventBusName(eventBus)
+                .source("example.cloudformation").detailType("AuditProbe").detail("{\"value\":\"local\"}")));
+            assertEquals(0, accepted.failedEntryCount());
+            assertNotNull(accepted.entries().get(0).eventId());
         }
-        System.out.println("CloudFormation-created S3, SQS, and DynamoDB resources verified");
+        System.out.println("CloudFormation-created S3, SQS, DynamoDB, and EventBridge resources verified");
         assertFalse(Boolean.getBoolean("example.fail"), "Intentional consumer failure");
     }
 }

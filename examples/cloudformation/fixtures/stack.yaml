@@ -13,6 +13,10 @@ Resources:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Ref QueueName
+  EventBus:
+    Type: AWS::Events::EventBus
+    Properties:
+      Name: cloudformation-example-bus
   Items:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -29,5 +33,7 @@ Outputs:
     Value: !Ref Files
   QueueUrl:
     Value: !Ref Events
+  EventBusName:
+    Value: !Ref EventBus
   TableName:
     Value: !Ref Items

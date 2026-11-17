@@ -54,7 +54,7 @@ Both fields must be strings, and partition keys must be nonblank with at most 25
 
 == SDK Protocol Settings
 
-The pinned SDK defaults to CBOR, which this emulator workflow does not accept. Kinesis tasks therefore use a process-isolated Gradle worker with `aws.cborEnabled=false`; no Gradle daemon system property is changed. `awsEmulator.useWith(...)` sets `aws.cborEnabled=false` and `CBOR_ENABLED=false` for participating application JVMs. Configure JSON explicitly for separately launched SDK consumers.
+The plugin's tested Kinesis connection uses JSON. Kinesis tasks use a process-isolated Gradle worker with `aws.cborEnabled=false`; no Gradle daemon system property is changed. `awsEmulator.useWith(...)` sets `aws.cborEnabled=false` and `CBOR_ENABLED=false` for participating application JVMs. Configure JSON explicitly for separately launched SDK consumers; the plugin's compatibility checks do not certify CBOR behavior.
 
 == Development Commands
 

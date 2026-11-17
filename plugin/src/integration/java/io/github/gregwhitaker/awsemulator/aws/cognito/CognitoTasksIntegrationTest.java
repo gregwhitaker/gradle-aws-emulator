@@ -47,7 +47,7 @@ class CognitoTasksIntegrationTest {
             JsonNode first = configuration();
             String pool = first.get("userPoolId").asText();
             String app = first.get("clientId").asText();
-            assertEquals("https://cognito-idp.us-east-1.amazonaws.com/" + pool, first.get("issuer").asText());
+            assertEquals(first.get("endpoint").asText() + "/" + pool, first.get("issuer").asText());
             assertEquals(first.get("endpoint").asText() + "/" + pool + "/.well-known/jwks.json", first.get("jwksUri").asText());
             try (var client = new AwsClientFactory(connection(), 30).cognitoIdentityProvider()) {
                 var auth = client.initiateAuth(r -> r.clientId(app).authFlow(AuthFlowType.USER_PASSWORD_AUTH)

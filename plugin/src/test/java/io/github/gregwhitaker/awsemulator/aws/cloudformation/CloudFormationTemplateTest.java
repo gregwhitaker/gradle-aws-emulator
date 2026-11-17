@@ -69,7 +69,27 @@ class CloudFormationTemplateTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"AWS::CloudWatch::CompositeAlarm", "AWS::Cognito::UserPoolDomain", "AWS::Events::EventBus",
+    @ValueSource(strings = {"AWS::Amplify::Branch", "AWS::AppSync::Api",
+        "AWS::AppSync::ChannelNamespace", "AWS::AppSync::DomainName",
+        "AWS::AppSync::DomainNameApiAssociation", "AWS::AppSync::SourceApiAssociation",
+        "AWS::Bedrock::Flow", "AWS::CustomerProfiles::Domain",
+        "AWS::EC2::SecurityGroupEgress", "AWS::EC2::SecurityGroupIngress",
+        "AWS::ECS::CapacityProvider", "AWS::EKS::Addon",
+        "AWS::EKS::Nodegroup", "AWS::Events::EventBus",
+        "AWS::Events::EventBusPolicy", "AWS::Glue::TableOptimizer",
+        "AWS::MemoryDB::ParameterGroup", "AWS::MemoryDB::SubnetGroup",
+        "AWS::NeptuneGraph::Graph", "AWS::NeptuneGraph::GraphSnapshot",
+        "AWS::Rbin::Rule", "AWS::SSM::MaintenanceWindow",
+        "AWS::SSM::MaintenanceWindowTarget", "AWS::SageMaker::Endpoint",
+        "AWS::SageMaker::EndpointConfig", "AWS::ServiceDiscovery::HttpNamespace",
+        "AWS::ServiceDiscovery::Instance", "AWS::ServiceDiscovery::PrivateDnsNamespace",
+        "AWS::ServiceDiscovery::PublicDnsNamespace", "AWS::ServiceDiscovery::Service"})
+    void acceptsTypesAddedInTheCurrentAudit(String type) {
+        assertDoesNotThrow(() -> CloudFormationTemplate.validate(template(type)));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"AWS::CloudWatch::CompositeAlarm", "AWS::Cognito::UserPoolDomain",
         "AWS::DynamoDB::GlobalTable", "AWS::SES::EmailIdentity", "AWS::Lambda::Url",
         "AWS::FutureService::Resource", "aws::s3::bucket",
         "AWS::Serverless::Application", "AWS::CloudFormation::WaitConditionHandle"})
@@ -127,17 +147,17 @@ class CloudFormationTemplateTest {
         Path file = directory.resolve("template.yml");
         String valid = template("AWS::S3::Bucket");
         Files.writeString(file, valid);
-        assertEquals(valid, CloudFormationTemplate.read(file, "1.0.385"));
-        assertTrue(assertThrows(GradleException.class, () -> CloudFormationTemplate.read(file, "1.0.321"))
+        assertEquals(valid, CloudFormationTemplate.read(file, "1.0.471"));
+        assertTrue(assertThrows(GradleException.class, () -> CloudFormationTemplate.read(file, "1.0.385"))
             .getMessage().contains("audited only"));
         Files.writeString(file, "Resources: [private-password: broken: syntax]");
-        var failure = assertThrows(GradleException.class, () -> CloudFormationTemplate.read(file, "1.0.385"));
+        var failure = assertThrows(GradleException.class, () -> CloudFormationTemplate.read(file, "1.0.471"));
         assertFalse(failure.getMessage().contains("private-password"));
         assertNull(failure.getCause());
         Files.write(file, new byte[] {(byte) 0xC3, (byte) 0x28});
-        assertThrows(GradleException.class, () -> CloudFormationTemplate.read(file, "1.0.385"));
+        assertThrows(GradleException.class, () -> CloudFormationTemplate.read(file, "1.0.471"));
         Files.writeString(file, "x".repeat(CloudFormationTemplate.MAX_BYTES + 1));
-        assertTrue(assertThrows(GradleException.class, () -> CloudFormationTemplate.read(file, "1.0.385"))
+        assertTrue(assertThrows(GradleException.class, () -> CloudFormationTemplate.read(file, "1.0.471"))
             .getMessage().contains("51200"));
     }
 
