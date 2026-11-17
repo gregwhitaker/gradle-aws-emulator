@@ -49,7 +49,7 @@ After a successful deployment, the site is available at <https://gregwhitaker.gi
 
 For a plugin release, follow the [release guide](../RELEASING.md), including the
 Plugin Portal installation examples and version updates. While `main` develops
-`0.3.0`, the public site stays on `0.2.0` until `0.3.0` is successfully published.
+a newer version, the public site stays on the latest published stable release.
 Keep updating the guide alongside code on `main`; documentation corrections go
 live with the next stable release. Manual redeployment rebuilds the existing
 release without incorporating subsequent changes from `main`.

@@ -9,31 +9,31 @@ to `main` continue to build and check docs without updating the public site.
 ## Make a release
 
 Complete the [one-time setup](#one-time-setup) before your first release. For
-`0.3.0`, run this from a clean `main` checkout that matches `origin/main`:
+`0.4.0`, run this from a clean `main` checkout that matches `origin/main`:
 
 ```sh
-python3 scripts/release.py 0.3.0
+python3 scripts/release.py 0.4.0
 ```
 
 The command:
 
 1. Sets `pluginVersion` and replaces the top Unreleased changelog heading with
    the version and today's local date, preserving the release notes.
-2. Commits those two files as `Release 0.3.0`, pushes `main`, and waits for that
+2. Commits those two files as `Release 0.4.0`, pushes `main`, and waits for that
    exact commit's [Build workflow](https://github.com/gregwhitaker/gradle-aws-emulator/actions/workflows/ci.yml)
    to pass.
-3. Creates and pushes the annotated `v0.3.0` tag, starting publication of both
+3. Creates and pushes the annotated `v0.4.0` tag, starting publication of both
    plugins.
 
 Write release notes under `## Unreleased` or `## <version> — Unreleased` before
 running the command. Pass the version you want to publish; the command updates
 the property and heading together. It also accepts an already-planned version
-and prereleases such as `0.3.0-rc.1`.
+and prereleases such as `0.4.0-rc.1`.
 
 To preview the changes and planned actions:
 
 ```sh
-python3 scripts/release.py 0.3.0 --dry-run
+python3 scripts/release.py 0.4.0 --dry-run
 ```
 
 The preview checks the checkout and remote refs without changing files, commits,
@@ -111,7 +111,7 @@ Run from the repository root. Once the release command has dated the changelog,
 check the metadata with Python 3:
 
 ```sh
-python3 scripts/verify-release.py --ref-type tag --ref-name v0.3.0
+python3 scripts/verify-release.py --ref-type tag --ref-name v0.4.0
 ```
 
 To check the build and publication before pushing, use Java 17+ and Bash:
@@ -161,7 +161,7 @@ For example, if the core uploaded but the companion failed, provide
 `GRADLE_PUBLISH_KEY` and `GRADLE_PUBLISH_SECRET` locally and run:
 
 ```sh
-git switch --detach v0.3.0
+git switch --detach v0.4.0
 ./gradlew :spring-boot-plugin:publishPlugins --validate-only
 ./gradlew :spring-boot-plugin:publishPlugins
 ```
