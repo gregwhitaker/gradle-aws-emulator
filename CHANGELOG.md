@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.4.0 — Unreleased
+## 0.4.0 — 2026-11-26
 
 - Upgrade the tested AWS Emulator default to 1.0.492. Verify all 18 new CloudFormation provisioning types through their owning services and cover in-place AppSync GraphQL API renames. See the [compatibility audit](docs/emulator-audits/1.0.492.md).
 - Upgrade the tested AWS Emulator default to 1.0.471 after auditing 251 native CloudFormation provisioning types, including 30 additions. Keep nested stacks, transforms, custom providers, and declaration-only types guarded; verify new provisioning paths through their owning service APIs.
