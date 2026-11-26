@@ -31,26 +31,111 @@ import software.amazon.awssdk.core.SdkClient;
 import software.amazon.awssdk.core.client.config.SdkAdvancedClientOption;
 import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
 import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.retries.api.BackoffStrategy;
 import software.amazon.awssdk.services.appsync.AppSyncClient;
 import software.amazon.awssdk.services.appsync.model.AppSyncException;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.cloudfront.CloudFrontClient;
+import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
+import software.amazon.awssdk.services.cloudwatch.model.AlarmType;
 import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.Ec2Exception;
 import software.amazon.awssdk.services.eventbridge.model.ResourceNotFoundException;
 import software.amazon.awssdk.services.servicediscovery.ServiceDiscoveryClient;
 import software.amazon.awssdk.services.servicediscovery.model.NamespaceNotFoundException;
 import software.amazon.awssdk.services.servicediscovery.model.ServiceNotFoundException;
+import software.amazon.awssdk.services.sesv2.model.NotFoundException;
 
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.List;
 
 import static io.github.gregwhitaker.awsemulator.testsupport.GradleBuilds.runner;
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Checks service state behind newly audited catalogue and dedicated dispatch families in 1.0.471. */
+/** Checks CloudFormation provisioning and declaration-only fallbacks through the owning services. */
 class CloudFormationExpandedTypesIntegrationTest {
     @TempDir Path project;
+
+    @Test void compositeAlarmAthenaResourcesAndCloudFrontStoreFollowTheStackLifecycle() throws Exception {
+        fixture("""
+            Parameters:
+              Label: {Type: String}
+            Resources:
+              Alarm:
+                Type: AWS::CloudWatch::CompositeAlarm
+                Properties: {AlarmName: audit-alarm, AlarmRule: 'FALSE', AlarmDescription: !Ref Label}
+              Queries:
+                Type: AWS::Athena::WorkGroup
+                Properties: {Name: audit-queries, Description: !Ref Label}
+              Catalog:
+                Type: AWS::Athena::DataCatalog
+                Properties:
+                  Name: audit-catalog
+                  Type: GLUE
+                  Description: !Ref Label
+                  Parameters: {catalog-id: '000000000000'}
+              Store:
+                Type: AWS::CloudFront::KeyValueStore
+                Properties: {Name: audit-store, Comment: !Ref Label}
+            Outputs:
+              StoreArn: {Value: !Ref Store}
+            """);
+        try {
+            runner(project, "deploy").build();
+            try (var watch = client(CloudWatchClient.builder()); var athena = client(AthenaClient.builder());
+                 var front = client(CloudFrontClient.builder())) {
+                String storeArn = outputs().get("StoreArn").asText();
+                for (String label : List.of("initial", "updated")) {
+                    if (label.equals("updated")) runner(project, "deploy", "-Plabel=updated").build();
+                    var alarm = watch.describeAlarms(r -> r.alarmTypes(AlarmType.COMPOSITE_ALARM)
+                        .alarmNames("audit-alarm")).compositeAlarms().get(0);
+                    assertEquals("FALSE", alarm.alarmRule());
+                    assertEquals(label, alarm.alarmDescription());
+                    assertEquals(label, athena.getWorkGroup(r -> r.workGroup("audit-queries")).workGroup().description());
+                    assertEquals(label, athena.getDataCatalog(r -> r.name("audit-catalog")).dataCatalog().description());
+                    var store = front.describeKeyValueStore(r -> r.name("audit-store")).keyValueStore();
+                    assertEquals(storeArn, store.arn());
+                    assertEquals(label, store.comment());
+                }
+                runner(project, "deleteCloudFormationStack", "--stackName=expanded-types-audit").build();
+                assertTrue(watch.describeAlarms(r -> r.alarmNames("audit-alarm").alarmTypes(AlarmType.COMPOSITE_ALARM))
+                    .compositeAlarms().isEmpty());
+                assertTrue(athena.listWorkGroups(r -> r.maxResults(50)).workGroups().stream()
+                    .noneMatch(g -> "audit-queries".equals(g.name())));
+                assertTrue(athena.listDataCatalogs(r -> r.maxResults(50)).dataCatalogsSummary().stream()
+                    .noneMatch(c -> "audit-catalog".equals(c.catalogName())));
+                assertTrue(front.listKeyValueStores(r -> r.maxItems("50")).keyValueStoreList().items().stream()
+                    .noneMatch(s -> storeArn.equals(s.arn())));
+            }
+        } finally { runner(project, "stopAwsEmulator").build(); }
+    }
+
+    @Test void cloudFormationCanCompleteAnEmailIdentityWithoutCreatingItInSes() throws Exception {
+        String template = """
+            Resources:
+              Identity:
+                Type: AWS::SES::EmailIdentity
+                Properties: {EmailIdentity: audit@example.test}
+            """;
+        fixture(template);
+        try {
+            runner(project, "startAwsEmulator").build();
+            var factory = new AwsClientFactory(connection(), 30);
+            try (var stacks = factory.cloudFormation(); var ses = factory.sesV2(); var waiter = stacks.waiter()) {
+                String stack = stacks.createStack(r -> r.stackName("declaration-only").templateBody(template)).stackId();
+                var result = waiter.waitUntilStackCreateComplete(r -> r.stackName(stack), config -> config
+                    .waitTimeout(Duration.ofSeconds(30)).maxAttempts(120)
+                    .backoffStrategyV2(BackoffStrategy.fixedDelayWithoutJitter(Duration.ofMillis(250))));
+                assertEquals("CREATE_COMPLETE", result.matched().response().orElseThrow().stacks().get(0).stackStatusAsString());
+                assertEquals("CREATE_COMPLETE", stacks.describeStackResource(r -> r.stackName(stack)
+                    .logicalResourceId("Identity")).stackResourceDetail().resourceStatusAsString());
+                assertThrows(NotFoundException.class, () -> ses.getEmailIdentity(r -> r.emailIdentity("audit@example.test")));
+            }
+        } finally { runner(project, "stopAwsEmulator").build(); }
+    }
 
     @Test void eventBusPoliciesAndMaintenanceTargetsReachTheirOwningServices() throws Exception {
         fixture("""

@@ -1,7 +1,7 @@
 = CloudFormation
 include::_partials/attributes.adoc[]
 
-Deploy local JSON or YAML templates into AWS Emulator with a provisioning check before the task connects. The plugin rejects resource types that emulator 1.0.471 would merely record as successful without creating service resources.
+Deploy local JSON or YAML templates into AWS Emulator with a provisioning check before the task connects. The plugin rejects resource types that emulator 1.0.492 would merely record as successful without creating service resources.
 
 == Start With The Runnable Example
 
@@ -78,22 +78,22 @@ awsEmulator { useWith(tasks.named('test')) }
 
 == Provisioning Guard
 
-The support catalogue is audited against AWS Emulator `v1.0.471`, commit `91eb64ca5a78a7d78f4748085e65681abc417e15`. It follows the upstream {repo-url}/blob/main/plugin/src/main/resources/io/github/gregwhitaker/awsemulator/aws/cloudformation/provisioned-types-1.0.471.txt[251 exact native provisioning type names and source references]. Nested stacks are excluded from deployment, leaving 250 accepted native types. See {repo-url}/blob/main/docs/emulator-audits/1.0.471.md[the release audit] for the dispatch comparison and compatibility checks.
+The support catalogue is audited against AWS Emulator `v1.0.492`, commit `c77c1dcdea74d430cfc2dbacc8107408e42ea92a`. It follows the upstream {repo-url}/blob/main/plugin/src/main/resources/io/github/gregwhitaker/awsemulator/aws/cloudformation/provisioned-types-1.0.492.txt[269 exact native provisioning type names and source references]. Nested stacks are excluded from deployment, leaving 268 accepted native types. See {repo-url}/blob/main/docs/emulator-audits/1.0.492.md[the release audit] for the dispatch comparison and compatibility checks.
 
 `AWS::CDK::Metadata` is also accepted as stack metadata, and `AWS::CloudFormation::WaitCondition` is accepted for the emulator's signal-handling behavior. Neither represents a separate service resource. `AWS::CloudFormation::WaitConditionHandle` remains outside the accepted catalogue. The emulator has a signed signal-URL implementation, but this audit does not certify its URL reachability, expiry, or signal lifecycle for plugin consumers.
 
-Supported native examples include `AWS::S3::Bucket`, `AWS::SQS::Queue`, `AWS::SNS::Topic`, `AWS::DynamoDB::Table`, `AWS::IAM::Role`, `AWS::Lambda::Function`, `AWS::EC2::Instance`, `AWS::Logs::LogGroup`, `AWS::CloudWatch::Alarm`, `AWS::Cognito::UserPool`, `AWS::AppSync::GraphQLApi`, `AWS::ACMPCA::Permission`, `AWS::Redshift::SnapshotCopyGrant`, `AWS::XRay::Group`, `AWS::Events::EventBus`, `AWS::SSM::MaintenanceWindow`, `AWS::ServiceDiscovery::Service`, and `AWS::AppSync::Api`. A handler indicates that creation reaches service provisioning; it does not guarantee complete AWS property coverage or data-plane behavior.
+Supported native examples include `AWS::S3::Bucket`, `AWS::SQS::Queue`, `AWS::SNS::Topic`, `AWS::DynamoDB::Table`, `AWS::IAM::Role`, `AWS::Lambda::Function`, `AWS::EC2::Instance`, `AWS::Logs::LogGroup`, `AWS::CloudWatch::Alarm`, `AWS::Cognito::UserPool`, `AWS::AppSync::GraphQLApi`, `AWS::ACMPCA::Permission`, `AWS::Redshift::SnapshotCopyGrant`, `AWS::XRay::Group`, `AWS::Events::EventBus`, `AWS::SSM::MaintenanceWindow`, `AWS::ServiceDiscovery::Service`, `AWS::AppSync::Api`, `AWS::Athena::WorkGroup`, and `AWS::CloudWatch::CompositeAlarm`. A handler indicates that creation reaches service provisioning; it does not guarantee complete AWS property coverage or data-plane behavior.
 
 [cols="2,3",options="header"]
 |===
 |Template feature |Behavior
-|Declaration-only or unknown type |Rejected with its logical ID and exact type. For example: `AWS::CloudWatch::CompositeAlarm`, `AWS::Cognito::UserPoolDomain`, `AWS::DynamoDB::GlobalTable`, and `AWS::SES::EmailIdentity`.
+|Declaration-only or unknown type |Rejected with its logical ID and exact type. Examples include `AWS::Cognito::UserPoolDomain`, `AWS::DynamoDB::GlobalTable`, and `AWS::SES::EmailIdentity`.
 |Conditional resources |Every declaration is checked, including resources under false conditions. Parameter values cannot disable the guard.
 |Transforms and macros |Root `Transform`, SAM templates, `Fn::Transform`, and `Fn::ForEach` are rejected. Supply a fully expanded template so all types are visible.
 |Nested stacks |`AWS::CloudFormation::Stack` is rejected because child templates cannot be inspected. Deploy each child with its own guarded task and explicitly pass required outputs.
 |Custom providers |`AWS::CloudFormation::CustomResource` and `Custom::*` are rejected because their provisioning behavior cannot be checked locally.
 |Ambiguous documents |Duplicate keys, multiple YAML documents, anchors, aliases, merge keys, nonliteral types, and unsupported YAML tags are rejected.
-|Different emulator version |Deployment and offline validation reject any configured `emulatorVersion` other than `1.0.471`.
+|Different emulator version |Deployment and offline validation reject any configured `emulatorVersion` other than `1.0.492`.
 |===
 
 There is no option to disable the guard or add unchecked resource types. An available service API does not imply a working CloudFormation handler: for rejected types, use the plugin's service-specific tasks where available.
@@ -102,11 +102,11 @@ The check validates resource support and document structure, not every CloudForm
 
 Service readiness is checked independently of stack status. Use the service's readiness waiter before item operations, as the runnable example does. Stack deletion can similarly finish before a table disappears.
 
-For AppSync GraphQL APIs, the lifecycle regression verifies schema updates while keeping the API name stable. Renaming a GraphQL API with dependent resources was observed to roll the stack back in `1.0.471`; the plugin reports that failure and preserves the last successful outputs. Event APIs and channel namespaces have create/delete coverage, but renaming an Event API with a dependent channel namespace also fails its stack update. Keep API names stable. Other AppSync property updates remain uncertified.
+In `1.0.492`, an AppSync GraphQL API can be renamed in place with its schema, function, and pipeline resolver attached. The service retains the API and function IDs. An AppSync Event API with a dependent channel namespace still fails its stack update on rename. Keep that Event API name stable. The plugin reports the rollback and preserves the last successful outputs.
 
 Cloud Map rejects service-description updates in HTTP namespaces. The lifecycle regression keeps the service definition stable while updating the namespace description and instance attributes.
 
-The selected runtime's configured version determines the catalogue. For xref:external-emulators.adoc[external emulators] or a custom `image`, ensure the actual emulator is 1.0.471 too; the plugin cannot establish the remote binary version from that setting. Inspect templates locally with:
+The selected runtime's configured version determines the catalogue. For xref:external-emulators.adoc[external emulators] or a custom `image`, ensure the actual emulator is 1.0.492 too; the plugin cannot establish the remote binary version from that setting. Inspect templates locally with:
 
 [source,shell]
 ----

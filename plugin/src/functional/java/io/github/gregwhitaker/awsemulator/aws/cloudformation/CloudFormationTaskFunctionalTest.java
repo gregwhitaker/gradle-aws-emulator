@@ -66,13 +66,13 @@ class CloudFormationTaskFunctionalTest {
 
     @Test void validationRereadsChangedTemplateOnConfigurationCacheReuseWithoutDocker() throws Exception {
         fixture();
-        Files.writeString(project.resolve("template.yml"), "Resources: {Queue: {Type: AWS::SQS::Queue}}");
+        Files.writeString(project.resolve("template.yml"), "Resources: {Alarm: {Type: AWS::CloudWatch::CompositeAlarm}}");
         String first = runner(project, "validateCloudFormationTemplate", "--templateFile=template.yml").build().getOutput();
         assertTrue(first.contains("passed provisioning checks"), first);
-        Files.writeString(project.resolve("template.yml"), "Resources: {Alarm: {Type: AWS::CloudWatch::CompositeAlarm}}");
+        Files.writeString(project.resolve("template.yml"), "Resources: {Identity: {Type: AWS::SES::EmailIdentity}}");
         String rejected = runner(project, "validateCloudFormationTemplate", "--templateFile=template.yml").buildAndFail().getOutput();
         assertTrue(rejected.contains("Reusing configuration cache"), rejected);
-        assertTrue(rejected.contains("Resources.Alarm (AWS::CloudWatch::CompositeAlarm)"), rejected);
+        assertTrue(rejected.contains("Resources.Identity (AWS::SES::EmailIdentity)"), rejected);
         assertFalse(Files.exists(project.resolve(".aws-emulator")));
     }
 
@@ -81,13 +81,13 @@ class CloudFormationTaskFunctionalTest {
         Files.writeString(project.resolve("template.yml"), """
             Conditions: {Never: {Fn::Equals: [one, two]}}
             Resources:
-              Alarm: {Type: AWS::CloudWatch::CompositeAlarm, Condition: Never}
+              Identity: {Type: AWS::SES::EmailIdentity, Condition: Never}
               Pool: {Type: AWS::Cognito::UserPoolDomain}
             """);
         for (String mode : new String[] {"MANAGED", "DEVELOPMENT"}) {
             String output = runner(project, "deployCloudFormationStack", "--stackName=example",
                 "--templateFile=template.yml", "--mode=" + mode).buildAndFail().getOutput();
-            assertTrue(output.contains("Resources.Alarm (AWS::CloudWatch::CompositeAlarm)"), output);
+            assertTrue(output.contains("Resources.Identity (AWS::SES::EmailIdentity)"), output);
             assertTrue(output.contains("Resources.Pool (AWS::Cognito::UserPoolDomain)"), output);
             assertFalse(output.contains("Cannot run program"), output);
             assertFalse(Files.exists(project.resolve(".aws-emulator")));
@@ -100,7 +100,7 @@ class CloudFormationTaskFunctionalTest {
             """);
         String external = runner(project, "deployCloudFormationStack", "--stackName=example",
             "--templateFile=template.yml").buildAndFail().getOutput();
-        assertTrue(external.contains("Resources.Alarm (AWS::CloudWatch::CompositeAlarm)"), external);
+        assertTrue(external.contains("Resources.Identity (AWS::SES::EmailIdentity)"), external);
         assertFalse(external.contains("external requires"), external);
     }
 

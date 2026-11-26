@@ -69,7 +69,7 @@ emulator test fixtures, and the generated guide read the same version. Consumers
 can still set `awsEmulator.emulatorVersion` explicitly. CloudFormation's audited
 version and catalogue are maintained separately, so changing the default cannot
 automatically claim support for a new release.
-Completed source reviews are recorded under [`docs/emulator-audits/`](docs/emulator-audits/1.0.471.md).
+Completed source reviews are recorded under [`docs/emulator-audits/`](docs/emulator-audits/1.0.492.md).
 
 The [AWS Emulator upgrade workflow](.github/workflows/emulator-update.yml) checks
 daily at **11:23 UTC** and supports manual dispatch from the default branch. It

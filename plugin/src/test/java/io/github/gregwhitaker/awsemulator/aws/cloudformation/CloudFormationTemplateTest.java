@@ -84,12 +84,25 @@ class CloudFormationTemplateTest {
         "AWS::SageMaker::EndpointConfig", "AWS::ServiceDiscovery::HttpNamespace",
         "AWS::ServiceDiscovery::Instance", "AWS::ServiceDiscovery::PrivateDnsNamespace",
         "AWS::ServiceDiscovery::PublicDnsNamespace", "AWS::ServiceDiscovery::Service"})
-    void acceptsTypesAddedInTheCurrentAudit(String type) {
+    void acceptsProvisionersAddedIn471(String type) {
         assertDoesNotThrow(() -> CloudFormationTemplate.validate(template(type)));
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"AWS::CloudWatch::CompositeAlarm", "AWS::Cognito::UserPoolDomain",
+    @ValueSource(strings = {"AWS::Athena::DataCatalog", "AWS::Athena::WorkGroup",
+        "AWS::AutoScaling::ScalingPolicy", "AWS::BackupGateway::Hypervisor",
+        "AWS::Batch::JobDefinition", "AWS::Bedrock::DataSource",
+        "AWS::CloudFront::CachePolicy", "AWS::CloudFront::CloudFrontOriginAccessIdentity",
+        "AWS::CloudFront::ConnectionFunction", "AWS::CloudFront::ConnectionGroup",
+        "AWS::CloudFront::Function", "AWS::CloudFront::KeyGroup", "AWS::CloudFront::KeyValueStore",
+        "AWS::CloudFront::MonitoringSubscription", "AWS::CloudFront::OriginRequestPolicy",
+        "AWS::CloudFront::PublicKey", "AWS::CloudWatch::CompositeAlarm", "AWS::S3Tables::Namespace"})
+    void acceptsProvisionersAddedIn492(String type) {
+        assertDoesNotThrow(() -> CloudFormationTemplate.validate(template(type)));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"AWS::Cognito::UserPoolDomain",
         "AWS::DynamoDB::GlobalTable", "AWS::SES::EmailIdentity", "AWS::Lambda::Url",
         "AWS::FutureService::Resource", "aws::s3::bucket",
         "AWS::Serverless::Application", "AWS::CloudFormation::WaitConditionHandle"})
@@ -103,11 +116,11 @@ class CloudFormationTemplateTest {
         var error = assertThrows(GradleException.class, () -> CloudFormationTemplate.validate("""
             Conditions: {Never: {Fn::Equals: [one, two]}}
             Resources:
-              Alarm: {Type: AWS::CloudWatch::CompositeAlarm, Condition: Never}
+              Identity: {Type: AWS::SES::EmailIdentity, Condition: Never}
               Pool: {Type: AWS::Cognito::UserPoolDomain}
               Bucket: {Type: AWS::S3::Bucket}
             """));
-        assertTrue(error.getMessage().contains("Resources.Alarm (AWS::CloudWatch::CompositeAlarm)"));
+        assertTrue(error.getMessage().contains("Resources.Identity (AWS::SES::EmailIdentity)"));
         assertTrue(error.getMessage().contains("Resources.Pool (AWS::Cognito::UserPoolDomain)"));
         assertFalse(error.getMessage().contains("Resources.Bucket"));
     }
@@ -145,19 +158,20 @@ class CloudFormationTemplateTest {
 
     @Test void fileReadIsBoundedUtf8AndVersionSpecificWithoutParserValueLeaks() throws Exception {
         Path file = directory.resolve("template.yml");
+        String version = CloudFormationTemplate.EMULATOR_VERSION;
         String valid = template("AWS::S3::Bucket");
         Files.writeString(file, valid);
-        assertEquals(valid, CloudFormationTemplate.read(file, "1.0.471"));
-        assertTrue(assertThrows(GradleException.class, () -> CloudFormationTemplate.read(file, "1.0.385"))
+        assertEquals(valid, CloudFormationTemplate.read(file, version));
+        assertTrue(assertThrows(GradleException.class, () -> CloudFormationTemplate.read(file, "1.0.471"))
             .getMessage().contains("audited only"));
         Files.writeString(file, "Resources: [private-password: broken: syntax]");
-        var failure = assertThrows(GradleException.class, () -> CloudFormationTemplate.read(file, "1.0.471"));
+        var failure = assertThrows(GradleException.class, () -> CloudFormationTemplate.read(file, version));
         assertFalse(failure.getMessage().contains("private-password"));
         assertNull(failure.getCause());
         Files.write(file, new byte[] {(byte) 0xC3, (byte) 0x28});
-        assertThrows(GradleException.class, () -> CloudFormationTemplate.read(file, "1.0.471"));
+        assertThrows(GradleException.class, () -> CloudFormationTemplate.read(file, version));
         Files.writeString(file, "x".repeat(CloudFormationTemplate.MAX_BYTES + 1));
-        assertTrue(assertThrows(GradleException.class, () -> CloudFormationTemplate.read(file, "1.0.471"))
+        assertTrue(assertThrows(GradleException.class, () -> CloudFormationTemplate.read(file, version))
             .getMessage().contains("51200"));
     }
 
