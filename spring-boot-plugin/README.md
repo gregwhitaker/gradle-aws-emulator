@@ -16,7 +16,7 @@ Compatibility coverage in this repository includes Spring Boot **3.5.16** and **
 
 ## Apply from the Plugin Portal
 
-Apply version **0.3.0** in your Spring Boot application's build script. Gradle uses the Plugin Portal by default; if you customize `pluginManagement.repositories` in your settings file, include `gradlePluginPortal()`.
+Apply version **0.4.0** in your Spring Boot application's build script. Gradle uses the Plugin Portal by default; if you customize `pluginManagement.repositories` in your settings file, include `gradlePluginPortal()`.
 
 ### Kotlin DSL
 
@@ -28,7 +28,7 @@ import io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueueTask
 plugins {
     java
     id("org.springframework.boot") version "4.1.2"
-    id("io.github.gregwhitaker.aws-emulator.spring-boot") version "0.3.0"
+    id("io.github.gregwhitaker.aws-emulator.spring-boot") version "0.4.0"
 }
 
 awsEmulator {
@@ -52,7 +52,7 @@ import io.github.gregwhitaker.awsemulator.aws.sqs.CreateSqsQueueTask
 plugins {
     id 'java'
     id 'org.springframework.boot' version '4.1.2'
-    id 'io.github.gregwhitaker.aws-emulator.spring-boot' version '0.3.0'
+    id 'io.github.gregwhitaker.aws-emulator.spring-boot' version '0.4.0'
 }
 
 awsEmulator {

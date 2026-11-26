@@ -28,7 +28,7 @@ import io.github.gregwhitaker.awsemulator.model.EmulatorMode
 
 plugins {
     java
-    id("io.github.gregwhitaker.aws-emulator") version "0.3.0"
+    id("io.github.gregwhitaker.aws-emulator") version "0.4.0"
 }
 
 val createQueue = tasks.register<CreateSqsQueueTask>("createTestQueue") {
