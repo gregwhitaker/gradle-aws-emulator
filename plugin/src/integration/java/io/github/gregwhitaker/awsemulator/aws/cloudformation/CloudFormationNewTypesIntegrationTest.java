@@ -93,15 +93,29 @@ class CloudFormationNewTypesIntegrationTest {
         }
     }
 
-    @Test void apiRenameWithDependentResourcesFailsInsteadOfReportingSuccess() throws Exception {
+    @Test void graphqlApiRenamePreservesTheApiAndItsResolverPipeline() throws Exception {
         fixture();
         try {
             runner(project, "deploy").build();
-            String outputs = Files.readString(project.resolve("build/outputs.json"));
-            var failure = runner(project, "deploy", "-Plabel=audit-renamed").buildAndFail();
-            assertTrue(failure.getOutput().contains("failed to update"), failure.getOutput());
-            assertTrue(failure.getOutput().contains("a rolled-back or failed deployment is not success"), failure.getOutput());
-            assertEquals(outputs, Files.readString(project.resolve("build/outputs.json")));
+            var mapper = new ObjectMapper();
+            var file = project.resolve("build/outputs.json").toFile();
+            var original = mapper.readTree(file);
+            String api = original.get("ApiId").asText();
+            String function = original.get("FunctionId").asText();
+
+            runner(project, "deploy", "-Plabel=audit-renamed").build();
+            var updated = mapper.readTree(file);
+            assertEquals(api, updated.get("ApiId").asText());
+            assertEquals(function, updated.get("FunctionId").asText());
+            try (var appsync = client(AppSyncClient.builder())) {
+                assertEquals("audit-renamed", appsync.getGraphqlApi(r -> r.apiId(api)).graphqlApi().name());
+                assertTrue(appsync.getIntrospectionSchema(r -> r.apiId(api).format("SDL"))
+                    .schema().asUtf8String().contains("hello"));
+                assertEquals("local", appsync.getFunction(r -> r.apiId(api).functionId(function))
+                    .functionConfiguration().dataSourceName());
+                assertEquals(function, appsync.getResolver(r -> r.apiId(api).typeName("Query").fieldName("hello"))
+                    .resolver().pipelineConfig().functions().get(0));
+            }
         } finally {
             runner(project, "stopAwsEmulator").build();
         }

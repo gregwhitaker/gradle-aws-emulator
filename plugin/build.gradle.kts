@@ -76,7 +76,8 @@ dependencies {
     implementation("org.yaml:snakeyaml:2.6")
     implementation("org.apache.commons:commons-compress:1.28.0")
     testFixturesImplementation(gradleTestKit())
-    for (service in listOf("appsync", "acmpca", "redshift", "xray", "ec2", "servicediscovery")) {
+    for (service in listOf("appsync", "acmpca", "redshift", "xray", "ec2", "servicediscovery",
+            "athena", "cloudfront", "cloudwatch")) {
         add(integrationSourceSet.implementationConfigurationName, "software.amazon.awssdk:$service") {
             exclude(group = "software.amazon.awssdk", module = "apache-client")
             exclude(group = "software.amazon.awssdk", module = "netty-nio-client")
